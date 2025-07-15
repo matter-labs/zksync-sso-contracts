@@ -4,7 +4,7 @@ pragma solidity ^0.8.23;
 import { ExecutionLib } from "./libraries/ExecutionLib.sol";
 import { ExecutionHelper } from "./core/ExecutionHelper.sol";
 import { PackedUserOperation } from "account-abstraction/interfaces/PackedUserOperation.sol";
-import { IERC7579Account } from "./interfaces/IERC7579Account.sol";
+import { IERC7579Account, Execution } from "./interfaces/IERC7579Account.sol";
 import { IMSA } from "./interfaces/IMSA.sol";
 import { ModuleManager } from "./core/ModuleManager.sol";
 import { HookManager } from "./core/HookManager.sol";
@@ -16,8 +16,18 @@ import { ERC7779Adapter } from "./core/ERC7779Adapter.sol";
 import { SentinelListLib } from "sentinellist/SentinelList.sol";
 import { PreValidationHookManager } from "./core/PreValidationHookManager.sol";
 
-import { IERC7579Module } from "./interfaces/IERC7579Module.sol";
-import { ModeLib } from "./libraries/ModeLib.sol";
+import { IModule, IValidator,
+MODULE_TYPE_EXECUTOR,
+MODULE_TYPE_VALIDATOR,
+MODULE_TYPE_HOOK,
+MODULE_TYPE_FALLBACK,
+VALIDATION_FAILED,
+VALIDATION_SUCCESS,
+MODULE_TYPE_PREVALIDATION_HOOK_ERC4337,
+MODULE_TYPE_PREVALIDATION_HOOK_ERC1271 } from "./interfaces/IERC7579Module.sol";
+import { CallType, ModeCode, ExecType,
+EXECTYPE_DEFAULT, EXECTYPE_TRY, CALLTYPE_SINGLE,
+CALLTYPE_BATCH, CALLTYPE_DELEGATECALL, ModeLib } from "./libraries/ModeLib.sol";
 
 /**
  * @author zeroknots.eth | rhinestone.wtf

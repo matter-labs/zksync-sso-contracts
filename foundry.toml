@@ -1,9 +1,7 @@
-[profile.solx]
-solc_version = "/usr/local/bin/solx"
-
 [profile.default]
 src = "src"
 out = "out"
+solc_version = "/usr/local/bin/solx"
 libs = ["lib"]
 fs_permissions = [{ access = "read", path = "out-optimized" }]
 allow_paths = ["*", "/"]
