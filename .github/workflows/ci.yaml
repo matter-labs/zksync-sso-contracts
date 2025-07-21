@@ -15,18 +15,10 @@ jobs:
         uses: actions/checkout@v4
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@v1.4.0
+      - name: Install dependencies
+        run: forge soldeer install
       - name: Build
         run: forge build
-
-  # lint:
-  #   runs-on: "ubuntu-latest"
-  #   steps:
-  #     - name: Checkout the repository
-  #       uses: actions/checkout@v4
-  #     - name: Install Foundry
-  #       uses: foundry-rs/foundry-toolchain@v1.4.0
-  #     - name: Lint
-  #       run: forge lint
 
   test:
     runs-on: "ubuntu-latest"
@@ -36,6 +28,8 @@ jobs:
         uses: actions/checkout@v4
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@v1.4.0
+      - name: Install dependencies
+        run: forge soldeer install
       - name: Test
         run: forge test
 
@@ -47,6 +41,8 @@ jobs:
         uses: actions/checkout@v4
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@v1.4.0
+      - name: Install dependencies
+        run: forge soldeer install
       - name: Setup Python
         uses: actions/setup-python@v5
         with:

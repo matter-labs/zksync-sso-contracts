@@ -1,0 +1,5 @@
+@openzeppelin/contracts/=dependencies/@openzeppelin-contracts-5.4.0/
+account-abstraction/=dependencies/eth-infinitism-account-abstraction-0.8.0/contracts
+forge-std/=dependencies/forge-std-1.9.7/src
+sentinellist/=dependencies/sentinellist-1.0.0/src
+solady/=dependencies/solady-0.1.24/src
