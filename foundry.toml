@@ -5,6 +5,9 @@ solc_version = "/usr/local/bin/solx"
 libs = ["lib"]
 fs_permissions = [{ access = "read", path = "out-optimized" }]
 allow_paths = ["*", "/"]
+optimizer = true
+optimizer_runs = 20_000
+via_ir = true
 
 [fmt]
 bracket_spacing = true

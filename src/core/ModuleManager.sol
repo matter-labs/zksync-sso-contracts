@@ -3,7 +3,10 @@ pragma solidity ^0.8.21;
 
 import { SentinelListLib, SENTINEL } from "sentinellist/SentinelList.sol";
 import {
-    CallType, CALLTYPE_SINGLE, CALLTYPE_DELEGATECALL, CALLTYPE_STATIC
+    CallType,
+    CALLTYPE_SINGLE,
+    CALLTYPE_DELEGATECALL,
+    CALLTYPE_STATIC
 } from "../libraries/ModeLib.sol";
 import { AccountBase } from "./AccountBase.sol";
 import "../interfaces/IERC7579Module.sol";

@@ -7,15 +7,15 @@ on:
 
 jobs:
   lint:
-    uses: "rhinestonewtf/reusable-workflows/.github/workflows/forge-lint.yaml@main"
+    uses: "rhinestonewtf/reusable-workflows/.github/workflows/forge-lint.yaml@0b388a38ffb4d17ef135d7ec46a8e72409fa4557"
 
   build:
-    uses: "rhinestonewtf/reusable-workflows/.github/workflows/forge-build.yaml@main"
+    uses: "rhinestonewtf/reusable-workflows/.github/workflows/forge-build.yaml@0b388a38ffb4d17ef135d7ec46a8e72409fa4557"
 
   test:
     needs: ["lint", "build"]
-    uses: "rhinestonewtf/reusable-workflows/.github/workflows/forge-test.yaml@main"
+    uses: "rhinestonewtf/reusable-workflows/.github/workflows/forge-test.yaml@0b388a38ffb4d17ef135d7ec46a8e72409fa4557"
     with:
       foundry-fuzz-runs: 5000
       foundry-profile: "test"
-      match-path: "test/**/*.sol"
+      match-path: "test/**/*.t.sol"
