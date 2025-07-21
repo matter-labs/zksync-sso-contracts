@@ -11,14 +11,18 @@ jobs:
   build:
     runs-on: "ubuntu-latest"
     steps:
-      - uses: ./.github/actions/setup
+      - name: Checkout the repository
+        uses: actions/checkout@v4
+      - name: Install foundry
+        uses: foundry-rs/foundry-toolchain@v1.4.0
       - name: Build
         run: forge build
 
   lint:
     runs-on: "ubuntu-latest"
     steps:
-      - uses: ./.github/actions/setup
+      - name: Checkout the repository
+        uses: actions/checkout@v4
       - name: Lint
         run: forge lint
 
@@ -26,7 +30,8 @@ jobs:
     runs-on: "ubuntu-latest"
     needs: ["build"]
     steps:
-      - uses: ./.github/actions/setup
+      - name: Checkout the repository
+        uses: actions/checkout@v4
       - name: Test
         run: forge test
 
