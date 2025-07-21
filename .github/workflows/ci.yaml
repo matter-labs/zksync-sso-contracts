@@ -8,19 +8,49 @@ on:
   pull_request:
 
 jobs:
-  lint:
-    uses: "rhinestonewtf/reusable-workflows/.github/workflows/forge-lint.yaml@main"
+  setup:
+    runs-on: "ubuntu-latest"
+    steps:
+      - name: "Check out the repo"
+        uses: "actions/checkout@v4"
+
+      - name: "Install Foundry"
+        uses: "foundry-rs/foundry-toolchain@v1.2.0"
+        with:
+          version: stable
+
+      - name: "Install NodeJS"
+        uses: actions/setup-node@v4
+        with:
+          node-version: lts/Iron
+          cache: 'pnpm'
+
+      - uses: pnpm/action-setup@v4
+        name: Install pnpm
+        with:
+          version: 10.13.0
+          run_install: true
 
   build:
-    uses: "rhinestonewtf/reusable-workflows/.github/workflows/forge-build.yaml@main"
+    runs-on: "ubuntu-latest"
+    needs: ["setup"]
+    steps:
+      - name: Build
+        run: forge build
+
+  lint:
+    runs-on: "ubuntu-latest"
+    needs: ["setup"]
+    steps:
+      - name: Lint
+        run: forge lint
 
   test:
+    runs-on: "ubuntu-latest"
     needs: ["build"]
-    uses: "rhinestonewtf/reusable-workflows/.github/workflows/forge-test.yaml@main"
-    with:
-      foundry-fuzz-runs: 5000
-      foundry-profile: "test"
-      match-path: "test/**/*.t.sol"
+    steps:
+      - name: Test
+        run: forge test
 
   slither:
     runs-on: ubuntu-latest
