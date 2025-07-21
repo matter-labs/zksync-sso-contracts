@@ -1,3 +1,5 @@
+name: CI
+
 on:
   workflow_dispatch:
   push:
@@ -7,15 +9,37 @@ on:
 
 jobs:
   lint:
-    uses: "rhinestonewtf/reusable-workflows/.github/workflows/forge-lint.yaml@0b388a38ffb4d17ef135d7ec46a8e72409fa4557"
+    uses: "rhinestonewtf/reusable-workflows/.github/workflows/forge-lint.yaml@main"
 
   build:
-    uses: "rhinestonewtf/reusable-workflows/.github/workflows/forge-build.yaml@0b388a38ffb4d17ef135d7ec46a8e72409fa4557"
+    uses: "rhinestonewtf/reusable-workflows/.github/workflows/forge-build.yaml@main"
 
   test:
-    needs: ["lint", "build"]
-    uses: "rhinestonewtf/reusable-workflows/.github/workflows/forge-test.yaml@0b388a38ffb4d17ef135d7ec46a8e72409fa4557"
+    needs: ["build"]
+    uses: "rhinestonewtf/reusable-workflows/.github/workflows/forge-test.yaml@main"
     with:
       foundry-fuzz-runs: 5000
       foundry-profile: "test"
       match-path: "test/**/*.t.sol"
+
+  slither:
+    runs-on: ubuntu-latest
+    needs: ["test"]
+
+    steps:
+      - name: Checkout the repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: 3.8
+
+      - name: Install Slither
+        run: |
+          pip install slither-analyzer
+
+      - name: Run Slither
+        working-directory: ./
+        run: |
+          slither --config ./slither.config.json .
