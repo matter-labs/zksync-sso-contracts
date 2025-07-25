@@ -62,12 +62,7 @@ interface IValidator is IModule {
      * @param userOpHash The hash of the user operation to be validated
      * @return return value according to ERC-4337
      */
-    function validateUserOp(
-        PackedUserOperation calldata userOp,
-        bytes32 userOpHash
-    )
-        external
-        returns (uint256);
+    function validateUserOp(PackedUserOperation calldata userOp, bytes32 userOpHash) external returns (uint256);
 
     /**
      * Validator can be used for ERC-1271 validation

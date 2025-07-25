@@ -25,10 +25,7 @@ contract ExecutionHelper {
         }
     }
 
-    function _tryExecute(Execution[] calldata executions)
-        internal
-        returns (bytes[] memory result)
-    {
+    function _tryExecute(Execution[] calldata executions) internal returns (bytes[] memory result) {
         uint256 length = executions.length;
         result = new bytes[](length);
 
@@ -87,13 +84,7 @@ contract ExecutionHelper {
     }
 
     /// @dev Execute a delegatecall with `delegate` on this account.
-    function _executeDelegatecall(
-        address delegate,
-        bytes calldata callData
-    )
-        internal
-        returns (bytes memory result)
-    {
+    function _executeDelegatecall(address delegate, bytes calldata callData) internal returns (bytes memory result) {
         /// @solidity memory-safe-assembly
         assembly {
             result := mload(0x40)

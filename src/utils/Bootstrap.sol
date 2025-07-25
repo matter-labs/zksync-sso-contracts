@@ -63,9 +63,6 @@ contract Bootstrap is ModuleManager, HookManager {
         view
         returns (bytes memory init)
     {
-        init = abi.encode(
-            address(this),
-            abi.encodeCall(this.initMSA, ($valdiators, $executors, _hook, _fallbacks))
-        );
+        init = abi.encode(address(this), abi.encodeCall(this.initMSA, ($valdiators, $executors, _hook, _fallbacks)));
     }
 }

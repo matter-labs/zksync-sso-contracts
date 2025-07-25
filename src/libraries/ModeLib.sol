@@ -89,12 +89,7 @@ library ModeLib {
     function decode(ModeCode mode)
         internal
         pure
-        returns (
-            CallType _calltype,
-            ExecType _execType,
-            ModeSelector _modeSelector,
-            ModePayload _modePayload
-        )
+        returns (CallType _calltype, ExecType _execType, ModeSelector _modeSelector, ModePayload _modePayload)
     {
         assembly {
             _calltype := mode
@@ -114,11 +109,8 @@ library ModeLib {
         pure
         returns (ModeCode)
     {
-        return ModeCode.wrap(
-            bytes32(
-                abi.encodePacked(callType, execType, bytes4(0), ModeSelector.unwrap(mode), payload)
-            )
-        );
+        return
+            ModeCode.wrap(bytes32(abi.encodePacked(callType, execType, bytes4(0), ModeSelector.unwrap(mode), payload)));
     }
 
     function encodeSimpleBatch() internal pure returns (ModeCode mode) {

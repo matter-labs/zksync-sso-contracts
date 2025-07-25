@@ -11,15 +11,7 @@ contract MSAFactory {
         implementation = _msaImplementation;
     }
 
-    function createAccount(
-        bytes32 salt,
-        bytes calldata initCode
-    )
-        public
-        payable
-        virtual
-        returns (address)
-    {
+    function createAccount(bytes32 salt, bytes calldata initCode) public payable virtual returns (address) {
         address account = address(
             new MSAProxy{ salt: salt, value: msg.value }(
                 implementation, abi.encodeCall(IMSA.initializeAccount, initCode)
@@ -29,15 +21,7 @@ contract MSAFactory {
         return account;
     }
 
-    function getAddress(
-        bytes32 salt,
-        bytes calldata initcode
-    )
-        public
-        view
-        virtual
-        returns (address)
-    {
+    function getAddress(bytes32 salt, bytes calldata initcode) public view virtual returns (address) {
         bytes32 hash = keccak256(
             abi.encodePacked(
                 bytes1(0xff),

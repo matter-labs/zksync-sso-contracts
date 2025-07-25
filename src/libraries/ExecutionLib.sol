@@ -53,11 +53,7 @@ library ExecutionLib {
         }
     }
 
-    function encodeBatch(Execution[] memory executions)
-        internal
-        pure
-        returns (bytes memory callData)
-    {
+    function encodeBatch(Execution[] memory executions) internal pure returns (bytes memory callData) {
         callData = abi.encode(executions);
     }
 

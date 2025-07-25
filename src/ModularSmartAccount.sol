@@ -68,15 +68,7 @@ contract ModularSmartAccount is
      * CallType SINGLE and BATCH and ExecType DEFAULT and TRY
      * @dev this function demonstrates how to implement hook support (modifier)
      */
-    function execute(
-        ModeCode mode,
-        bytes calldata executionCalldata
-    )
-        external
-        payable
-        onlyEntryPointOrSelf
-        withHook
-    {
+    function execute(ModeCode mode, bytes calldata executionCalldata) external payable onlyEntryPointOrSelf withHook {
         (CallType callType, ExecType execType,,) = mode.decode();
 
         // check if calltype is batch or single
@@ -89,8 +81,7 @@ contract ModularSmartAccount is
             else revert UnsupportedExecType(execType);
         } else if (callType == CALLTYPE_SINGLE) {
             // destructure executionCallData according to single exec
-            (address target, uint256 value, bytes calldata callData) =
-                executionCalldata.decodeSingle();
+            (address target, uint256 value, bytes calldata callData) = executionCalldata.decodeSingle();
             // check if execType is revert or try
             if (execType == EXECTYPE_DEFAULT) _execute(target, value, callData);
             // TODO: implement event emission for tryExecute singleCall
@@ -141,8 +132,7 @@ contract ModularSmartAccount is
             else revert UnsupportedExecType(execType);
         } else if (callType == CALLTYPE_SINGLE) {
             // destructure executionCallData according to single exec
-            (address target, uint256 value, bytes calldata callData) =
-                executionCalldata.decodeSingle();
+            (address target, uint256 value, bytes calldata callData) = executionCalldata.decodeSingle();
             returnData = new bytes[](1);
             bool success;
             // check if execType is revert or try
@@ -291,8 +281,7 @@ contract ModularSmartAccount is
         // check if validator is enabled. If not terminate the validation phase.
         if (!_isValidatorInstalled(validator)) {
             if (!isAlreadyInitialized()) {
-                address signer =
-                    ECDSA.recover(userOpHash.toEthSignedMessageHash(), userOp.signature);
+                address signer = ECDSA.recover(userOpHash.toEthSignedMessageHash(), userOp.signature);
                 if (signer != address(this)) {
                     return VALIDATION_FAILED;
                 }
@@ -301,8 +290,7 @@ contract ModularSmartAccount is
                 return VALIDATION_FAILED;
             }
         } else {
-            (userOpHash, userOp.signature) =
-                _withPreValidationHook(userOpHash, userOp, missingAccountFunds);
+            (userOpHash, userOp.signature) = _withPreValidationHook(userOpHash, userOp, missingAccountFunds);
             // bubble up the return value of the validator module
             validSignature = IValidator(validator).validateUserOp(userOp, userOpHash);
         }
@@ -316,16 +304,7 @@ contract ModularSmartAccount is
      * @param hash The hash of the data that is signed
      * @param data The data that is signed
      */
-    function isValidSignature(
-        bytes32 hash,
-        bytes calldata data
-    )
-        external
-        view
-        virtual
-        override
-        returns (bytes4)
-    {
+    function isValidSignature(bytes32 hash, bytes calldata data) external view virtual override returns (bytes4) {
         address validator = address(bytes20(data[0:20]));
         if (!_isValidatorInstalled(validator)) {
             if (!isAlreadyInitialized()) {
@@ -383,13 +362,7 @@ contract ModularSmartAccount is
     /**
      * @inheritdoc IERC7579Account
      */
-    function supportsExecutionMode(ModeCode mode)
-        external
-        view
-        virtual
-        override
-        returns (bool isSupported)
-    {
+    function supportsExecutionMode(ModeCode mode) external view virtual override returns (bool isSupported) {
         (CallType callType, ExecType execType,,) = mode.decode();
         if (callType == CALLTYPE_BATCH) isSupported = true;
         else if (callType == CALLTYPE_SINGLE) isSupported = true;

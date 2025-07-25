@@ -8,8 +8,7 @@ abstract contract ERC7779Adapter is IERC7779 {
 
     // keccak256(abi.encode(uint256(keccak256(bytes("InteroperableDelegatedAccount.ERC.Storage"))) -
     // 1)) & ~bytes32(uint256(0xff));
-    bytes32 internal constant ERC7779_STORAGE_BASE =
-        0xc473de86d0138e06e4d4918a106463a7cc005258d2e21915272bcb4594c18900;
+    bytes32 internal constant ERC7779_STORAGE_BASE = 0xc473de86d0138e06e4d4918a106463a7cc005258d2e21915272bcb4594c18900;
 
     struct ERC7779Storage {
         bytes32[] storageBases;

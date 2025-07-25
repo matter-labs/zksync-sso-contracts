@@ -61,13 +61,7 @@ interface IERC7579Account {
      * @param initData arbitrary data that may be required on the module during `onInstall`
      * initialization.
      */
-    function installModule(
-        uint256 moduleTypeId,
-        address module,
-        bytes calldata initData
-    )
-        external
-        payable;
+    function installModule(uint256 moduleTypeId, address module, bytes calldata initData) external payable;
 
     /**
      * @dev uninstalls a Module of a certain type on the smart account
@@ -77,13 +71,7 @@ interface IERC7579Account {
      * @param deInitData arbitrary data that may be required on the module during `onUninstall`
      * de-initialization.
      */
-    function uninstallModule(
-        uint256 moduleTypeId,
-        address module,
-        bytes calldata deInitData
-    )
-        external
-        payable;
+    function uninstallModule(uint256 moduleTypeId, address module, bytes calldata deInitData) external payable;
 
     /**
      * Function to check if the account supports a certain CallType or ExecType (see ModeLib.sol)

@@ -27,11 +27,7 @@ abstract contract PreValidationHookManager {
 
     error PreValidationHookAlreadyInstalled(address currentHook);
 
-    function _getStorage()
-        internal
-        pure
-        returns (PreValidationHookManagerStorage storage storage_)
-    {
+    function _getStorage() internal pure returns (PreValidationHookManagerStorage storage storage_) {
         bytes32 slot = PREVALIDATION_HOOKMANAGER_STORAGE_LOCATION;
         assembly {
             storage_.slot := slot
@@ -49,14 +45,7 @@ abstract contract PreValidationHookManager {
         }
     }
 
-    function _installPreValidationHook(
-        address hook,
-        uint256 hookType,
-        bytes calldata data
-    )
-        internal
-        virtual
-    {
+    function _installPreValidationHook(address hook, uint256 hookType, bytes calldata data) internal virtual {
         PreValidationHookManagerStorage storage $ = _getStorage();
         address currentHook = _getPreValidationHook(hookType);
         if (currentHook != address(0)) {
@@ -70,20 +59,11 @@ abstract contract PreValidationHookManager {
         }
     }
 
-    function _uninstallPreValidationHook(
-        address hook,
-        uint256 hookType,
-        bytes calldata data
-    )
-        internal
-        virtual
-    {
+    function _uninstallPreValidationHook(address hook, uint256 hookType, bytes calldata data) internal virtual {
         PreValidationHookManagerStorage storage $ = _getStorage();
         if (hookType == MODULE_TYPE_PREVALIDATION_HOOK_ERC1271 && address($.hook1271) == hook) {
             $.hook1271.onUninstall(data);
-        } else if (
-            hookType == MODULE_TYPE_PREVALIDATION_HOOK_ERC4337 && address($.hook4337) == hook
-        ) {
+        } else if (hookType == MODULE_TYPE_PREVALIDATION_HOOK_ERC4337 && address($.hook4337) == hook) {
             $.hook4337.onUninstall(data);
         } else {
             revert InvalidHookType();
@@ -121,14 +101,7 @@ abstract contract PreValidationHookManager {
         }
     }
 
-    function _isPreValidationHookInstalled(
-        address module,
-        uint256 hookType
-    )
-        internal
-        view
-        returns (bool)
-    {
+    function _isPreValidationHookInstalled(address module, uint256 hookType) internal view returns (bool) {
         return _getPreValidationHook(hookType) == module;
     }
 
@@ -149,9 +122,7 @@ abstract contract PreValidationHookManager {
         if (preValidationHook == address(0)) {
             return (hash, signature);
         } else {
-            return IPreValidationHookERC1271(preValidationHook).preValidationHookERC1271(
-                msg.sender, hash, signature
-            );
+            return IPreValidationHookERC1271(preValidationHook).preValidationHookERC1271(msg.sender, hash, signature);
         }
     }
 
@@ -168,9 +139,8 @@ abstract contract PreValidationHookManager {
         if (preValidationHook == address(0)) {
             return (hash, userOp.signature);
         } else {
-            return IPreValidationHookERC4337(preValidationHook).preValidationHookERC4337(
-                userOp, missingAccountFunds, hash
-            );
+            return
+                IPreValidationHookERC4337(preValidationHook).preValidationHookERC4337(userOp, missingAccountFunds, hash);
         }
     }
 }

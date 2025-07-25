@@ -11,13 +11,7 @@ interface IERC7484 {
 
     function check(address module, uint256 moduleType) external view;
 
-    function checkForAccount(
-        address smartAccount,
-        address module,
-        uint256 moduleType
-    )
-        external
-        view;
+    function checkForAccount(address smartAccount, address module, uint256 moduleType) external view;
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*              Check with external attester(s)               */
@@ -27,13 +21,7 @@ interface IERC7484 {
 
     function check(address module, uint256 moduleType, address attester) external view;
 
-    function checkN(
-        address module,
-        address[] calldata attesters,
-        uint256 threshold
-    )
-        external
-        view;
+    function checkN(address module, address[] calldata attesters, uint256 threshold) external view;
 
     function checkN(
         address module,

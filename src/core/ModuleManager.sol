@@ -2,12 +2,7 @@
 pragma solidity ^0.8.21;
 
 import { SentinelListLib, SENTINEL } from "sentinellist/SentinelList.sol";
-import {
-    CallType,
-    CALLTYPE_SINGLE,
-    CALLTYPE_DELEGATECALL,
-    CALLTYPE_STATIC
-} from "../libraries/ModeLib.sol";
+import { CallType, CALLTYPE_SINGLE, CALLTYPE_DELEGATECALL, CALLTYPE_STATIC } from "../libraries/ModeLib.sol";
 import { AccountBase } from "./AccountBase.sol";
 import "../interfaces/IERC7579Module.sol";
 import "forge-std/interfaces/IERC165.sol";
@@ -243,13 +238,7 @@ abstract contract ModuleManager is AccountBase, Receiver {
         IFallback(handler).onInstall(initData);
     }
 
-    function _uninstallFallbackHandler(
-        address handler,
-        bytes calldata deInitData
-    )
-        internal
-        virtual
-    {
+    function _uninstallFallbackHandler(address handler, bytes calldata deInitData) internal virtual {
         bytes4 selector = bytes4(deInitData[0:4]);
         bytes memory _deInitData = deInitData[4:];
 
@@ -273,25 +262,12 @@ abstract contract ModuleManager is AccountBase, Receiver {
         return $fallback.handler != address(0);
     }
 
-    function _isFallbackHandlerInstalled(
-        bytes4 functionSig,
-        address _handler
-    )
-        internal
-        view
-        virtual
-        returns (bool)
-    {
+    function _isFallbackHandlerInstalled(bytes4 functionSig, address _handler) internal view virtual returns (bool) {
         FallbackHandler storage $fallback = $moduleManager().$fallbacks[functionSig];
         return $fallback.handler == _handler;
     }
 
-    function getActiveFallbackHandler(bytes4 functionSig)
-        external
-        view
-        virtual
-        returns (FallbackHandler memory)
-    {
+    function getActiveFallbackHandler(bytes4 functionSig) external view virtual returns (FallbackHandler memory) {
         return $moduleManager().$fallbacks[functionSig];
     }
 
@@ -318,8 +294,7 @@ abstract contract ModuleManager is AccountBase, Receiver {
                 mstore(senderPtr, shl(96, caller()))
 
                 // Add 20 bytes for the address appended add the end
-                let success :=
-                    staticcall(gas(), handler, calldataPtr, add(calldatasize(), 20), 0, 0)
+                let success := staticcall(gas(), handler, calldataPtr, add(calldatasize(), 20), 0, 0)
 
                 let returnDataPtr := allocate(returndatasize())
                 returndatacopy(returnDataPtr, 0, returndatasize())
