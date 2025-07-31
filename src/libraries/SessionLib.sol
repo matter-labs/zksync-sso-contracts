@@ -84,7 +84,7 @@ library SessionLib {
     struct UsageLimit {
         LimitType limitType;
         uint256 limit; // ignored if limitType == Unlimited
-        uint256 period; // ignored if limitType != Allowance
+        uint48 period; // ignored if limitType != Allowance
     }
 
     enum LimitType {
@@ -162,22 +162,21 @@ library SessionLib {
         UsageLimit memory limit,
         UsageTracker storage tracker,
         uint256 value,
-        uint64 period
+        uint48 period
     )
-        internal
+        internal returns (uint48 validAfter, uint48 validUntil)
     {
         if (limit.limitType == LimitType.Lifetime) {
-            if (tracker.lifetimeUsage[msg.sender] + value > limit.limit) {
-                revert LifetimeUsageExceeded(tracker.lifetimeUsage[msg.sender], limit.limit);
-            }
+            validAfter = 0;
+            validUntil = type(uint48).max;
+            require(tracker.lifetimeUsage[msg.sender] + value <= limit.limit,
+                LifetimeUsageExceeded(tracker.lifetimeUsage[msg.sender], limit.limit));
             tracker.lifetimeUsage[msg.sender] += value;
         } else if (limit.limitType == LimitType.Allowance) {
-            // TODO: return time range in validateUserOp
-            // TimestampAsserterLocator.locate().assertTimestampInRange(period * limit.period,
-            // (period + 1) * limit.period - 1);
-            if (tracker.allowanceUsage[period][msg.sender] + value > limit.limit) {
-                revert AllowanceExceeded(tracker.allowanceUsage[period][msg.sender], limit.limit, period);
-            }
+            validAfter = period * limit.period;
+            validUntil = (period + 1) * limit.period;
+            require(tracker.allowanceUsage[period][msg.sender] + value <= limit.limit,
+                AllowanceExceeded(tracker.allowanceUsage[period][msg.sender], limit.limit, period));
             tracker.allowanceUsage[period][msg.sender] += value;
         }
     }
@@ -193,9 +192,9 @@ library SessionLib {
         Constraint memory constraint,
         UsageTracker storage tracker,
         bytes memory data,
-        uint64 period
+        uint48 period
     )
-        internal
+        internal returns (uint48, uint48)
     {
         uint256 expectedLength = 4 + constraint.index * 32 + 32;
         if (data.length < expectedLength) {
@@ -215,54 +214,7 @@ library SessionLib {
             revert ConditionViolated(param, refValue, uint8(condition));
         }
 
-        constraint.limit.checkAndUpdate(tracker, uint256(param), period);
-    }
-
-    /// @notice Finds the call policy, checks if it is violated and updates the usage trackers.
-    /// @param state The session storage to update.
-    /// @param data The transaction data to check the call policy against.
-    /// @param target The target address of the call.
-    /// @param selector The 4-byte selector of the call.
-    /// @param callPolicies The call policies to search through.
-    /// @param periodIds The period IDs to check the allowances against. The length has to be at
-    /// least `periodIdsOffset + callPolicies.length`.
-    /// @param periodIdsOffset The offset in the `periodIds` array to start checking the
-    /// constraints.
-    /// @return The call policy that was found, reverts if not found or if the call is not allowed.
-    function checkCallPolicy(
-        SessionStorage storage state,
-        bytes memory data,
-        address target,
-        bytes4 selector,
-        CallSpec[] memory callPolicies,
-        uint64[] memory periodIds,
-        uint256 periodIdsOffset
-    )
-        private
-        returns (CallSpec memory)
-    {
-        CallSpec memory callPolicy;
-        bool found = false;
-
-        for (uint256 i = 0; i < callPolicies.length; i++) {
-            if (callPolicies[i].target == target && callPolicies[i].selector == selector) {
-                callPolicy = callPolicies[i];
-                found = true;
-                break;
-            }
-        }
-
-        if (!found) {
-            revert CallPolicyViolated(target, selector);
-        }
-
-        for (uint256 i = 0; i < callPolicy.constraints.length; i++) {
-            callPolicy.constraints[i].checkAndUpdate(
-                state.params[target][selector][i], data, periodIds[periodIdsOffset + i]
-            );
-        }
-
-        return callPolicy;
+        return constraint.limit.checkAndUpdate(tracker, uint256(param), period);
     }
 
     /// @notice Validates the fee limit of the session and updates the tracker.
@@ -286,16 +238,18 @@ library SessionLib {
         SessionStorage storage state,
         PackedUserOperation calldata userOp,
         SessionSpec memory spec,
-        uint64 periodId
+        uint48 periodId
     )
-        internal
+        internal returns (uint48 validAfter, uint48 validUntil)
     {
         // If a paymaster is paying the fee, we don't need to check the fee limit
         if (userOp.paymasterAndData.length == 0) {
             uint256 gasPrice = userOp.gasPrice();
             uint256 gasLimit = userOp.unpackVerificationGasLimit() + userOp.unpackCallGasLimit();
             uint256 fee = gasPrice * gasLimit;
-            spec.feeLimit.checkAndUpdate(state.fee, fee, periodId);
+            return spec.feeLimit.checkAndUpdate(state.fee, fee, periodId);
+        } else {
+            return (0, type(uint48).max);
         }
     }
 
@@ -319,34 +273,39 @@ library SessionLib {
         SessionStorage storage state,
         PackedUserOperation calldata userOp,
         SessionSpec memory spec,
-        uint64[] memory periodIds
+        uint48[] memory periodIds
     )
-        internal
+        internal returns (uint48 validAfter, uint48 validUntil)
     {
-        if (state.status[msg.sender] != Status.Active) {
-            revert SessionNotActive();
-        }
-
-        ModeCode mode = ModeCode.wrap(bytes32(userOp.callData[4:36]));
-        (CallType callType, ExecType _execType,,) = mode.decode();
-        if (!(callType == CALLTYPE_SINGLE)) {
-            revert InvalidCallType(callType, CALLTYPE_SINGLE);
-        }
+        require(state.status[msg.sender] == Status.Active, SessionNotActive());
+        CallType callType = CallType.wrap(userOp.callData[4]);
+        require(callType == CALLTYPE_SINGLE, InvalidCallType(callType, CALLTYPE_SINGLE));
         (address target, uint256 value, bytes calldata callData) = ExecutionLib.decodeSingle(userOp.callData[36:]);
-
-        // TODO
-        // TimestampAsserterLocator.locate().assertTimestampInRange(0, spec.expiresAt);
-
-        uint256 periodIdsOffset = 2;
 
         if (callData.length >= 4) {
             bytes4 selector = bytes4(callData[:4]);
-            CallSpec memory callPolicy =
-                checkCallPolicy(state, callData, target, selector, spec.callPolicies, periodIds, periodIdsOffset);
-            if (value > callPolicy.maxValuePerUse) {
-                revert MaxValueExceeded(value, callPolicy.maxValuePerUse);
+            CallSpec memory callPolicy;
+            bool found = false;
+
+            for (uint256 i = 0; i < spec.callPolicies.length; i++) {
+                if (spec.callPolicies[i].target == target && spec.callPolicies[i].selector == selector) {
+                    callPolicy = spec.callPolicies[i];
+                    found = true;
+                    break;
+                }
             }
-            callPolicy.valueLimit.checkAndUpdate(state.callValue[target][selector], value, periodIds[1]);
+
+            require(found, CallPolicyViolated(target, selector));
+            require(value <= callPolicy.maxValuePerUse, MaxValueExceeded(value, callPolicy.maxValuePerUse));
+            (validAfter, validUntil) = callPolicy.valueLimit.checkAndUpdate(state.callValue[target][selector], value, periodIds[1]);
+
+            for (uint256 i = 0; i < callPolicy.constraints.length; i++) {
+                (uint48 newValidAfter, uint48 newValidUntil) = callPolicy.constraints[i].checkAndUpdate(
+                    state.params[target][selector][i], callData, periodIds[2 + i]
+                );
+                validAfter = newValidAfter > validAfter ? newValidAfter : validAfter;
+                validUntil = newValidUntil < validUntil ? newValidUntil : validUntil;
+            }
         } else {
             TransferSpec memory transferPolicy;
             bool found = false;
@@ -359,13 +318,9 @@ library SessionLib {
                 }
             }
 
-            if (!found) {
-                revert TransferPolicyViolated(target);
-            }
-            if (value > transferPolicy.maxValuePerUse) {
-                revert MaxValueExceeded(value, transferPolicy.maxValuePerUse);
-            }
-            transferPolicy.valueLimit.checkAndUpdate(state.transferValue[target], value, periodIds[1]);
+            require(found, TransferPolicyViolated(target));
+            require(value <= transferPolicy.maxValuePerUse, MaxValueExceeded(value, transferPolicy.maxValuePerUse));
+            (validAfter, validUntil) = transferPolicy.valueLimit.checkAndUpdate(state.transferValue[target], value, periodIds[1]);
         }
     }
 

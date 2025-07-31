@@ -8,6 +8,7 @@ pragma solidity ^0.8.21;
 contract AccountBase {
     error AccountAccessUnauthorized();
 
+    // TODO: custom slot for this?
     address public ENTRY_POINT;
 
     /////////////////////////////////////////////////////

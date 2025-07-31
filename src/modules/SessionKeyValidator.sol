@@ -5,6 +5,7 @@ import { IERC165 } from "@openzeppelin/contracts/utils/introspection/IERC165.sol
 import { ECDSA } from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import { SessionLib } from "../libraries/SessionLib.sol";
 import { PackedUserOperation } from "account-abstraction/interfaces/PackedUserOperation.sol";
+import { _packValidationData, SIG_VALIDATION_FAILED } from "account-abstraction/core/Helpers.sol";
 
 import { IMSA } from "../interfaces/IMSA.sol";
 import { IValidator, IModule, MODULE_TYPE_VALIDATOR } from "../interfaces/IERC7579Module.sol";
@@ -104,36 +105,22 @@ contract SessionKeyValidator is IValidator {
     /// @param sessionSpec The session specification to create a session with
     function createSession(SessionLib.SessionSpec memory sessionSpec) public virtual {
         bytes32 sessionHash = keccak256(abi.encode(sessionSpec));
-        if (!isInitialized(msg.sender)) {
-            // TODO
-            // revert Errors.NOT_FROM_INITIALIZED_ACCOUNT(msg.sender);
-            revert("not initialized account");
-        }
-        if (sessionSpec.signer == address(0)) {
-            revert SessionLib.ZeroSigner();
-        }
+        // TODO error
+        require(isInitialized(msg.sender), "not initialized");
+        require(sessionSpec.signer != address(0), SessionLib.ZeroSigner());
         // Avoid using same session key for multiple sessions, contract-wide
-        if (sessionSigner[sessionSpec.signer] != bytes32(0)) {
-            revert SessionLib.SignerAlreadyUsed(sessionSpec.signer);
-        }
-        if (sessionSpec.feeLimit.limitType == SessionLib.LimitType.Unlimited) {
-            revert SessionLib.UnlimitedFees();
-        }
-        if (sessions[sessionHash].status[msg.sender] != SessionLib.Status.NotInitialized) {
-            revert SessionLib.SessionAlreadyExists(sessionHash);
-        }
+        require(sessionSigner[sessionSpec.signer] == bytes32(0), SessionLib.SignerAlreadyUsed(sessionSpec.signer));
+        require(sessionSpec.feeLimit.limitType != SessionLib.LimitType.Unlimited, SessionLib.UnlimitedFees());
+        require(sessions[sessionHash].status[msg.sender] == SessionLib.Status.NotInitialized, SessionLib.SessionAlreadyExists(sessionHash));
         // Sessions should expire in no less than 60 seconds.
-        if (sessionSpec.expiresAt <= block.timestamp + 60) {
-            revert SessionLib.SessionExpiresTooSoon(sessionSpec.expiresAt);
-        }
+        require(sessionSpec.expiresAt <= block.timestamp + 60, SessionLib.SessionExpiresTooSoon(sessionSpec.expiresAt));
 
         uint256 totalCallPolicies = sessionSpec.callPolicies.length;
         for (uint256 i = 0; i < totalCallPolicies; i++) {
-            if (isBannedCall(sessionSpec.callPolicies[i].target, sessionSpec.callPolicies[i].selector)) {
-                revert SessionLib.CallPolicyBanned(
+            require(!isBannedCall(sessionSpec.callPolicies[i].target, sessionSpec.callPolicies[i].selector),
+                SessionLib.CallPolicyBanned(
                     sessionSpec.callPolicies[i].target, sessionSpec.callPolicies[i].selector
-                );
-            }
+                ));
         }
 
         sessions[sessionHash].status[msg.sender] = SessionLib.Status.Active;
@@ -158,9 +145,7 @@ contract SessionKeyValidator is IValidator {
     /// @param sessionHash The hash of a session to revoke
     /// @dev Decreases the session counter for the account
     function revokeKey(bytes32 sessionHash) public virtual {
-        if (sessions[sessionHash].status[msg.sender] != SessionLib.Status.Active) {
-            revert SessionLib.SessionNotActive();
-        }
+        require(sessions[sessionHash].status[msg.sender] == SessionLib.Status.Active, SessionLib.SessionNotActive());
         sessions[sessionHash].status[msg.sender] = SessionLib.Status.Closed;
         emit SessionRevoked(msg.sender, sessionHash);
     }
@@ -188,27 +173,27 @@ contract SessionKeyValidator is IValidator {
     function validateUserOp(PackedUserOperation calldata userOp, bytes32 userOpHash) public virtual returns (uint256) {
         (, bytes memory transactionSignature, bytes memory validatorData) =
             abi.decode(userOp.signature, (address, bytes, bytes));
-        (SessionLib.SessionSpec memory spec, uint64[] memory periodIds) = abi.decode(
+        (SessionLib.SessionSpec memory spec, uint48[] memory periodIds) = abi.decode(
             validatorData, // this is passed by the signature builder
-            (SessionLib.SessionSpec, uint64[])
+            (SessionLib.SessionSpec, uint48[])
         );
-        if (spec.signer == address(0)) {
-            revert SessionLib.ZeroSigner();
-        }
+        require(spec.signer != address(0), SessionLib.ZeroSigner());
         bytes32 sessionHash = keccak256(abi.encode(spec));
-        // this generally throws instead of returning false
-        sessions[sessionHash].validate(userOp, spec, periodIds);
+        // this will revert if session spec is violated
+        (uint48 validAfter, uint48 validUntil) = sessions[sessionHash].validate(userOp, spec, periodIds);
         (address recoveredAddress, ECDSA.RecoverError recoverError,) =
             ECDSA.tryRecover(userOpHash, transactionSignature);
         if (
             recoverError != ECDSA.RecoverError.NoError || recoveredAddress == address(0)
                 || recoveredAddress != spec.signer
         ) {
-            return 1;
+            return SIG_VALIDATION_FAILED;
         }
         // This check is separate and performed last to prevent gas estimation failures
-        sessions[sessionHash].validateFeeLimit(userOp, spec, periodIds[0]);
-        return 0;
+        (uint48 newValidAfter, uint48 newValidUntil) = sessions[sessionHash].validateFeeLimit(userOp, spec, periodIds[0]);
+        validAfter = newValidAfter > validAfter ? validAfter : newValidAfter;
+        validUntil = newValidUntil < validUntil ? validUntil : newValidUntil;
+        return _packValidationData(false, validUntil, validAfter);
     }
 
     function isModuleType(uint256 moduleTypeId) external pure virtual returns (bool) {

@@ -9,11 +9,9 @@ import { IMSA } from "./interfaces/IMSA.sol";
 import { ModuleManager } from "./core/ModuleManager.sol";
 import { HookManager } from "./core/HookManager.sol";
 import { RegistryAdapter } from "./core/RegistryAdapter.sol";
-import { HashLib } from "./libraries/HashLib.sol";
 import { ECDSA } from "solady/utils/ECDSA.sol";
 import { Initializable } from "./libraries/Initializable.sol";
 import { ERC7779Adapter } from "./core/ERC7779Adapter.sol";
-import { SentinelListLib } from "sentinellist/SentinelList.sol";
 import { PreValidationHookManager } from "./core/PreValidationHookManager.sol";
 
 import {
@@ -61,7 +59,6 @@ contract ModularSmartAccount is
     using ExecutionLib for bytes;
     using ModeLib for ModeCode;
     using ECDSA for bytes32;
-    using SentinelListLib for SentinelListLib.SentinelList;
 
     /**
      * @inheritdoc IERC7579Account
@@ -275,15 +272,7 @@ contract ModularSmartAccount is
 
         // check if validator is enabled. If not terminate the validation phase.
         if (!_isValidatorInstalled(validator)) {
-            if (!isAlreadyInitialized()) {
-                address signer = ECDSA.recover(userOpHash.toEthSignedMessageHash(), userOp.signature);
-                if (signer != address(this)) {
-                    return VALIDATION_FAILED;
-                }
-                return VALIDATION_SUCCESS;
-            } else {
-                return VALIDATION_FAILED;
-            }
+            return VALIDATION_FAILED;
         } else {
             // TODO
             // (userOpHash, userOp.signature) = _withPreValidationHook(userOpHash, userOp, missingAccountFunds);
@@ -303,12 +292,6 @@ contract ModularSmartAccount is
     function isValidSignature(bytes32 hash, bytes calldata data) external view virtual override returns (bytes4) {
         address validator = address(bytes20(data[0:20]));
         if (!_isValidatorInstalled(validator)) {
-            if (!isAlreadyInitialized()) {
-                address signer = ECDSA.recover(hash.toEthSignedMessageHash(), data);
-                if (signer == address(this)) {
-                    return 0x1626ba7e; // EIP1271MagicValue
-                }
-            }
             revert InvalidModule(validator);
         }
         bytes memory signature_;
@@ -400,9 +383,6 @@ contract ModularSmartAccount is
 
         ENTRY_POINT = entryPoint;
 
-        // checks if already initialized and reverts before setting the state to initialized
-        _initModuleManager();
-
         _installValidator(address(validator), data);
         // bool isERC7702;
         // assembly {
@@ -417,10 +397,6 @@ contract ModularSmartAccount is
         //     _addStorageBase(MODULEMANAGER_STORAGE_LOCATION);
         //     _addStorageBase(HOOKMANAGER_STORAGE_LOCATION);
         // }
-
-        // bootstrap the account
-        // (address bootstrap, bytes memory bootstrapCall) = abi.decode(data, (address, bytes));
-        // _initAccount(bootstrap, bootstrapCall);
     }
 
     /**
@@ -439,6 +415,5 @@ contract ModularSmartAccount is
         _tryUninstallValidators();
         _tryUninstallExecutors();
         _tryUninstallHook(_getHook());
-        _initModuleManager();
     }
 }
