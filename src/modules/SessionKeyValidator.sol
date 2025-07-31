@@ -183,11 +183,11 @@ contract SessionKeyValidator is IValidator {
     /// @notice Validate a session transaction for an account
     /// @param userOp User operation to validate
     /// @param userOpHash The hash of the userOp
-    /// @return true if the transaction is valid
+    /// TODO @return
     /// @dev Session spec and period IDs must be provided as validator data
     function validateUserOp(PackedUserOperation calldata userOp, bytes32 userOpHash) public virtual returns (uint256) {
-        (bytes memory transactionSignature, address _validator, bytes memory validatorData) =
-            abi.decode(userOp.signature, (bytes, address, bytes));
+        (, bytes memory transactionSignature, bytes memory validatorData) =
+            abi.decode(userOp.signature, (address, bytes, bytes));
         (SessionLib.SessionSpec memory spec, uint64[] memory periodIds) = abi.decode(
             validatorData, // this is passed by the signature builder
             (SessionLib.SessionSpec, uint64[])

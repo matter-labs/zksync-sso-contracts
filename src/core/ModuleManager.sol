@@ -7,6 +7,7 @@ import { AccountBase } from "./AccountBase.sol";
 import "../interfaces/IERC7579Module.sol";
 import "forge-std/interfaces/IERC165.sol";
 import "./Receiver.sol";
+// TODO: move from sentinellist to enumerableset
 
 /**
  * @title ModuleManager
@@ -15,7 +16,7 @@ import "./Receiver.sol";
  * @dev it uses SentinelList to manage the linked list of modules
  * NOTE: the linked list is just an example. accounts may implement this differently
  */
-abstract contract ModuleManager is AccountBase, Receiver {
+abstract contract ModuleManager is Receiver {
     using SentinelListLib for SentinelListLib.SentinelList;
 
     error InvalidModule(address module);

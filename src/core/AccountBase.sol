@@ -8,26 +8,24 @@ pragma solidity ^0.8.21;
 contract AccountBase {
     error AccountAccessUnauthorized();
 
+    address public ENTRY_POINT;
+
     /////////////////////////////////////////////////////
     // Access Control
     ////////////////////////////////////////////////////
 
     modifier onlyEntryPointOrSelf() virtual {
-        if (!(msg.sender == entryPoint() || msg.sender == address(this))) {
+        if (!(msg.sender == ENTRY_POINT || msg.sender == address(this))) {
             revert AccountAccessUnauthorized();
         }
         _;
     }
 
     modifier onlyEntryPoint() virtual {
-        if (msg.sender != entryPoint()) {
+        if (msg.sender != ENTRY_POINT) {
             revert AccountAccessUnauthorized();
         }
         _;
-    }
-
-    function entryPoint() public view virtual returns (address) {
-        return 0x0000000071727De22E5E9d8BAf0edAc6f37da032;
     }
 
     /// @dev Sends to the EntryPoint (i.e. `msg.sender`) the missing funds for this transaction.

@@ -23,5 +23,5 @@ interface IMSA is IERC7579Account, IERC4337Account, IERC7779 {
      * @dev Initializes the account. Function might be called directly, or by a Factory
      * @param data. encoded data that can be used during the initialization phase
      */
-    function initializeAccount(bytes calldata data) external payable;
+    // function initializeAccount(bytes calldata data) external payable;
 }

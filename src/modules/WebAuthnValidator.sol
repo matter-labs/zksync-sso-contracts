@@ -182,7 +182,7 @@ contract WebAuthnValidator is IValidator {
     /// @param userOp The user operation to validate
     // TODO return
     function validateUserOp(PackedUserOperation calldata userOp, bytes32 signedHash) external view returns (uint256) {
-        (bytes memory signature,,) = abi.decode(userOp.signature, (bytes, address, bytes));
+        (, bytes memory signature,) = abi.decode(userOp.signature, (address, bytes, bytes));
         return webAuthVerify(signedHash, signature) ? 0 : 1;
     }
 

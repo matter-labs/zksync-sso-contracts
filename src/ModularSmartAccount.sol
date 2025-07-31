@@ -39,6 +39,8 @@ import {
     CALLTYPE_DELEGATECALL,
     ModeLib
 } from "./libraries/ModeLib.sol";
+import { AccountBase } from "./core/AccountBase.sol";
+import { console } from "forge-std/console.sol";
 
 /**
  * @author zeroknots.eth | rhinestone.wtf
@@ -257,7 +259,7 @@ contract ModularSmartAccount is
      * @param userOp PackedUserOperation struct (see ERC-4337 v0.7+)
      */
     function validateUserOp(
-        PackedUserOperation memory userOp,
+        PackedUserOperation calldata userOp,
         bytes32 userOpHash,
         uint256 missingAccountFunds
     )
@@ -268,15 +270,8 @@ contract ModularSmartAccount is
         payPrefund(missingAccountFunds)
         returns (uint256 validSignature)
     {
-        address validator;
-        // @notice validator encoding in nonce is just an example!
-        // @notice this is not part of the standard!
-        // Account Vendors may choose any other way to implement validator selection
-        // FIXME
-        uint256 nonce = userOp.nonce;
-        assembly {
-            validator := shr(96, nonce)
-        }
+        console.log("validateUserOp");
+        address validator = address(bytes20(userOp.signature[12:32]));
 
         // check if validator is enabled. If not terminate the validation phase.
         if (!_isValidatorInstalled(validator)) {
@@ -290,7 +285,8 @@ contract ModularSmartAccount is
                 return VALIDATION_FAILED;
             }
         } else {
-            (userOpHash, userOp.signature) = _withPreValidationHook(userOpHash, userOp, missingAccountFunds);
+            // TODO
+            // (userOpHash, userOp.signature) = _withPreValidationHook(userOpHash, userOp, missingAccountFunds);
             // bubble up the return value of the validator module
             validSignature = IValidator(validator).validateUserOp(userOp, userOpHash);
         }
@@ -395,31 +391,36 @@ contract ModularSmartAccount is
      * @dev Initializes the account. Function might be called directly, or by a Factory
      * @param data. encoded data that can be used during the initialization phase
      */
-    function initializeAccount(bytes calldata data) public payable virtual {
+    function initializeAccount(address entryPoint, address validator, bytes calldata data) public payable virtual {
         // protect this function to only be callable when used with the proxy factory or when
         // account calls itself
         if (msg.sender != address(this)) {
             Initializable.checkInitializable();
         }
 
+        ENTRY_POINT = entryPoint;
+
         // checks if already initialized and reverts before setting the state to initialized
         _initModuleManager();
-        bool isERC7702;
-        assembly {
-            isERC7702 :=
-                eq(
-                    extcodehash(address()),
-                    0xeadcdba66a79ab5dce91622d1d75c8cff5cff0b96944c3bf1072cd08ce018329 // (keccak256(0xef01))
-                )
-        }
-        if (isERC7702) {
-            _addStorageBase(MODULEMANAGER_STORAGE_LOCATION);
-            _addStorageBase(HOOKMANAGER_STORAGE_LOCATION);
-        }
+
+        _installValidator(address(validator), data);
+        // bool isERC7702;
+        // assembly {
+        //     // TODO: why does this work??
+        //     isERC7702 :=
+        //         eq(
+        //             extcodehash(address()),
+        //             0xeadcdba66a79ab5dce91622d1d75c8cff5cff0b96944c3bf1072cd08ce018329 // (keccak256(0xef01))
+        //         )
+        // }
+        // if (isERC7702) {
+        //     _addStorageBase(MODULEMANAGER_STORAGE_LOCATION);
+        //     _addStorageBase(HOOKMANAGER_STORAGE_LOCATION);
+        // }
 
         // bootstrap the account
-        (address bootstrap, bytes memory bootstrapCall) = abi.decode(data, (address, bytes));
-        _initAccount(bootstrap, bootstrapCall);
+        // (address bootstrap, bytes memory bootstrapCall) = abi.decode(data, (address, bytes));
+        // _initAccount(bootstrap, bootstrapCall);
     }
 
     /**
