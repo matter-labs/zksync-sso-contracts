@@ -267,7 +267,6 @@ contract ModularSmartAccount is
         payPrefund(missingAccountFunds)
         returns (uint256 validSignature)
     {
-        console.log("validateUserOp");
         address validator = address(bytes20(userOp.signature[12:32]));
 
         // check if validator is enabled. If not terminate the validation phase.

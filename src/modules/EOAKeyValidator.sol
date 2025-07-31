@@ -47,7 +47,6 @@ contract EOAKeyValidator is IValidator {
     }
 
     function validateUserOp(PackedUserOperation calldata userOp, bytes32 userOpHash) external view returns (uint256) {
-        console.log("EOAKeyValidator.validateUserOp");
         (, bytes memory signature,) = abi.decode(userOp.signature, (address, bytes, bytes));
 
         (address signer, ECDSA.RecoverError err,) = ECDSA.tryRecover(userOpHash, signature);

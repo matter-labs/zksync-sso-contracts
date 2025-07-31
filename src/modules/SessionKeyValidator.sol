@@ -113,7 +113,7 @@ contract SessionKeyValidator is IValidator {
         require(sessionSpec.feeLimit.limitType != SessionLib.LimitType.Unlimited, SessionLib.UnlimitedFees());
         require(sessions[sessionHash].status[msg.sender] == SessionLib.Status.NotInitialized, SessionLib.SessionAlreadyExists(sessionHash));
         // Sessions should expire in no less than 60 seconds.
-        require(sessionSpec.expiresAt <= block.timestamp + 60, SessionLib.SessionExpiresTooSoon(sessionSpec.expiresAt));
+        require(sessionSpec.expiresAt >= block.timestamp + 60, SessionLib.SessionExpiresTooSoon(sessionSpec.expiresAt));
 
         uint256 totalCallPolicies = sessionSpec.callPolicies.length;
         for (uint256 i = 0; i < totalCallPolicies; i++) {
@@ -179,6 +179,8 @@ contract SessionKeyValidator is IValidator {
         );
         require(spec.signer != address(0), SessionLib.ZeroSigner());
         bytes32 sessionHash = keccak256(abi.encode(spec));
+        uint192 nonceKey = uint192(userOp.nonce >> 64);
+        require(nonceKey == uint192(uint160(spec.signer)), "invalid nonce key");
         // this will revert if session spec is violated
         (uint48 validAfter, uint48 validUntil) = sessions[sessionHash].validate(userOp, spec, periodIds);
         (address recoveredAddress, ECDSA.RecoverError recoverError,) =

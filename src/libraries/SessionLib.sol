@@ -8,6 +8,7 @@ import { LibBytes } from "solady/utils/LibBytes.sol";
 
 import { ExecutionLib } from "../libraries/ExecutionLib.sol";
 import { CallType, ModeCode, ExecType, CALLTYPE_SINGLE, ModeLib } from "../libraries/ModeLib.sol";
+import { console } from "forge-std/console.sol";
 
 /// @title Session Library
 /// @author Matter Labs
@@ -109,7 +110,7 @@ library SessionLib {
     /// each transaction in calldata via `validatorData`, encoded in the signature.
     struct SessionSpec {
         address signer;
-        uint256 expiresAt;
+        uint48 expiresAt;
         UsageLimit feeLimit;
         CallSpec[] callPolicies;
         TransferSpec[] transferPolicies;
@@ -278,9 +279,16 @@ library SessionLib {
         internal returns (uint48 validAfter, uint48 validUntil)
     {
         require(state.status[msg.sender] == Status.Active, SessionNotActive());
+        bytes4 topLevelSelector = bytes4(userOp.callData[:4]);
         CallType callType = CallType.wrap(userOp.callData[4]);
         require(callType == CALLTYPE_SINGLE, InvalidCallType(callType, CALLTYPE_SINGLE));
-        (address target, uint256 value, bytes calldata callData) = ExecutionLib.decodeSingle(userOp.callData[36:]);
+        // require topLevelSelector == IMSA.execute.selector TODO
+        uint256 length = uint256(bytes32(userOp.callData[68:100]));
+        (address target, uint256 value, bytes calldata callData) = ExecutionLib.decodeSingle(userOp.callData[100:100+length]);
+
+        // TODO
+        validAfter = 0;
+        validUntil = spec.expiresAt;
 
         if (callData.length >= 4) {
             bytes4 selector = bytes4(callData[:4]);
@@ -297,10 +305,12 @@ library SessionLib {
 
             require(found, CallPolicyViolated(target, selector));
             require(value <= callPolicy.maxValuePerUse, MaxValueExceeded(value, callPolicy.maxValuePerUse));
-            (validAfter, validUntil) = callPolicy.valueLimit.checkAndUpdate(state.callValue[target][selector], value, periodIds[1]);
+            (uint48 newValidAfter, uint48 newValidUntil) = callPolicy.valueLimit.checkAndUpdate(state.callValue[target][selector], value, periodIds[1]);
+            validAfter = newValidAfter > validAfter ? newValidAfter : validAfter;
+            validUntil = newValidUntil < validUntil ? newValidUntil : validUntil;
 
             for (uint256 i = 0; i < callPolicy.constraints.length; i++) {
-                (uint48 newValidAfter, uint48 newValidUntil) = callPolicy.constraints[i].checkAndUpdate(
+                (newValidAfter, newValidUntil) = callPolicy.constraints[i].checkAndUpdate(
                     state.params[target][selector][i], callData, periodIds[2 + i]
                 );
                 validAfter = newValidAfter > validAfter ? newValidAfter : validAfter;
@@ -320,7 +330,9 @@ library SessionLib {
 
             require(found, TransferPolicyViolated(target));
             require(value <= transferPolicy.maxValuePerUse, MaxValueExceeded(value, transferPolicy.maxValuePerUse));
-            (validAfter, validUntil) = transferPolicy.valueLimit.checkAndUpdate(state.transferValue[target], value, periodIds[1]);
+            (uint48 newValidAfter, uint48 newValidUntil) = transferPolicy.valueLimit.checkAndUpdate(state.transferValue[target], value, periodIds[1]);
+            validAfter = newValidAfter > validAfter ? newValidAfter : validAfter;
+            validUntil = newValidUntil < validUntil ? newValidUntil : validUntil;
         }
     }
 
