@@ -54,8 +54,9 @@ contract ModularSmartAccount is
     // HookManager,
     // PreValidationHookManager,
     RegistryAdapter
-    // ERC7779Adapter
 {
+    // ERC7779Adapter
+
     using ExecutionLib for bytes;
     using ModeLib for ModeCode;
     using ECDSA for bytes32;
@@ -67,7 +68,14 @@ contract ModularSmartAccount is
      * CallType SINGLE and BATCH and ExecType DEFAULT and TRY
      * @dev this function demonstrates how to implement hook support (modifier)
      */
-    function execute(ModeCode mode, bytes calldata executionCalldata) external payable onlyEntryPointOrSelf /*withHook*/ {
+    function execute(
+        ModeCode mode,
+        bytes calldata executionCalldata
+    )
+        external
+        payable
+        onlyEntryPointOrSelf /*withHook*/
+    {
         // slither-disable-next-line unused-return
         (CallType callType, ExecType execType,,) = mode.decode();
 
@@ -230,7 +238,7 @@ contract ModularSmartAccount is
         external
         payable
         onlyEntryPointOrSelf
-        // withHook
+    // withHook
     {
         if (moduleTypeId == MODULE_TYPE_VALIDATOR) {
             _uninstallValidator(module, deInitData);

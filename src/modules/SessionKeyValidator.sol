@@ -111,16 +111,19 @@ contract SessionKeyValidator is IValidator {
         // Avoid using same session key for multiple sessions, contract-wide
         require(sessionSigner[sessionSpec.signer] == bytes32(0), SessionLib.SignerAlreadyUsed(sessionSpec.signer));
         require(sessionSpec.feeLimit.limitType != SessionLib.LimitType.Unlimited, SessionLib.UnlimitedFees());
-        require(sessions[sessionHash].status[msg.sender] == SessionLib.Status.NotInitialized, SessionLib.SessionAlreadyExists(sessionHash));
+        require(
+            sessions[sessionHash].status[msg.sender] == SessionLib.Status.NotInitialized,
+            SessionLib.SessionAlreadyExists(sessionHash)
+        );
         // Sessions should expire in no less than 60 seconds.
         require(sessionSpec.expiresAt >= block.timestamp + 60, SessionLib.SessionExpiresTooSoon(sessionSpec.expiresAt));
 
         uint256 totalCallPolicies = sessionSpec.callPolicies.length;
         for (uint256 i = 0; i < totalCallPolicies; i++) {
-            require(!isBannedCall(sessionSpec.callPolicies[i].target, sessionSpec.callPolicies[i].selector),
-                SessionLib.CallPolicyBanned(
-                    sessionSpec.callPolicies[i].target, sessionSpec.callPolicies[i].selector
-                ));
+            require(
+                !isBannedCall(sessionSpec.callPolicies[i].target, sessionSpec.callPolicies[i].selector),
+                SessionLib.CallPolicyBanned(sessionSpec.callPolicies[i].target, sessionSpec.callPolicies[i].selector)
+            );
         }
 
         sessions[sessionHash].status[msg.sender] = SessionLib.Status.Active;
@@ -194,7 +197,8 @@ contract SessionKeyValidator is IValidator {
             return SIG_VALIDATION_FAILED;
         }
         // This check is separate and performed last to prevent gas estimation failures
-        (uint48 newValidAfter, uint48 newValidUntil) = sessions[sessionHash].validateFeeLimit(userOp, spec, periodIds[0]);
+        (uint48 newValidAfter, uint48 newValidUntil) =
+            sessions[sessionHash].validateFeeLimit(userOp, spec, periodIds[0]);
         validAfter = newValidAfter > validAfter ? validAfter : newValidAfter;
         validUntil = newValidUntil < validUntil ? validUntil : newValidUntil;
         return _packValidationData(false, validUntil, validAfter);

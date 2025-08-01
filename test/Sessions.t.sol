@@ -90,14 +90,18 @@ contract Basic is Test {
         uint256 signerKey,
         address validator,
         bytes memory validatorData
-    ) public returns (PackedUserOperation memory) {
+    )
+        public
+        returns (PackedUserOperation memory)
+    {
         bytes memory callData = ExecutionLib.encodeSingle(target, value, data);
         bytes memory executeData = abi.encodeCall(ModularSmartAccount.execute, (ModeLib.encodeSimpleSingle(), callData));
         return makeUserOp(executeData, signerKey, validator, validatorData);
     }
 
     function test_InstallValidator() public {
-        bytes memory data = abi.encodeCall(ModularSmartAccount.installModule, (MODULE_TYPE_VALIDATOR, address(sessionKeyValidator), ""));
+        bytes memory data =
+            abi.encodeCall(ModularSmartAccount.installModule, (MODULE_TYPE_VALIDATOR, address(sessionKeyValidator), ""));
         PackedUserOperation[] memory userOps = new PackedUserOperation[](1);
         userOps[0] = makeUserOp(data, owner.key, address(eoaValidator), "");
 
@@ -109,24 +113,15 @@ contract Basic is Test {
     function test_CreateSession() public {
         test_InstallValidator();
 
-        SessionLib.UsageLimit memory feeLimit = SessionLib.UsageLimit({
-            limitType: SessionLib.LimitType.Lifetime,
-            limit: 0.15 ether,
-            period: 0
-        });
+        SessionLib.UsageLimit memory feeLimit =
+            SessionLib.UsageLimit({ limitType: SessionLib.LimitType.Lifetime, limit: 0.15 ether, period: 0 });
 
-        SessionLib.UsageLimit memory transferLimit = SessionLib.UsageLimit({
-            limitType: SessionLib.LimitType.Unlimited,
-            limit: 0,
-            period: 0
-        });
+        SessionLib.UsageLimit memory transferLimit =
+            SessionLib.UsageLimit({ limitType: SessionLib.LimitType.Unlimited, limit: 0, period: 0 });
 
         SessionLib.TransferSpec[] memory transferPolicies = new SessionLib.TransferSpec[](1);
-        transferPolicies[0] = SessionLib.TransferSpec({
-            target: recipient,
-            maxValuePerUse: 0.1 ether,
-            valueLimit: transferLimit
-        });
+        transferPolicies[0] =
+            SessionLib.TransferSpec({ target: recipient, maxValuePerUse: 0.1 ether, valueLimit: transferLimit });
 
         spec = SessionLib.SessionSpec({
             signer: sessionOwner.addr,
@@ -164,12 +159,7 @@ contract Basic is Test {
 
         PackedUserOperation[] memory userOps = new PackedUserOperation[](1);
         userOps[0] = makeUserOp(
-            recipient,
-            0.05 ether,
-            "",
-            sessionOwner.key,
-            address(sessionKeyValidator),
-            abi.encode(spec, new uint48[](2))
+            recipient, 0.05 ether, "", sessionOwner.key, address(sessionKeyValidator), abi.encode(spec, new uint48[](2))
         );
 
         entryPoint.handleOps(userOps, payable(bundler));

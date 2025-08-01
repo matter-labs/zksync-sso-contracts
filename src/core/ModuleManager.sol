@@ -198,15 +198,16 @@ abstract contract ModuleManager {
             let success := 0
             switch calltype
             case 0xFE {
+                // CALLTYPE_STATIC
                 // Add 20 bytes for the address appended add the end
                 success := staticcall(gas(), handler, calldataPtr, add(calldatasize(), 20), 0, 0)
             }
             case 0x00 {
+                // CALLTYPE_SINGLE
                 // Add 20 bytes for the address appended add the end
                 success := call(gas(), handler, 0, calldataPtr, add(calldatasize(), 20), 0, 0)
-            } default {
-                return(0, 0) // Unsupported calltype
             }
+            default { return(0, 0) } // Unsupported calltype
 
             let returnDataPtr := allocate(returndatasize())
             returndatacopy(returnDataPtr, 0, returndatasize())

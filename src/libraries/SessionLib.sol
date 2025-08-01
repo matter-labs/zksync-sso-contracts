@@ -165,19 +165,24 @@ library SessionLib {
         uint256 value,
         uint48 period
     )
-        internal returns (uint48 validAfter, uint48 validUntil)
+        internal
+        returns (uint48 validAfter, uint48 validUntil)
     {
         if (limit.limitType == LimitType.Lifetime) {
             validAfter = 0;
             validUntil = type(uint48).max;
-            require(tracker.lifetimeUsage[msg.sender] + value <= limit.limit,
-                LifetimeUsageExceeded(tracker.lifetimeUsage[msg.sender], limit.limit));
+            require(
+                tracker.lifetimeUsage[msg.sender] + value <= limit.limit,
+                LifetimeUsageExceeded(tracker.lifetimeUsage[msg.sender], limit.limit)
+            );
             tracker.lifetimeUsage[msg.sender] += value;
         } else if (limit.limitType == LimitType.Allowance) {
             validAfter = period * limit.period;
             validUntil = (period + 1) * limit.period;
-            require(tracker.allowanceUsage[period][msg.sender] + value <= limit.limit,
-                AllowanceExceeded(tracker.allowanceUsage[period][msg.sender], limit.limit, period));
+            require(
+                tracker.allowanceUsage[period][msg.sender] + value <= limit.limit,
+                AllowanceExceeded(tracker.allowanceUsage[period][msg.sender], limit.limit, period)
+            );
             tracker.allowanceUsage[period][msg.sender] += value;
         }
     }
@@ -195,7 +200,8 @@ library SessionLib {
         bytes memory data,
         uint48 period
     )
-        internal returns (uint48, uint48)
+        internal
+        returns (uint48, uint48)
     {
         uint256 expectedLength = 4 + constraint.index * 32 + 32;
         if (data.length < expectedLength) {
@@ -242,7 +248,8 @@ library SessionLib {
         SessionSpec memory spec,
         uint48 periodId
     )
-        internal returns (uint48 validAfter, uint48 validUntil)
+        internal
+        returns (uint48 validAfter, uint48 validUntil)
     {
         // If a paymaster is paying the fee, we don't need to check the fee limit
         if (userOp.paymasterAndData.length == 0) {
@@ -278,7 +285,8 @@ library SessionLib {
         SessionSpec memory spec,
         uint48[] memory periodIds
     )
-        internal returns (uint48 validAfter, uint48 validUntil)
+        internal
+        returns (uint48 validAfter, uint48 validUntil)
     {
         require(state.status[msg.sender] == Status.Active, SessionNotActive());
         bytes4 topLevelSelector = bytes4(userOp.callData[:4]);
@@ -286,7 +294,8 @@ library SessionLib {
         require(callType == CALLTYPE_SINGLE, InvalidCallType(callType, CALLTYPE_SINGLE));
         // require topLevelSelector == IMSA.execute.selector TODO
         uint256 length = uint256(bytes32(userOp.callData[68:100]));
-        (address target, uint256 value, bytes calldata callData) = ExecutionLib.decodeSingle(userOp.callData[100:100+length]);
+        (address target, uint256 value, bytes calldata callData) =
+            ExecutionLib.decodeSingle(userOp.callData[100:100 + length]);
 
         // TODO
         validAfter = 0;
@@ -307,7 +316,8 @@ library SessionLib {
 
             require(found, CallPolicyViolated(target, selector));
             require(value <= callPolicy.maxValuePerUse, MaxValueExceeded(value, callPolicy.maxValuePerUse));
-            (uint48 newValidAfter, uint48 newValidUntil) = callPolicy.valueLimit.checkAndUpdate(state.callValue[target][selector], value, periodIds[1]);
+            (uint48 newValidAfter, uint48 newValidUntil) =
+                callPolicy.valueLimit.checkAndUpdate(state.callValue[target][selector], value, periodIds[1]);
             validAfter = newValidAfter > validAfter ? newValidAfter : validAfter;
             validUntil = newValidUntil < validUntil ? newValidUntil : validUntil;
 
@@ -332,7 +342,8 @@ library SessionLib {
 
             require(found, TransferPolicyViolated(target));
             require(value <= transferPolicy.maxValuePerUse, MaxValueExceeded(value, transferPolicy.maxValuePerUse));
-            (uint48 newValidAfter, uint48 newValidUntil) = transferPolicy.valueLimit.checkAndUpdate(state.transferValue[target], value, periodIds[1]);
+            (uint48 newValidAfter, uint48 newValidUntil) =
+                transferPolicy.valueLimit.checkAndUpdate(state.transferValue[target], value, periodIds[1]);
             validAfter = newValidAfter > validAfter ? newValidAfter : validAfter;
             validUntil = newValidUntil < validUntil ? newValidUntil : validUntil;
         }
