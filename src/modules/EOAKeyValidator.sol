@@ -16,8 +16,6 @@ contract EOAKeyValidator is IValidator {
     mapping(address => bool) internal _initialized;
     mapping(address => EnumerableSet.AddressSet) owners;
 
-    // TODO: addowner, removeowner
-
     function onInstall(bytes calldata data) external override {
         if (isInitialized(msg.sender)) revert AlreadyInitialized(msg.sender);
         _initialized[msg.sender] = true;
@@ -49,6 +47,7 @@ contract EOAKeyValidator is IValidator {
     function validateUserOp(PackedUserOperation calldata userOp, bytes32 userOpHash) external view returns (uint256) {
         (, bytes memory signature,) = abi.decode(userOp.signature, (address, bytes, bytes));
 
+        // slither-disable-next-line unused-return
         (address signer, ECDSA.RecoverError err,) = ECDSA.tryRecover(userOpHash, signature);
         return signer == address(0) || err != ECDSA.RecoverError.NoError || !owners[msg.sender].contains(signer)
             ? SIG_VALIDATION_FAILED

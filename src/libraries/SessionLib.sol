@@ -215,6 +215,7 @@ library SessionLib {
             revert ConditionViolated(param, refValue, uint8(condition));
         }
 
+        // slither-disable-next-line unused-return
         return constraint.limit.checkAndUpdate(tracker, uint256(param), period);
     }
 
@@ -248,6 +249,7 @@ library SessionLib {
             uint256 gasPrice = userOp.gasPrice();
             uint256 gasLimit = userOp.unpackVerificationGasLimit() + userOp.unpackCallGasLimit();
             uint256 fee = gasPrice * gasLimit;
+            // slither-disable-next-line unused-return
             return spec.feeLimit.checkAndUpdate(state.fee, fee, periodId);
         } else {
             return (0, type(uint48).max);

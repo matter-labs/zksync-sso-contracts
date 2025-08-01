@@ -68,6 +68,7 @@ contract ModularSmartAccount is
      * @dev this function demonstrates how to implement hook support (modifier)
      */
     function execute(ModeCode mode, bytes calldata executionCalldata) external payable onlyEntryPointOrSelf /*withHook*/ {
+        // slither-disable-next-line unused-return
         (CallType callType, ExecType execType,,) = mode.decode();
 
         // check if calltype is batch or single
@@ -119,6 +120,7 @@ contract ModularSmartAccount is
             bytes[] memory returnData // TODO returnData is not used
         )
     {
+        // slither-disable-next-line unused-return
         (CallType callType, ExecType execType,,) = mode.decode();
 
         // check if calltype is batch or single
@@ -202,6 +204,7 @@ contract ModularSmartAccount is
         } else if (moduleTypeId == MODULE_TYPE_FALLBACK) {
             _installFallbackHandler(module, initData);
         }
+        // TODO
         // else if (moduleTypeId == MODULE_TYPE_HOOK) {
         //     _installHook(module, initData);
         // } else if (
@@ -236,6 +239,7 @@ contract ModularSmartAccount is
         } else if (moduleTypeId == MODULE_TYPE_FALLBACK) {
             _uninstallFallbackHandler(module, deInitData);
         }
+        // TODO
         // else if (moduleTypeId == MODULE_TYPE_HOOK) {
         //     _uninstallHook(module, deInitData);
         // } else if (
@@ -323,6 +327,7 @@ contract ModularSmartAccount is
         } else if (moduleTypeId == MODULE_TYPE_FALLBACK) {
             return _isFallbackHandlerInstalled(abi.decode(additionalContext, (bytes4)), module);
         }
+        // TODO
         // else if (moduleTypeId == MODULE_TYPE_HOOK) {
         //     return _isHookInstalled(module);
         // } else if (
@@ -348,6 +353,7 @@ contract ModularSmartAccount is
      * @inheritdoc IERC7579Account
      */
     function supportsExecutionMode(ModeCode mode) external view virtual override returns (bool isSupported) {
+        // slither-disable-next-line unused-return
         (CallType callType, ExecType execType,,) = mode.decode();
         if (callType == CALLTYPE_BATCH) isSupported = true;
         else if (callType == CALLTYPE_SINGLE) isSupported = true;

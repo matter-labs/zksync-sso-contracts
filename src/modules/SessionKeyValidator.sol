@@ -183,6 +183,8 @@ contract SessionKeyValidator is IValidator {
         require(nonceKey == uint192(uint160(spec.signer)), "invalid nonce key");
         // this will revert if session spec is violated
         (uint48 validAfter, uint48 validUntil) = sessions[sessionHash].validate(userOp, spec, periodIds);
+
+        // slither-disable-next-line unused-return
         (address recoveredAddress, ECDSA.RecoverError recoverError,) =
             ECDSA.tryRecover(userOpHash, transactionSignature);
         if (

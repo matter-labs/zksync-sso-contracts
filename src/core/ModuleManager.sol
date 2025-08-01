@@ -3,10 +3,8 @@ pragma solidity ^0.8.21;
 
 import { EnumerableSet } from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import { CallType, CALLTYPE_SINGLE, CALLTYPE_DELEGATECALL, CALLTYPE_STATIC } from "../libraries/ModeLib.sol";
-import { AccountBase } from "./AccountBase.sol";
 import "../interfaces/IERC7579Module.sol";
 import "forge-std/interfaces/IERC165.sol";
-import "./Receiver.sol";
 
 /**
  * @title ModuleManager
@@ -14,7 +12,7 @@ import "./Receiver.sol";
  * @dev This contract manages Validator, Executor and Fallback modules for the MSA
  * NOTE: the linked list is just an example. accounts may implement this differently
  */
-abstract contract ModuleManager is Receiver {
+abstract contract ModuleManager {
     using EnumerableSet for EnumerableSet.AddressSet;
 
     error InvalidModule(address module);
@@ -117,6 +115,7 @@ abstract contract ModuleManager is Receiver {
         bytes memory initData = params[5:];
 
         if (_isFallbackHandlerInstalled(selector)) {
+            // TODO: convert all errors to custom errors
             revert("Function selector already used");
         }
         $moduleManager().$fallbacks[selector] = FallbackHandler(handler, calltype);
@@ -156,67 +155,63 @@ abstract contract ModuleManager is Receiver {
         return $moduleManager().$fallbacks[functionSig];
     }
 
+    /// @dev For receiving ETH.
+    receive() external payable { }
+
     // FALLBACK
-    fallback() external payable override(Receiver) receiverFallback {
+    fallback() external payable {
         FallbackHandler storage $fallbackHandler = $moduleManager().$fallbacks[msg.sig];
         address handler = $fallbackHandler.handler;
         CallType calltype = $fallbackHandler.calltype;
-        if (handler == address(0)) revert NoFallbackHandler(msg.sig);
 
-        if (calltype == CALLTYPE_STATIC) {
-            assembly {
-                function allocate(length) -> pos {
-                    pos := mload(0x40)
-                    mstore(0x40, add(pos, length))
+        if (handler == address(0)) {
+            // 0x150b7a02: `onERC721Received(address,address,uint256,bytes)`.
+            // 0xf23a6e61: `onERC1155Received(address,address,uint256,uint256,bytes)`.
+            // 0xbc197c81: `onERC1155BatchReceived(address,address,uint256[],uint256[],bytes)`.
+            if (msg.sig == 0x150b7a02 || msg.sig == 0xf23a6e61 || msg.sig == 0xbc197c81) {
+                // These are the ERC721 and ERC1155 safe transfer callbacks.
+                // We return the selector as a response to the callback.
+                assembly {
+                    let s := shr(224, calldataload(0))
+                    mstore(0x20, s) // Store `msg.sig`.
+                    return(0x3c, 0x20) // Return `msg.sig`.
                 }
-
-                let calldataPtr := allocate(calldatasize())
-                calldatacopy(calldataPtr, 0, calldatasize())
-
-                // The msg.sender address is shifted to the left by 12 bytes to remove the padding
-                // Then the address without padding is stored right after the calldata
-                let senderPtr := allocate(20)
-                mstore(senderPtr, shl(96, caller()))
-
-                // Add 20 bytes for the address appended add the end
-                // TODO: simplify
-                // if eq(calltype, CALLTYPE_STATIC) {
-
-                    let success := staticcall(gas(), handler, calldataPtr, add(calldatasize(), 20), 0, 0)
-                // } else if eq(calltype, CALLTYPE_SINGLE) {
-                //
-                //     let success := call(gas(), handler, 0, calldataPtr, add(calldatasize(), 20), 0, 0)
-                // }
-
-                let returnDataPtr := allocate(returndatasize())
-                returndatacopy(returnDataPtr, 0, returndatasize())
-                if iszero(success) { revert(returnDataPtr, returndatasize()) }
-                return(returnDataPtr, returndatasize())
+            } else {
+                revert NoFallbackHandler(msg.sig);
             }
         }
-        if (calltype == CALLTYPE_SINGLE) {
-            assembly {
-                function allocate(length) -> pos {
-                    pos := mload(0x40)
-                    mstore(0x40, add(pos, length))
-                }
 
-                let calldataPtr := allocate(calldatasize())
-                calldatacopy(calldataPtr, 0, calldatasize())
-
-                // The msg.sender address is shifted to the left by 12 bytes to remove the padding
-                // Then the address without padding is stored right after the calldata
-                let senderPtr := allocate(20)
-                mstore(senderPtr, shl(96, caller()))
-
-                // Add 20 bytes for the address appended add the end
-                let success := call(gas(), handler, 0, calldataPtr, add(calldatasize(), 20), 0, 0)
-
-                let returnDataPtr := allocate(returndatasize())
-                returndatacopy(returnDataPtr, 0, returndatasize())
-                if iszero(success) { revert(returnDataPtr, returndatasize()) }
-                return(returnDataPtr, returndatasize())
+        assembly {
+            function allocate(length) -> pos {
+                pos := mload(0x40)
+                mstore(0x40, add(pos, length))
             }
+
+            let calldataPtr := allocate(calldatasize())
+            calldatacopy(calldataPtr, 0, calldatasize())
+
+            // The msg.sender address is shifted to the left by 12 bytes to remove the padding
+            // Then the address without padding is stored right after the calldata
+            let senderPtr := allocate(20)
+            mstore(senderPtr, shl(96, caller()))
+
+            let success := 0
+            switch calltype
+            case 0xFE {
+                // Add 20 bytes for the address appended add the end
+                success := staticcall(gas(), handler, calldataPtr, add(calldatasize(), 20), 0, 0)
+            }
+            case 0x00 {
+                // Add 20 bytes for the address appended add the end
+                success := call(gas(), handler, 0, calldataPtr, add(calldatasize(), 20), 0, 0)
+            } default {
+                return(0, 0) // Unsupported calltype
+            }
+
+            let returnDataPtr := allocate(returndatasize())
+            returndatacopy(returnDataPtr, 0, returndatasize())
+            if iszero(success) { revert(returnDataPtr, returndatasize()) }
+            return(returnDataPtr, returndatasize())
         }
     }
 }
