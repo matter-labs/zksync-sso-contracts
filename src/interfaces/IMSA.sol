@@ -3,11 +3,10 @@ pragma solidity ^0.8.21;
 
 import { IERC7579Account } from "./IERC7579Account.sol";
 import { IERC4337Account } from "./IERC4337Account.sol";
-import { IERC7779 } from "./IERC7779.sol";
 
 import { CallType, ExecType, ModeCode } from "../libraries/ModeLib.sol";
 
-interface IMSA is IERC7579Account, IERC4337Account, IERC7779 {
+interface IMSA is IERC7579Account, IERC4337Account {
     // Error thrown when an unsupported ModuleType is requested
     error UnsupportedModuleType(uint256 moduleTypeId);
     // Error thrown when an execution with an unsupported CallType was made
@@ -23,5 +22,5 @@ interface IMSA is IERC7579Account, IERC4337Account, IERC7779 {
      * @dev Initializes the account. Function might be called directly, or by a Factory
      * @param data. encoded data that can be used during the initialization phase
      */
-    // function initializeAccount(bytes calldata data) external payable;
+    function initializeAccount(address entryPoint, address validator, bytes calldata data) external payable;
 }

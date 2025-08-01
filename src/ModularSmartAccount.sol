@@ -7,12 +7,12 @@ import { PackedUserOperation } from "account-abstraction/interfaces/PackedUserOp
 import { IERC7579Account, Execution } from "./interfaces/IERC7579Account.sol";
 import { IMSA } from "./interfaces/IMSA.sol";
 import { ModuleManager } from "./core/ModuleManager.sol";
-import { HookManager } from "./core/HookManager.sol";
+// import { HookManager } from "./core/HookManager.sol";
 import { RegistryAdapter } from "./core/RegistryAdapter.sol";
 import { ECDSA } from "solady/utils/ECDSA.sol";
 import { Initializable } from "./libraries/Initializable.sol";
-import { ERC7779Adapter } from "./core/ERC7779Adapter.sol";
-import { PreValidationHookManager } from "./core/PreValidationHookManager.sol";
+// import { ERC7779Adapter } from "./core/ERC7779Adapter.sol";
+// import { PreValidationHookManager } from "./core/PreValidationHookManager.sol";
 
 import {
     IModule,
@@ -51,10 +51,10 @@ contract ModularSmartAccount is
     IMSA,
     ExecutionHelper,
     ModuleManager,
-    HookManager,
-    PreValidationHookManager,
-    RegistryAdapter,
-    ERC7779Adapter
+    // HookManager,
+    // PreValidationHookManager,
+    RegistryAdapter
+    // ERC7779Adapter
 {
     using ExecutionLib for bytes;
     using ModeLib for ModeCode;
@@ -67,7 +67,7 @@ contract ModularSmartAccount is
      * CallType SINGLE and BATCH and ExecType DEFAULT and TRY
      * @dev this function demonstrates how to implement hook support (modifier)
      */
-    function execute(ModeCode mode, bytes calldata executionCalldata) external payable onlyEntryPointOrSelf withHook {
+    function execute(ModeCode mode, bytes calldata executionCalldata) external payable onlyEntryPointOrSelf /*withHook*/ {
         (CallType callType, ExecType execType,,) = mode.decode();
 
         // check if calltype is batch or single
@@ -113,7 +113,7 @@ contract ModularSmartAccount is
         external
         payable
         onlyExecutorModule
-        withHook
+        // withHook
         withRegistry(msg.sender, MODULE_TYPE_EXECUTOR)
         returns (
             bytes[] memory returnData // TODO returnData is not used
@@ -190,7 +190,7 @@ contract ModularSmartAccount is
         external
         payable
         onlyEntryPointOrSelf
-        withHook
+        // withHook
         withRegistry(module, moduleTypeId)
     {
         if (!IModule(module).isModuleType(moduleTypeId)) revert MismatchModuleTypeId(moduleTypeId);
@@ -201,14 +201,16 @@ contract ModularSmartAccount is
             _installExecutor(module, initData);
         } else if (moduleTypeId == MODULE_TYPE_FALLBACK) {
             _installFallbackHandler(module, initData);
-        } else if (moduleTypeId == MODULE_TYPE_HOOK) {
-            _installHook(module, initData);
-        } else if (
-            moduleTypeId == MODULE_TYPE_PREVALIDATION_HOOK_ERC1271
-                || moduleTypeId == MODULE_TYPE_PREVALIDATION_HOOK_ERC4337
-        ) {
-            _installPreValidationHook(module, moduleTypeId, initData);
-        } else {
+        }
+        // else if (moduleTypeId == MODULE_TYPE_HOOK) {
+        //     _installHook(module, initData);
+        // } else if (
+        //     moduleTypeId == MODULE_TYPE_PREVALIDATION_HOOK_ERC1271
+        //         || moduleTypeId == MODULE_TYPE_PREVALIDATION_HOOK_ERC4337
+        // ) {
+        //     _installPreValidationHook(module, moduleTypeId, initData);
+        // }
+        else {
             revert UnsupportedModuleType(moduleTypeId);
         }
         emit ModuleInstalled(moduleTypeId, module);
@@ -225,7 +227,7 @@ contract ModularSmartAccount is
         external
         payable
         onlyEntryPointOrSelf
-        withHook
+        // withHook
     {
         if (moduleTypeId == MODULE_TYPE_VALIDATOR) {
             _uninstallValidator(module, deInitData);
@@ -233,14 +235,16 @@ contract ModularSmartAccount is
             _uninstallExecutor(module, deInitData);
         } else if (moduleTypeId == MODULE_TYPE_FALLBACK) {
             _uninstallFallbackHandler(module, deInitData);
-        } else if (moduleTypeId == MODULE_TYPE_HOOK) {
-            _uninstallHook(module, deInitData);
-        } else if (
-            moduleTypeId == MODULE_TYPE_PREVALIDATION_HOOK_ERC1271
-                || moduleTypeId == MODULE_TYPE_PREVALIDATION_HOOK_ERC4337
-        ) {
-            _uninstallPreValidationHook(module, moduleTypeId, deInitData);
-        } else {
+        }
+        // else if (moduleTypeId == MODULE_TYPE_HOOK) {
+        //     _uninstallHook(module, deInitData);
+        // } else if (
+        //     moduleTypeId == MODULE_TYPE_PREVALIDATION_HOOK_ERC1271
+        //         || moduleTypeId == MODULE_TYPE_PREVALIDATION_HOOK_ERC4337
+        // ) {
+        //     _uninstallPreValidationHook(module, moduleTypeId, deInitData);
+        // }
+        else {
             revert UnsupportedModuleType(moduleTypeId);
         }
         emit ModuleUninstalled(moduleTypeId, module);
@@ -289,13 +293,14 @@ contract ModularSmartAccount is
      * @param data The data that is signed
      */
     function isValidSignature(bytes32 hash, bytes calldata data) external view virtual override returns (bytes4) {
-        address validator = address(bytes20(data[0:20]));
+        address validator = address(bytes20(data[:20]));
         if (!_isValidatorInstalled(validator)) {
             revert InvalidModule(validator);
         }
-        bytes memory signature_;
-        (hash, signature_) = _withPreValidationHook(hash, data[20:]);
-        return IValidator(validator).isValidSignatureWithSender(msg.sender, hash, signature_);
+        // TODO
+        // bytes memory signature_;
+        // (hash, signature_) = _withPreValidationHook(hash, data[20:]);
+        return IValidator(validator).isValidSignatureWithSender(msg.sender, hash, data[20:]);
     }
 
     /**
@@ -317,14 +322,16 @@ contract ModularSmartAccount is
             return _isExecutorInstalled(module);
         } else if (moduleTypeId == MODULE_TYPE_FALLBACK) {
             return _isFallbackHandlerInstalled(abi.decode(additionalContext, (bytes4)), module);
-        } else if (moduleTypeId == MODULE_TYPE_HOOK) {
-            return _isHookInstalled(module);
-        } else if (
-            moduleTypeId == MODULE_TYPE_PREVALIDATION_HOOK_ERC1271
-                || moduleTypeId == MODULE_TYPE_PREVALIDATION_HOOK_ERC4337
-        ) {
-            return _isPreValidationHookInstalled(module, moduleTypeId);
-        } else {
+        }
+        // else if (moduleTypeId == MODULE_TYPE_HOOK) {
+        //     return _isHookInstalled(module);
+        // } else if (
+        //     moduleTypeId == MODULE_TYPE_PREVALIDATION_HOOK_ERC1271
+        //         || moduleTypeId == MODULE_TYPE_PREVALIDATION_HOOK_ERC4337
+        // ) {
+        //     return _isPreValidationHookInstalled(module, moduleTypeId);
+        // }
+        else {
             return false;
         }
     }
@@ -334,7 +341,7 @@ contract ModularSmartAccount is
      */
     function accountId() external view virtual override returns (string memory) {
         // vendor.flavour.SemVer
-        return "uMSA.advanced/withHook.v0.1";
+        return "ZKsyncSSO.mvp.v0.0.1";
     }
 
     /**
@@ -383,36 +390,5 @@ contract ModularSmartAccount is
         ENTRY_POINT = entryPoint;
 
         _installValidator(address(validator), data);
-        // bool isERC7702;
-        // assembly {
-        //     // TODO: why does this work??
-        //     isERC7702 :=
-        //         eq(
-        //             extcodehash(address()),
-        //             0xeadcdba66a79ab5dce91622d1d75c8cff5cff0b96944c3bf1072cd08ce018329 // (keccak256(0xef01))
-        //         )
-        // }
-        // if (isERC7702) {
-        //     _addStorageBase(MODULEMANAGER_STORAGE_LOCATION);
-        //     _addStorageBase(HOOKMANAGER_STORAGE_LOCATION);
-        // }
-    }
-
-    /**
-     * @dev Bootstrap function to initialize the account
-     * @param bootstrap. address of the bootstrap contract,
-     * @param bootstrapCall. encoded data that can be used during the initialization phase
-     */
-    function _initAccount(address bootstrap, bytes memory bootstrapCall) private {
-        // this is just implemented for demonstration purposes. You can use any other initialization
-        // logic here.
-        (bool success,) = bootstrap.delegatecall(bootstrapCall);
-        if (!success) revert();
-    }
-
-    function _onRedelegation() internal override {
-        _tryUninstallValidators();
-        _tryUninstallExecutors();
-        _tryUninstallHook(_getHook());
     }
 }
