@@ -5,6 +5,8 @@ simplifying user authentication, session management, and transaction processing.
 
 Aiming to be compliant with the [ERC-7579](https://erc7579.com/) standard.
 
+Based on the [ERC-7579 reference implementation](https://github.com/erc7579/erc7579-implementation) by Rhinestone.
+
 > [!CAUTION]
 > The factory and module interfaces are not yet stable! Any contracts interfacing
 > `ModularSmartAccount` will likely need to be updated in the
