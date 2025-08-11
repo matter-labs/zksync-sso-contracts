@@ -1,0 +1,51 @@
+name: CI
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - "main"
+  pull_request:
+
+jobs:
+  build:
+    runs-on: "ubuntu-latest"
+    steps:
+      - name: Checkout the repository
+        uses: actions/checkout@v4
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1.4.0
+      - name: Install dependencies
+        run: forge soldeer install
+      - name: Build
+        run: forge build
+
+  test:
+    runs-on: "ubuntu-latest"
+    steps:
+      - name: Checkout the repository
+        uses: actions/checkout@v4
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1.4.0
+      - name: Install dependencies
+        run: forge soldeer install
+      - name: Test
+        run: forge test
+
+  slither:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout the repository
+        uses: actions/checkout@v4
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1.4.0
+      - name: Install dependencies
+        run: forge soldeer install
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: 3.8
+      - name: Install Slither
+        run: pip install slither-analyzer
+      - name: Run Slither
+        run: slither --config ./slither.config.json .

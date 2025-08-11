@@ -1,0 +1,15 @@
+{
+  "name": "zksync-sso-contracts-7579",
+  "version": "0.1.0",
+  "description": "ERC-7579 compatible ZKsync SSO contracts",
+  "main": "index.js",
+  "scripts": {},
+  "keywords": [
+    "zksync",
+    "account-abstraction",
+    "ERC7579"
+  ],
+  "author": "Matter Labs <zksync.io>",
+  "license": "MIT",
+  "packageManager": "pnpm@10.13.0"
+}

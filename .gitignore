@@ -1,0 +1,8 @@
+# Compiler files
+cache/
+out/
+node_modules/
+
+
+# Soldeer
+dependencies
