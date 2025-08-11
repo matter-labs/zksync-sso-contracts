@@ -113,22 +113,19 @@ contract Basic is Test {
     function test_CreateSession() public {
         test_InstallValidator();
 
-        SessionLib.UsageLimit memory feeLimit =
-            SessionLib.UsageLimit({ limitType: SessionLib.LimitType.Lifetime, limit: 0.15 ether, period: 0 });
-
-        SessionLib.UsageLimit memory transferLimit =
-            SessionLib.UsageLimit({ limitType: SessionLib.LimitType.Unlimited, limit: 0, period: 0 });
-
         SessionLib.TransferSpec[] memory transferPolicies = new SessionLib.TransferSpec[](1);
-        transferPolicies[0] =
-            SessionLib.TransferSpec({ target: recipient, maxValuePerUse: 0.1 ether, valueLimit: transferLimit });
+        transferPolicies[0] = SessionLib.TransferSpec({
+            target: recipient,
+            maxValuePerUse: 0.1 ether,
+            valueLimit: SessionLib.UsageLimit({ limitType: SessionLib.LimitType.Unlimited, limit: 0, period: 0 })
+        });
 
         spec = SessionLib.SessionSpec({
             signer: sessionOwner.addr,
             expiresAt: uint48(block.timestamp + 1000),
             transferPolicies: transferPolicies,
             callPolicies: new SessionLib.CallSpec[](0),
-            feeLimit: feeLimit
+            feeLimit: SessionLib.UsageLimit({ limitType: SessionLib.LimitType.Lifetime, limit: 0.15 ether, period: 0 })
         });
 
         PackedUserOperation[] memory userOps = new PackedUserOperation[](1);

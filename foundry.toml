@@ -5,7 +5,7 @@ libs = ["lib", "dependencies"]
 fs_permissions = [{ access = "read", path = "out-optimized" }]
 allow_paths = ["*", "/"]
 optimizer = true
-optimizer_runs = 20_000
+optimizer_runs = 2_000
 via_ir = true
 
 [fmt]

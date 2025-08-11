@@ -4,7 +4,6 @@ pragma solidity ^0.8.21;
 import { EnumerableSet } from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import { CallType, CALLTYPE_SINGLE, CALLTYPE_DELEGATECALL, CALLTYPE_STATIC } from "../libraries/ModeLib.sol";
 import "../interfaces/IERC7579Module.sol";
-import "forge-std/interfaces/IERC165.sol";
 
 /**
  * @title ModuleManager
@@ -18,6 +17,9 @@ abstract contract ModuleManager {
     error InvalidModule(address module);
     error NoFallbackHandler(bytes4 selector);
     error CannotRemoveLastValidator();
+    error SelectorAlreadyUsed(bytes4 selector);
+    error AlreadyInstalled(address module);
+    error NotInstalled(address module);
 
     event ValidatorUninstallFailed(address validator, bytes data);
     event ExecutorUninstallFailed(address executor, bytes data);
@@ -64,13 +66,13 @@ abstract contract ModuleManager {
     //  Manage Validators
     ////////////////////////////////////////////////////
     function _installValidator(address validator, bytes calldata data) internal virtual {
-        require($moduleManager().$valdiators.add(validator), "already installed");
+        require($moduleManager().$valdiators.add(validator), AlreadyInstalled(validator));
         IValidator(validator).onInstall(data);
     }
 
     function _uninstallValidator(address validator, bytes calldata data) internal {
-        // TODO: check if its the last validator. this might brick the account
-        require($moduleManager().$valdiators.remove(validator), "not installed");
+        require($moduleManager().$valdiators.remove(validator), NotInstalled(validator));
+        require($moduleManager().$valdiators.length() > 1, CannotRemoveLastValidator());
         IValidator(validator).onUninstall(data);
     }
     // TODO: unlink validator
@@ -88,12 +90,12 @@ abstract contract ModuleManager {
     ////////////////////////////////////////////////////
 
     function _installExecutor(address executor, bytes calldata data) internal {
-        require($moduleManager().$executors.add(executor), "already installed");
+        require($moduleManager().$executors.add(executor), AlreadyInstalled(executor));
         IExecutor(executor).onInstall(data);
     }
 
     function _uninstallExecutor(address executor, bytes calldata data) internal {
-        require($moduleManager().$executors.remove(executor), "not installed");
+        require($moduleManager().$executors.remove(executor), NotInstalled(executor));
         IExecutor(executor).onUninstall(data);
     }
 
@@ -114,10 +116,7 @@ abstract contract ModuleManager {
         CallType calltype = CallType.wrap(bytes1(params[4]));
         bytes memory initData = params[5:];
 
-        if (_isFallbackHandlerInstalled(selector)) {
-            // TODO: convert all errors to custom errors
-            revert("Function selector already used");
-        }
+        require(!_isFallbackHandlerInstalled(selector), SelectorAlreadyUsed(selector));
         $moduleManager().$fallbacks[selector] = FallbackHandler(handler, calltype);
         IFallback(handler).onInstall(initData);
     }
@@ -126,18 +125,12 @@ abstract contract ModuleManager {
         bytes4 selector = bytes4(deInitData[0:4]);
         bytes memory _deInitData = deInitData[4:];
 
-        if (!_isFallbackHandlerInstalled(selector)) {
-            revert("Function selector not used");
-        }
+        require(_isFallbackHandlerInstalled(selector), NoFallbackHandler(selector));
 
         FallbackHandler memory activeFallback = $moduleManager().$fallbacks[selector];
 
-        if (activeFallback.handler != handler) {
-            revert("Function selector not used by this handler");
-        }
-
+        require(activeFallback.handler == handler, NotInstalled(handler));
         $moduleManager().$fallbacks[selector] = FallbackHandler(address(0), CallType.wrap(0x00));
-
         IFallback(handler).onUninstall(_deInitData);
     }
 
@@ -199,12 +192,12 @@ abstract contract ModuleManager {
             switch calltype
             case 0xFE {
                 // CALLTYPE_STATIC
-                // Add 20 bytes for the address appended add the end
+                // Add 20 bytes for the address appended at the end
                 success := staticcall(gas(), handler, calldataPtr, add(calldatasize(), 20), 0, 0)
             }
             case 0x00 {
                 // CALLTYPE_SINGLE
-                // Add 20 bytes for the address appended add the end
+                // Add 20 bytes for the address appended at the end
                 success := call(gas(), handler, 0, calldataPtr, add(calldatasize(), 20), 0, 0)
             }
             default { return(0, 0) } // Unsupported calltype

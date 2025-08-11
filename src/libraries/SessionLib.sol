@@ -6,6 +6,7 @@ import { UserOperationLib } from "account-abstraction/core/UserOperationLib.sol"
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { LibBytes } from "solady/utils/LibBytes.sol";
 
+import { IERC7579Account } from "../interfaces/IERC7579Account.sol";
 import { ExecutionLib } from "../libraries/ExecutionLib.sol";
 import { CallType, ModeCode, ExecType, CALLTYPE_SINGLE, ModeLib } from "../libraries/ModeLib.sol";
 import { console } from "forge-std/console.sol";
@@ -24,6 +25,7 @@ library SessionLib {
     error ZeroSigner();
     error InvalidSigner(address recovered, address expected);
     error InvalidCallType(CallType callType, CallType expected);
+    error InvalidTopLevelSelector(bytes4 selector, bytes4 expected);
     error SessionAlreadyExists(bytes32 sessionHash);
     error UnlimitedFees();
     error SessionExpiresTooSoon(uint256 expiresAt);
@@ -38,6 +40,8 @@ library SessionLib {
     error SignerAlreadyUsed(address signer);
     error CallPolicyBanned(address target, bytes4 selector);
     error SessionActionsNotAllowed(bytes32 sessionActionsHash);
+    error InvalidNonceKey(uint192 nonceKey, uint192 expectedNonceKey);
+    error ActionsNotAllowed(bytes32 actionsHash);
 
     /// @notice We do not permit opening multiple identical sessions (even after one is closed,
     /// e.g.).
@@ -263,6 +267,11 @@ library SessionLib {
         }
     }
 
+    function shrinkRange(uint48[2] memory range, uint48 newAfter, uint48 newUntil) internal pure {
+        range[0] = newAfter > range[0] ? newAfter : range[0];
+        range[1] = newUntil < range[1] ? newUntil : range[1];
+    }
+
     /// @notice Validates the transaction against the session spec and updates the usage trackers.
     /// @param state The session storage to update.
     /// @param userOp The user operation to validate.
@@ -286,20 +295,26 @@ library SessionLib {
         uint48[] memory periodIds
     )
         internal
-        returns (uint48 validAfter, uint48 validUntil)
+        returns (uint48, uint48)
     {
         require(state.status[msg.sender] == Status.Active, SessionNotActive());
+
         bytes4 topLevelSelector = bytes4(userOp.callData[:4]);
         CallType callType = CallType.wrap(userOp.callData[4]);
+
         require(callType == CALLTYPE_SINGLE, InvalidCallType(callType, CALLTYPE_SINGLE));
-        // require topLevelSelector == IMSA.execute.selector TODO
+        require(
+            topLevelSelector == IERC7579Account.execute.selector,
+            InvalidTopLevelSelector(topLevelSelector, IERC7579Account.execute.selector)
+        );
+
+        // TODO: put a comment about why this exact slice
         uint256 length = uint256(bytes32(userOp.callData[68:100]));
         (address target, uint256 value, bytes calldata callData) =
             ExecutionLib.decodeSingle(userOp.callData[100:100 + length]);
 
-        // TODO
-        validAfter = 0;
-        validUntil = spec.expiresAt;
+        // Time range whithin which the transaction is valid.
+        uint48[2] memory timeRange = [0, spec.expiresAt];
 
         if (callData.length >= 4) {
             bytes4 selector = bytes4(callData[:4]);
@@ -318,15 +333,13 @@ library SessionLib {
             require(value <= callPolicy.maxValuePerUse, MaxValueExceeded(value, callPolicy.maxValuePerUse));
             (uint48 newValidAfter, uint48 newValidUntil) =
                 callPolicy.valueLimit.checkAndUpdate(state.callValue[target][selector], value, periodIds[1]);
-            validAfter = newValidAfter > validAfter ? newValidAfter : validAfter;
-            validUntil = newValidUntil < validUntil ? newValidUntil : validUntil;
+            shrinkRange(timeRange, newValidAfter, newValidUntil);
 
             for (uint256 i = 0; i < callPolicy.constraints.length; i++) {
                 (newValidAfter, newValidUntil) = callPolicy.constraints[i].checkAndUpdate(
                     state.params[target][selector][i], callData, periodIds[2 + i]
                 );
-                validAfter = newValidAfter > validAfter ? newValidAfter : validAfter;
-                validUntil = newValidUntil < validUntil ? newValidUntil : validUntil;
+                shrinkRange(timeRange, newValidAfter, newValidUntil);
             }
         } else {
             TransferSpec memory transferPolicy;
@@ -344,9 +357,10 @@ library SessionLib {
             require(value <= transferPolicy.maxValuePerUse, MaxValueExceeded(value, transferPolicy.maxValuePerUse));
             (uint48 newValidAfter, uint48 newValidUntil) =
                 transferPolicy.valueLimit.checkAndUpdate(state.transferValue[target], value, periodIds[1]);
-            validAfter = newValidAfter > validAfter ? newValidAfter : validAfter;
-            validUntil = newValidUntil < validUntil ? newValidUntil : validUntil;
+            shrinkRange(timeRange, newValidAfter, newValidUntil);
         }
+
+        return (timeRange[0], timeRange[1]);
     }
 
     /// @notice Getter for the remainder of a usage limit.
@@ -375,6 +389,8 @@ library SessionLib {
             uint64 period = uint64(block.timestamp / limit.period);
             return limit.limit - tracker.allowanceUsage[period][account];
         }
+        // Unreachable, but silences warning
+        return 0;
     }
 
     /// @notice Getter for the session state.

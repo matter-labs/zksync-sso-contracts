@@ -16,6 +16,12 @@ contract EOAKeyValidator is IValidator {
     mapping(address => bool) internal _initialized;
     mapping(address => EnumerableSet.AddressSet) owners;
 
+    event OwnerAdded(address indexed smartAccount, address indexed owner);
+    event OwnerRemoved(address indexed smartAccount, address indexed owner);
+
+    error OwnerAlreadyExists(address smartAccount, address owner);
+    error OwnerDoesNotExist(address smartAccount, address owner);
+
     function onInstall(bytes calldata data) external override {
         if (isInitialized(msg.sender)) revert AlreadyInitialized(msg.sender);
         _initialized[msg.sender] = true;
@@ -55,17 +61,15 @@ contract EOAKeyValidator is IValidator {
     }
 
     function addOwner(address owner) public {
-        if (!owners[msg.sender].add(owner)) {
-            revert("Owner already exists");
-        }
-        // TODO emit event?
+        require(isInitialized(msg.sender), NotInitialized(msg.sender));
+        require(owners[msg.sender].add(owner), OwnerAlreadyExists(msg.sender, owner));
+        emit OwnerAdded(msg.sender, owner);
     }
 
     function removeOwner(address owner) public {
-        if (!owners[msg.sender].remove(owner)) {
-            revert("Owner does not exist");
-        }
-        // TODO emit event?
+        require(isInitialized(msg.sender), NotInitialized(msg.sender));
+        require(owners[msg.sender].remove(owner), OwnerDoesNotExist(msg.sender, owner));
+        emit OwnerRemoved(msg.sender, owner);
     }
 
     function isValidSignatureWithSender(

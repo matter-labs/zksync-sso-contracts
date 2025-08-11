@@ -76,7 +76,7 @@ contract SessionKeyValidator is IValidator {
 
     /// @notice This module should not be used to validate signatures (including EIP-1271),
     /// as a signature by itself does not have enough information to validate it against a session.
-    function isValidSignatureWithSender(address, bytes32, bytes memory) external pure returns (bytes4) {
+    function isValidSignatureWithSender(address, bytes32, bytes calldata) external pure returns (bytes4) {
         return 0x00000000;
     }
 
@@ -96,17 +96,26 @@ contract SessionKeyValidator is IValidator {
     /// @return true if the call is banned, false otherwise
     function isBannedCall(address target, bytes4 _selector) internal view virtual returns (bool) {
         return target == address(this) // this line is technically unnecessary
-            || target == address(msg.sender) || IMSA(msg.sender).isModuleInstalled(MODULE_TYPE_VALIDATOR, target, ""); // TODO:
-            // make one
-            // call to check any module type
+            || target == address(msg.sender) || IMSA(msg.sender).isModuleInstalled(MODULE_TYPE_VALIDATOR, target, "");
+        // TODO: make one call to check any module type
     }
 
     /// @notice Create a new session for an account
     /// @param sessionSpec The session specification to create a session with
+    /// @dev In the sessionSpec, callPolicies should not have duplicated instances of
+    /// (target, selector) pairs. Only the first one is considered when validating transactions.
     function createSession(SessionLib.SessionSpec memory sessionSpec) public virtual {
         bytes32 sessionHash = keccak256(abi.encode(sessionSpec));
-        // TODO error
-        require(isInitialized(msg.sender), "not initialized");
+        require(isInitialized(msg.sender), NotInitialized(msg.sender));
+
+        uint256 totalCallPolicies = sessionSpec.callPolicies.length;
+        for (uint256 i = 0; i < totalCallPolicies; i++) {
+            require(
+                !isBannedCall(sessionSpec.callPolicies[i].target, sessionSpec.callPolicies[i].selector),
+                SessionLib.CallPolicyBanned(sessionSpec.callPolicies[i].target, sessionSpec.callPolicies[i].selector)
+            );
+        }
+
         require(sessionSpec.signer != address(0), SessionLib.ZeroSigner());
         // Avoid using same session key for multiple sessions, contract-wide
         require(sessionSigner[sessionSpec.signer] == bytes32(0), SessionLib.SignerAlreadyUsed(sessionSpec.signer));
@@ -117,14 +126,6 @@ contract SessionKeyValidator is IValidator {
         );
         // Sessions should expire in no less than 60 seconds.
         require(sessionSpec.expiresAt >= block.timestamp + 60, SessionLib.SessionExpiresTooSoon(sessionSpec.expiresAt));
-
-        uint256 totalCallPolicies = sessionSpec.callPolicies.length;
-        for (uint256 i = 0; i < totalCallPolicies; i++) {
-            require(
-                !isBannedCall(sessionSpec.callPolicies[i].target, sessionSpec.callPolicies[i].selector),
-                SessionLib.CallPolicyBanned(sessionSpec.callPolicies[i].target, sessionSpec.callPolicies[i].selector)
-            );
-        }
 
         sessions[sessionHash].status[msg.sender] = SessionLib.Status.Active;
         sessionSigner[sessionSpec.signer] = sessionHash;
@@ -171,7 +172,7 @@ contract SessionKeyValidator is IValidator {
     /// @notice Validate a session transaction for an account
     /// @param userOp User operation to validate
     /// @param userOpHash The hash of the userOp
-    /// TODO @return
+    /// @return uint256 Validation data, according to ERC-4337 (EntryPoint v0.8)
     /// @dev Session spec and period IDs must be provided as validator data
     function validateUserOp(PackedUserOperation calldata userOp, bytes32 userOpHash) public virtual returns (uint256) {
         (, bytes memory transactionSignature, bytes memory validatorData) =
@@ -183,7 +184,8 @@ contract SessionKeyValidator is IValidator {
         require(spec.signer != address(0), SessionLib.ZeroSigner());
         bytes32 sessionHash = keccak256(abi.encode(spec));
         uint192 nonceKey = uint192(userOp.nonce >> 64);
-        require(nonceKey == uint192(uint160(spec.signer)), "invalid nonce key");
+        uint192 expectedNonceKey = uint192(uint160(spec.signer));
+        require(nonceKey == expectedNonceKey, SessionLib.InvalidNonceKey(nonceKey, expectedNonceKey));
         // this will revert if session spec is violated
         (uint48 validAfter, uint48 validUntil) = sessions[sessionHash].validate(userOp, spec, periodIds);
 
