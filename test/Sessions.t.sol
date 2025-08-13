@@ -7,18 +7,18 @@ import { EntryPoint } from "account-abstraction/core/EntryPoint.sol";
 import { PackedUserOperation } from "account-abstraction/interfaces/PackedUserOperation.sol";
 import { Test } from "forge-std/Test.sol";
 import { console } from "forge-std/console.sol";
-import { ModularSmartAccount } from "../src/ModularSmartAccount.sol";
-import { MSAProxy } from "../src/utils/MSAProxy.sol";
-import { EOAKeyValidator } from "../src/modules/EOAKeyValidator.sol";
-import { SessionKeyValidator } from "../src/modules/SessionKeyValidator.sol";
-import { IMSA } from "../src/interfaces/IMSA.sol";
-import { ExecutionLib } from "../src/libraries/ExecutionLib.sol";
-import { ModeLib } from "../src/libraries/ModeLib.sol";
-import { MODULE_TYPE_VALIDATOR } from "../src/interfaces/IERC7579Module.sol";
-import { IERC7579Account } from "../src/interfaces/IERC7579Account.sol";
-import { SessionLib } from "../src/libraries/SessionLib.sol";
+import { ModularSmartAccount } from "src/ModularSmartAccount.sol";
+import { MSAProxy } from "src/utils/MSAProxy.sol";
+import { EOAKeyValidator } from "src/modules/EOAKeyValidator.sol";
+import { SessionKeyValidator } from "src/modules/SessionKeyValidator.sol";
+import { IMSA } from "src/interfaces/IMSA.sol";
+import { ExecutionLib } from "src/libraries/ExecutionLib.sol";
+import { ModeLib } from "src/libraries/ModeLib.sol";
+import { MODULE_TYPE_VALIDATOR } from "src/interfaces/IERC7579Module.sol";
+import { IERC7579Account } from "src/interfaces/IERC7579Account.sol";
+import { SessionLib } from "src/libraries/SessionLib.sol";
 
-contract Basic is Test {
+contract SessionsTest is Test {
     EntryPoint public entryPoint;
     ModularSmartAccount public account;
     IMSA public accountProxy;
@@ -56,6 +56,8 @@ contract Basic is Test {
                 )
             )
         );
+
+        vm.deal(address(accountProxy), 1 ether);
     }
 
     function makeUserOp(
@@ -72,9 +74,9 @@ contract Basic is Test {
             nonce: accountNonce++,
             initCode: "",
             callData: data,
-            accountGasLimits: bytes32(uint256((100_000 << 128) | 100_000)),
-            preVerificationGas: 0,
-            gasFees: bytes32(0),
+            accountGasLimits: bytes32(abi.encodePacked(uint128(2e6), uint128(2e6))),
+            preVerificationGas: 2e6,
+            gasFees: bytes32(abi.encodePacked(uint128(2e6), uint128(2e6))),
             paymasterAndData: "",
             signature: ""
         });
@@ -96,11 +98,11 @@ contract Basic is Test {
         returns (PackedUserOperation memory)
     {
         bytes memory callData = ExecutionLib.encodeSingle(target, value, data);
-        bytes memory executeData = abi.encodeCall(ModularSmartAccount.execute, (ModeLib.encodeSimpleSingle(), callData));
+        bytes memory executeData = abi.encodeCall(IERC7579Account.execute, (ModeLib.encodeSimpleSingle(), callData));
         return makeUserOp(executeData, signerKey, validator, validatorData);
     }
 
-    function test_InstallValidator() public {
+    function test_installValidator() public {
         bytes memory data =
             abi.encodeCall(ModularSmartAccount.installModule, (MODULE_TYPE_VALIDATOR, address(sessionKeyValidator), ""));
         PackedUserOperation[] memory userOps = new PackedUserOperation[](1);
@@ -111,8 +113,8 @@ contract Basic is Test {
         entryPoint.handleOps(userOps, bundler);
     }
 
-    function test_CreateSession() public {
-        test_InstallValidator();
+    function test_createSession() public {
+        test_installValidator();
 
         SessionLib.TransferSpec[] memory transferPolicies = new SessionLib.TransferSpec[](1);
         transferPolicies[0] = SessionLib.TransferSpec({
@@ -148,8 +150,8 @@ contract Basic is Test {
         vm.assertTrue(status == SessionLib.Status.Active);
     }
 
-    function test_UseSession() public {
-        test_CreateSession();
+    function test_useSession() public {
+        test_createSession();
 
         vm.deal(address(accountProxy), 0.2 ether);
         accountNonce = uint256(uint160(sessionOwner.addr)) << 64;
@@ -162,8 +164,8 @@ contract Basic is Test {
         vm.assertEq(recipient.balance, 0.05 ether);
     }
 
-    function testRevert_UseSession() public {
-        test_CreateSession();
+    function testRevert_useSession() public {
+        test_createSession();
 
         vm.deal(address(accountProxy), 0.2 ether);
         accountNonce = uint256(uint160(sessionOwner.addr)) << 64;
