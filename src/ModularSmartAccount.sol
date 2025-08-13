@@ -1,14 +1,15 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.23;
 
+import { PackedUserOperation } from "account-abstraction/interfaces/PackedUserOperation.sol";
+import { ERC1271 } from "solady/accounts/ERC1271.sol";
+
 import { ExecutionLib } from "./libraries/ExecutionLib.sol";
 import { ExecutionHelper } from "./core/ExecutionHelper.sol";
-import { PackedUserOperation } from "account-abstraction/interfaces/PackedUserOperation.sol";
 import { IERC7579Account, Execution } from "./interfaces/IERC7579Account.sol";
 import { IMSA } from "./interfaces/IMSA.sol";
-import { ModuleManager } from "./core/ModuleManager.sol";
+import { ERC1271Handler } from "./core/ERC1271Handler.sol";
 import { RegistryAdapter } from "./core/RegistryAdapter.sol";
-import { ECDSA } from "solady/utils/ECDSA.sol";
 import { Initializable } from "./libraries/Initializable.sol";
 
 import {
@@ -34,8 +35,6 @@ import {
     CALLTYPE_DELEGATECALL,
     ModeLib
 } from "./libraries/ModeLib.sol";
-import { AccountBase } from "./core/AccountBase.sol";
-import { console } from "forge-std/console.sol";
 
 /**
  * @author zeroknots.eth | rhinestone.wtf
@@ -44,10 +43,9 @@ import { console } from "forge-std/console.sol";
  * This account implements ExecType: DEFAULT and TRY.
  * Hook support is implemented
  */
-contract ModularSmartAccount is IMSA, ExecutionHelper, ModuleManager, RegistryAdapter {
+contract ModularSmartAccount is IMSA, ExecutionHelper, ERC1271Handler, RegistryAdapter {
     using ExecutionLib for bytes;
     using ModeLib for ModeCode;
-    using ECDSA for bytes32;
 
     /**
      * @inheritdoc IERC7579Account
@@ -260,20 +258,16 @@ contract ModularSmartAccount is IMSA, ExecutionHelper, ModuleManager, RegistryAd
         }
     }
 
-    /**
-     * @dev ERC-1271 isValidSignature
-     *         This function is intended to be used to validate a smart account signature
-     * and may forward the call to a validator module
-     *
-     * @param hash The hash of the data that is signed
-     * @param data The data that is signed
-     */
-    function isValidSignature(bytes32 hash, bytes calldata data) external view virtual override returns (bytes4) {
-        address validator = address(bytes20(data[:20]));
-        if (!_isValidatorInstalled(validator)) {
-            revert InvalidModule(validator);
-        }
-        return IValidator(validator).isValidSignatureWithSender(msg.sender, hash, data[20:]);
+    function isValidSignature(
+        bytes32 hash,
+        bytes calldata data
+    )
+        public
+        view
+        override(ERC1271, IERC7579Account)
+        returns (bytes4)
+    {
+        return super.isValidSignature(hash, data);
     }
 
     /**

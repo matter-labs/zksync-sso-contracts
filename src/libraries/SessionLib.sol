@@ -9,7 +9,6 @@ import { LibBytes } from "solady/utils/LibBytes.sol";
 import { IERC7579Account } from "../interfaces/IERC7579Account.sol";
 import { ExecutionLib } from "../libraries/ExecutionLib.sol";
 import { CallType, ModeCode, ExecType, CALLTYPE_SINGLE, ModeLib } from "../libraries/ModeLib.sol";
-import { console } from "forge-std/console.sol";
 
 /// @title Session Library
 /// @author Matter Labs

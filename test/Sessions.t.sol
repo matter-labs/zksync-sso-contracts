@@ -6,7 +6,6 @@ pragma solidity ^0.8.24;
 import { EntryPoint } from "account-abstraction/core/EntryPoint.sol";
 import { PackedUserOperation } from "account-abstraction/interfaces/PackedUserOperation.sol";
 import { Test } from "forge-std/Test.sol";
-import { console } from "forge-std/console.sol";
 import { ModularSmartAccount } from "src/ModularSmartAccount.sol";
 import { MSAProxy } from "src/utils/MSAProxy.sol";
 import { EOAKeyValidator } from "src/modules/EOAKeyValidator.sol";

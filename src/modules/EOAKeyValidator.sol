@@ -4,13 +4,14 @@ pragma solidity ^0.8.24;
 import { IValidator, MODULE_TYPE_VALIDATOR } from "../interfaces/IERC7579Module.sol";
 import { PackedUserOperation } from "account-abstraction/interfaces/PackedUserOperation.sol";
 import { SIG_VALIDATION_FAILED, SIG_VALIDATION_SUCCESS } from "account-abstraction/core/Helpers.sol";
-
-import { EnumerableSet } from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import { ECDSA } from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
-import { console } from "forge-std/console.sol";
+import { IERC1271 } from "@openzeppelin/contracts/interfaces/IERC1271.sol";
+import { EnumerableSet } from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 
 contract EOAKeyValidator is IValidator {
     using EnumerableSet for EnumerableSet.AddressSet;
+
+    bytes4 public constant ERC1271_MAGIC = bytes4(keccak256("isValidSignature(bytes32,bytes)"));
 
     // TODO: is this actually needed?
     mapping(address => bool) internal _initialized;
@@ -31,12 +32,7 @@ contract EOAKeyValidator is IValidator {
         }
     }
 
-    function onUninstall(
-        bytes calldata // data
-    )
-        external
-        override
-    {
+    function onUninstall(bytes calldata) external override {
         if (!isInitialized(msg.sender)) revert NotInitialized(msg.sender);
         _initialized[msg.sender] = false;
         // TODO: clear owners?
@@ -73,7 +69,7 @@ contract EOAKeyValidator is IValidator {
     }
 
     function isValidSignatureWithSender(
-        address sender,
+        address, // sender
         bytes32 hash,
         bytes calldata data
     )
@@ -82,6 +78,9 @@ contract EOAKeyValidator is IValidator {
         override
         returns (bytes4)
     {
-        // TODO
+        (address signer, ECDSA.RecoverError err,) = ECDSA.tryRecover(hash, data);
+        return err == ECDSA.RecoverError.NoError && owners[msg.sender].contains(signer)
+            ? IERC1271.isValidSignature.selector
+            : bytes4(0xffffffff);
     }
 }
