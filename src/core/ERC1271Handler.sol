@@ -58,4 +58,8 @@ abstract contract ERC1271Handler is ERC1271, ModuleManager {
     function _erc1271CallerIsSafe() internal pure override returns (bool) {
         return false;
     }
+
+    function domainSeparator() external view returns (bytes32) {
+        return _domainSeparator();
+    }
 }

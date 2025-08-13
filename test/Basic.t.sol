@@ -6,6 +6,7 @@ pragma solidity ^0.8.24;
 // since it uses EntryPoint.sol which is licensed under the same license.
 import { EntryPoint } from "account-abstraction/core/EntryPoint.sol";
 import { PackedUserOperation } from "account-abstraction/interfaces/PackedUserOperation.sol";
+import { LibString } from "solady/utils/LibString.sol";
 import { Test } from "forge-std/Test.sol";
 
 import { ModularSmartAccount } from "src/ModularSmartAccount.sol";
@@ -169,11 +170,8 @@ contract BasicTest is Test {
 
         bytes32 wrapperStructHash = keccak256(
             abi.encode(
-                // Computed on-the-fly with `contentsType`, which is passed via `signature`.
                 typedDataSignTypehash,
-                // This is the `contents` struct hash, which is passed via `signature`.
                 structHash,
-                // eip712Domain()
                 keccak256(bytes(name)),
                 keccak256(bytes(version)),
                 uint256(chainId),
@@ -197,11 +195,26 @@ contract BasicTest is Test {
         );
 
         bool success = erc1271Caller.validateStruct(mockMessage, address(accountProxy), signature);
-
         vm.assertTrue(success, "Signature validation failed");
     }
 
-    function test_signaturePersonalSign() public {
-        // TODO
+    function test_signaturePersonalSign() public view {
+        bytes memory message = "Hello, world!";
+        bytes32 messageHash =
+            keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n", LibString.toString(message.length), message));
+        bytes32 finalHash = keccak256(
+            abi.encodePacked(
+                hex"1901",
+                bytes32(accountProxy.domainSeparator()),
+                keccak256(abi.encode(keccak256("PersonalSign(bytes prefixed)"), messageHash))
+            )
+        );
+
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(owner.key, finalHash);
+        bytes memory originalSignature = abi.encodePacked(r, s, v);
+        bytes memory signature = abi.encodePacked(address(eoaValidator), originalSignature);
+
+        bytes4 magic = accountProxy.isValidSignature(messageHash, signature);
+        vm.assertEq(magic, accountProxy.isValidSignature.selector);
     }
 }
