@@ -27,17 +27,16 @@ contract Basic is Test {
         address[] memory owners = new address[](1);
         owners[0] = owner.addr;
 
-        entryPoint = new EntryPoint();
         account = new ModularSmartAccount();
         eoaValidator = new EOAKeyValidator();
+
+        vm.etch(account.ENTRY_POINT(), address(new EntryPoint()).code);
+        entryPoint = EntryPoint(payable(account.ENTRY_POINT()));
         accountProxy = IMSA(
             address(
                 new MSAProxy(
                     address(account),
-                    abi.encodeCall(
-                        ModularSmartAccount.initializeAccount,
-                        (address(entryPoint), address(eoaValidator), abi.encode(owners))
-                    )
+                    abi.encodeCall(IMSA.initializeAccount, (address(eoaValidator), abi.encode(owners)))
                 )
             )
         );

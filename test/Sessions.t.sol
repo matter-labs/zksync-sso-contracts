@@ -1,20 +1,22 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: GPL-3.0
 pragma solidity ^0.8.24;
 
-import { Test } from "forge-std/Test.sol";
+// NOTE: this contract has to be licensed under the GPL-3.0
+// since it uses EntryPoint.sol which is licensed under the same license.
 import { EntryPoint } from "account-abstraction/core/EntryPoint.sol";
+import { PackedUserOperation } from "account-abstraction/interfaces/PackedUserOperation.sol";
+import { Test } from "forge-std/Test.sol";
+import { console } from "forge-std/console.sol";
 import { ModularSmartAccount } from "../src/ModularSmartAccount.sol";
 import { MSAProxy } from "../src/utils/MSAProxy.sol";
 import { EOAKeyValidator } from "../src/modules/EOAKeyValidator.sol";
 import { SessionKeyValidator } from "../src/modules/SessionKeyValidator.sol";
-import { PackedUserOperation } from "account-abstraction/interfaces/PackedUserOperation.sol";
 import { IMSA } from "../src/interfaces/IMSA.sol";
 import { ExecutionLib } from "../src/libraries/ExecutionLib.sol";
 import { ModeLib } from "../src/libraries/ModeLib.sol";
 import { MODULE_TYPE_VALIDATOR } from "../src/interfaces/IERC7579Module.sol";
 import { IERC7579Account } from "../src/interfaces/IERC7579Account.sol";
 import { SessionLib } from "../src/libraries/SessionLib.sol";
-import { console } from "forge-std/console.sol";
 
 contract Basic is Test {
     EntryPoint public entryPoint;
@@ -27,7 +29,7 @@ contract Basic is Test {
     Account public owner;
     Account public sessionOwner;
     address recipient;
-    address bundler;
+    address payable bundler;
 
     SessionLib.SessionSpec public spec;
 
@@ -35,23 +37,22 @@ contract Basic is Test {
         owner = makeAccount("owner");
         sessionOwner = makeAccount("sessionOwner");
         recipient = makeAddr("sessionRecipient");
-        bundler = makeAddr("bundler");
+        bundler = payable(makeAddr("bundler"));
 
         address[] memory owners = new address[](1);
         owners[0] = owner.addr;
 
-        entryPoint = new EntryPoint();
         account = new ModularSmartAccount();
         eoaValidator = new EOAKeyValidator();
         sessionKeyValidator = new SessionKeyValidator();
+
+        vm.etch(account.ENTRY_POINT(), address(new EntryPoint()).code);
+        entryPoint = EntryPoint(payable(account.ENTRY_POINT()));
         accountProxy = IMSA(
             address(
                 new MSAProxy(
                     address(account),
-                    abi.encodeCall(
-                        ModularSmartAccount.initializeAccount,
-                        (address(entryPoint), address(eoaValidator), abi.encode(owners))
-                    )
+                    abi.encodeCall(IMSA.initializeAccount, (address(eoaValidator), abi.encode(owners)))
                 )
             )
         );
@@ -107,7 +108,7 @@ contract Basic is Test {
 
         vm.expectEmit(true, false, false, false);
         emit IERC7579Account.ModuleInstalled(MODULE_TYPE_VALIDATOR, address(sessionKeyValidator));
-        entryPoint.handleOps(userOps, payable(bundler));
+        entryPoint.handleOps(userOps, bundler);
     }
 
     function test_CreateSession() public {
@@ -141,7 +142,7 @@ contract Basic is Test {
         bytes32 sessionHash = keccak256(abi.encode(spec));
         vm.expectEmit(true, true, true, true);
         emit SessionKeyValidator.SessionCreated(address(accountProxy), sessionHash, spec);
-        entryPoint.handleOps(userOps, payable(bundler));
+        entryPoint.handleOps(userOps, bundler);
 
         SessionLib.Status status = sessionKeyValidator.sessionStatus(address(accountProxy), sessionHash);
         vm.assertTrue(status == SessionLib.Status.Active);
@@ -151,15 +152,32 @@ contract Basic is Test {
         test_CreateSession();
 
         vm.deal(address(accountProxy), 0.2 ether);
-
         accountNonce = uint256(uint160(sessionOwner.addr)) << 64;
-
         PackedUserOperation[] memory userOps = new PackedUserOperation[](1);
         userOps[0] = makeUserOp(
             recipient, 0.05 ether, "", sessionOwner.key, address(sessionKeyValidator), abi.encode(spec, new uint48[](2))
         );
 
-        entryPoint.handleOps(userOps, payable(bundler));
+        entryPoint.handleOps(userOps, bundler);
         vm.assertEq(recipient.balance, 0.05 ether);
+    }
+
+    function testRevert_UseSession() public {
+        test_CreateSession();
+
+        vm.deal(address(accountProxy), 0.2 ether);
+        accountNonce = uint256(uint160(sessionOwner.addr)) << 64;
+        PackedUserOperation[] memory userOps = new PackedUserOperation[](1);
+        userOps[0] = makeUserOp(
+            recipient,
+            0.11 ether, // more than maxValuePerUse
+            "",
+            sessionOwner.key,
+            address(sessionKeyValidator),
+            abi.encode(spec, new uint48[](2))
+        );
+
+        vm.expectRevert();
+        entryPoint.handleOps(userOps, bundler);
     }
 }
