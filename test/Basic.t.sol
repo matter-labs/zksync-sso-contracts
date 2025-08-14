@@ -4,78 +4,30 @@ pragma solidity ^0.8.24;
 
 // NOTE: this contract has to be licensed under the GPL-3.0
 // since it uses EntryPoint.sol which is licensed under the same license.
-import { EntryPoint } from "account-abstraction/core/EntryPoint.sol";
 import { PackedUserOperation } from "account-abstraction/interfaces/PackedUserOperation.sol";
 import { LibString } from "solady/utils/LibString.sol";
-import { Test } from "forge-std/Test.sol";
 
-import { ModularSmartAccount } from "src/ModularSmartAccount.sol";
-import { MSAProxy } from "src/utils/MSAProxy.sol";
-import { EOAKeyValidator } from "src/modules/EOAKeyValidator.sol";
-import { IMSA } from "src/interfaces/IMSA.sol";
 import { IERC7579Account } from "src/interfaces/IERC7579Account.sol";
 import { ExecutionLib } from "src/libraries/ExecutionLib.sol";
 import { Execution } from "src/interfaces/IERC7579Account.sol";
 import "src/libraries/ModeLib.sol";
+
 import { MockTarget } from "./mocks/MockTarget.sol";
 import { MockDelegateTarget } from "./mocks/MockDelegateTarget.sol";
 import { MockERC1271Caller, MockMessage } from "./mocks/MockERC1271Caller.sol";
+import { MSATest } from "./MSATest.sol";
 
-contract BasicTest is Test {
-    EntryPoint public entryPoint;
-    ModularSmartAccount public account;
-    ModularSmartAccount public accountProxy;
-    EOAKeyValidator public eoaValidator;
-    Account public owner;
-    address payable bundler;
-
+contract BasicTest is MSATest {
     MockTarget public target;
     MockDelegateTarget public delegateTarget;
     MockERC1271Caller public erc1271Caller;
 
-    function setUp() public {
-        bundler = payable(makeAddr("bundler"));
-        owner = makeAccount("owner");
-        address[] memory owners = new address[](1);
-        owners[0] = owner.addr;
+    function setUp() public override {
+        super.setUp();
 
-        account = new ModularSmartAccount();
-        eoaValidator = new EOAKeyValidator();
         target = new MockTarget();
         delegateTarget = new MockDelegateTarget();
         erc1271Caller = new MockERC1271Caller();
-
-        vm.etch(account.ENTRY_POINT(), address(new EntryPoint()).code);
-        entryPoint = EntryPoint(payable(account.ENTRY_POINT()));
-        accountProxy = ModularSmartAccount(
-            payable(
-                address(
-                    new MSAProxy(
-                        address(account),
-                        abi.encodeCall(IMSA.initializeAccount, (address(eoaValidator), abi.encode(owners)))
-                    )
-                )
-            )
-        );
-        vm.deal(address(accountProxy), 2 ether);
-    }
-
-    function makeUserOp(bytes memory callData) public view returns (PackedUserOperation memory userOp) {
-        userOp = PackedUserOperation({
-            sender: address(accountProxy),
-            nonce: 0,
-            initCode: "",
-            callData: callData,
-            accountGasLimits: bytes32(abi.encodePacked(uint128(2e6), uint128(2e6))),
-            preVerificationGas: 2e6,
-            gasFees: bytes32(abi.encodePacked(uint128(2e6), uint128(2e6))),
-            paymasterAndData: "",
-            signature: ""
-        });
-
-        bytes32 userOpHash = entryPoint.getUserOpHash(userOp);
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(owner.key, userOpHash);
-        userOp.signature = abi.encode(address(eoaValidator), abi.encodePacked(r, s, v), "");
     }
 
     function test_transfer() public {
@@ -83,7 +35,7 @@ contract BasicTest is Test {
         bytes memory execution = ExecutionLib.encodeSingle(recipient, 1 ether, "");
         bytes memory callData = abi.encodeCall(IERC7579Account.execute, (ModeLib.encodeSimpleSingle(), execution));
         PackedUserOperation[] memory userOps = new PackedUserOperation[](1);
-        userOps[0] = makeUserOp(callData);
+        userOps[0] = makeSignedUserOp(callData, owner.key, address(eoaValidator));
 
         entryPoint.handleOps(userOps, bundler);
         vm.assertEq(recipient.balance, 1 ether);
@@ -94,7 +46,7 @@ contract BasicTest is Test {
             ExecutionLib.encodeSingle(address(target), 0, abi.encodeCall(MockTarget.setValue, 1337));
         bytes memory callData = abi.encodeCall(IERC7579Account.execute, (ModeLib.encodeSimpleSingle(), execution));
         PackedUserOperation[] memory userOps = new PackedUserOperation[](1);
-        userOps[0] = makeUserOp(callData);
+        userOps[0] = makeSignedUserOp(callData, owner.key, address(eoaValidator));
 
         entryPoint.handleOps(userOps, bundler);
         vm.assertEq(target.value(), 1337);
@@ -113,7 +65,7 @@ contract BasicTest is Test {
             abi.encodeCall(IERC7579Account.execute, (ModeLib.encodeSimpleBatch(), ExecutionLib.encodeBatch(executions)));
 
         PackedUserOperation[] memory userOps = new PackedUserOperation[](1);
-        userOps[0] = makeUserOp(callData);
+        userOps[0] = makeSignedUserOp(callData, owner.key, address(eoaValidator));
 
         entryPoint.handleOps(userOps, bundler);
         vm.assertEq(target.value(), 1337);
@@ -134,7 +86,7 @@ contract BasicTest is Test {
         );
 
         PackedUserOperation[] memory userOps = new PackedUserOperation[](1);
-        userOps[0] = makeUserOp(callData);
+        userOps[0] = makeSignedUserOp(callData, owner.key, address(eoaValidator));
 
         entryPoint.handleOps(userOps, bundler);
         vm.assertEq(valueTarget.balance, value);
@@ -145,15 +97,11 @@ contract BasicTest is Test {
         bytes memory contentsDescription = "MockMessage(string message,uint256 value)";
 
         bytes32 structHash = keccak256(
-            abi.encode(
-                keccak256("MockMessage(string message,uint256 value)"),
-                keccak256(bytes(mockMessage.message)),
-                mockMessage.value
-            )
+            abi.encode(keccak256(contentsDescription), keccak256(bytes(mockMessage.message)), mockMessage.value)
         );
 
         (, string memory name, string memory version, uint256 chainId, address verifyingContract, bytes32 salt,) =
-            accountProxy.eip712Domain();
+            account.eip712Domain();
 
         bytes32 typedDataSignTypehash = keccak256(
             abi.encodePacked(
@@ -194,7 +142,7 @@ contract BasicTest is Test {
             uint16(contentsDescription.length)
         );
 
-        bool success = erc1271Caller.validateStruct(mockMessage, address(accountProxy), signature);
+        bool success = erc1271Caller.validateStruct(mockMessage, address(account), signature);
         vm.assertTrue(success, "Signature validation failed");
     }
 
@@ -202,10 +150,11 @@ contract BasicTest is Test {
         bytes memory message = "Hello, world!";
         bytes32 messageHash =
             keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n", LibString.toString(message.length), message));
+
         bytes32 finalHash = keccak256(
             abi.encodePacked(
                 hex"1901",
-                bytes32(accountProxy.domainSeparator()),
+                account.domainSeparator(),
                 keccak256(abi.encode(keccak256("PersonalSign(bytes prefixed)"), messageHash))
             )
         );
@@ -214,7 +163,33 @@ contract BasicTest is Test {
         bytes memory originalSignature = abi.encodePacked(r, s, v);
         bytes memory signature = abi.encodePacked(address(eoaValidator), originalSignature);
 
-        bytes4 magic = accountProxy.isValidSignature(messageHash, signature);
-        vm.assertEq(magic, accountProxy.isValidSignature.selector);
+        bytes4 magic = account.isValidSignature(messageHash, signature);
+        vm.assertEq(magic, account.isValidSignature.selector);
+    }
+
+    function test_signatureTypedDataUnnested() public {
+        // This test is skipped because solady's implementation of ERC1271 does some weird checks with gas limit for RPC
+        // calls
+        vm.skip(true);
+
+        MockMessage memory mockMessage = MockMessage({ message: "Hello, world!", value: 42 });
+
+        bytes32 structHash = keccak256(
+            abi.encode(
+                keccak256("MockMessage(string message,uint256 value)"),
+                keccak256(bytes(mockMessage.message)),
+                mockMessage.value
+            )
+        );
+
+        bytes32 finalHash = keccak256(abi.encodePacked(hex"1901", erc1271Caller.domainSeparator(), structHash));
+
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(owner.key, finalHash);
+        bytes memory originalSignature = abi.encodePacked(r, s, v);
+
+        bytes memory signature = abi.encodePacked(address(eoaValidator), originalSignature);
+
+        bool success = erc1271Caller.validateStruct(mockMessage, address(account), signature);
+        vm.assertTrue(success, "Signature validation failed");
     }
 }

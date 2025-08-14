@@ -18,9 +18,6 @@ interface IMSA is IERC7579Account, IERC4337Account {
     // Error thrown when account installs/unistalls module with mismatched input `moduleTypeId`
     error MismatchModuleTypeId(uint256 moduleTypeId);
 
-    /**
-     * @dev Initializes the account. Function might be called directly, or by a Factory
-     * @param data. encoded data that can be used during the initialization phase
-     */
-    function initializeAccount(address validator, bytes calldata data) external payable;
+    /// @dev Initializes the account. Function might be called directly, or by a Factory
+    function initializeAccount(address[] calldata validators, bytes[] calldata data) external payable;
 }

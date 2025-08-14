@@ -6,6 +6,7 @@ import { Strings } from "@openzeppelin/contracts/utils/Strings.sol";
 import { Base64 } from "solady/utils/Base64.sol";
 import { JSONParserLib } from "solady/utils/JSONParserLib.sol";
 import { PackedUserOperation } from "account-abstraction/interfaces/PackedUserOperation.sol";
+import { IERC1271 } from "@openzeppelin/contracts/interfaces/IERC1271.sol";
 
 import { IMSA } from "../interfaces/IMSA.sol";
 import { IValidator, IModule, MODULE_TYPE_VALIDATOR } from "../interfaces/IERC7579Module.sol";
@@ -164,7 +165,7 @@ contract WebAuthnValidator is IValidator {
     /// @param signature The signature to validate
     // TODO return
     function isValidSignatureWithSender(
-        address sender, // TODO
+        address, // sender
         bytes32 signedHash,
         bytes calldata signature
     )
@@ -172,7 +173,7 @@ contract WebAuthnValidator is IValidator {
         view
         returns (bytes4)
     {
-        return webAuthVerify(signedHash, signature) ? bytes4(0x1626ba7e) : bytes4(0x00000000);
+        return webAuthVerify(signedHash, signature) ? IERC1271.isValidSignature.selector : bytes4(0xffffffff);
     }
 
     /// @notice Validates a transaction signed with a passkey

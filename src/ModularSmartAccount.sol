@@ -2,6 +2,7 @@
 pragma solidity ^0.8.23;
 
 import { PackedUserOperation } from "account-abstraction/interfaces/PackedUserOperation.sol";
+import { Initializable } from "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 import { ERC1271 } from "solady/accounts/ERC1271.sol";
 
 import { ExecutionLib } from "./libraries/ExecutionLib.sol";
@@ -10,7 +11,6 @@ import { IERC7579Account, Execution } from "./interfaces/IERC7579Account.sol";
 import { IMSA } from "./interfaces/IMSA.sol";
 import { ERC1271Handler } from "./core/ERC1271Handler.sol";
 import { RegistryAdapter } from "./core/RegistryAdapter.sol";
-import { Initializable } from "./libraries/Initializable.sol";
 
 import {
     IModule,
@@ -43,9 +43,13 @@ import {
  * This account implements ExecType: DEFAULT and TRY.
  * Hook support is implemented
  */
-contract ModularSmartAccount is IMSA, ExecutionHelper, ERC1271Handler, RegistryAdapter {
+contract ModularSmartAccount is IMSA, ExecutionHelper, ERC1271Handler, RegistryAdapter, Initializable {
     using ExecutionLib for bytes;
     using ModeLib for ModeCode;
+
+    constructor() {
+        _disableInitializers();
+    }
 
     /**
      * @inheritdoc IERC7579Account
@@ -339,13 +343,17 @@ contract ModularSmartAccount is IMSA, ExecutionHelper, ERC1271Handler, RegistryA
      * @dev Initializes the account. Function might be called directly, or by a Factory
      * @param data. encoded data that can be used during the initialization phase
      */
-    function initializeAccount(address validator, bytes calldata data) public payable virtual {
-        // protect this function to only be callable when used with the proxy factory or when
-        // account calls itself
-        if (msg.sender != address(this)) {
-            Initializable.checkInitializable();
+    function initializeAccount(
+        address[] calldata validators,
+        bytes[] calldata data
+    )
+        external
+        payable
+        virtual
+        initializer
+    {
+        for (uint256 i = 0; i < validators.length; i++) {
+            _installValidator(address(validators[i]), data[i]);
         }
-
-        _installValidator(address(validator), data);
     }
 }
