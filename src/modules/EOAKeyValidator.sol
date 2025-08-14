@@ -11,8 +11,6 @@ import { EnumerableSet } from "@openzeppelin/contracts/utils/structs/EnumerableS
 contract EOAKeyValidator is IValidator {
     using EnumerableSet for EnumerableSet.AddressSet;
 
-    bytes4 public constant ERC1271_MAGIC = bytes4(keccak256("isValidSignature(bytes32,bytes)"));
-
     // TODO: is this actually needed?
     mapping(address => bool) internal _initialized;
     mapping(address => EnumerableSet.AddressSet) owners;
