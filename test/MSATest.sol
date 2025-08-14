@@ -6,21 +6,13 @@ pragma solidity ^0.8.24;
 // since it uses EntryPoint.sol which is licensed under the same license.
 import { EntryPoint } from "account-abstraction/core/EntryPoint.sol";
 import { PackedUserOperation } from "account-abstraction/interfaces/PackedUserOperation.sol";
-import { LibString } from "solady/utils/LibString.sol";
-import { Test } from "forge-std/Test.sol";
 import { UpgradeableBeacon } from "@openzeppelin/contracts/proxy/beacon/UpgradeableBeacon.sol";
+import { Test } from "forge-std/Test.sol";
 
 import { ModularSmartAccount } from "src/ModularSmartAccount.sol";
 import { MSAFactory } from "src/MSAFactory.sol";
 import { EOAKeyValidator } from "src/modules/EOAKeyValidator.sol";
 import { IMSA } from "src/interfaces/IMSA.sol";
-import { IERC7579Account } from "src/interfaces/IERC7579Account.sol";
-import { ExecutionLib } from "src/libraries/ExecutionLib.sol";
-import { Execution } from "src/interfaces/IERC7579Account.sol";
-import "src/libraries/ModeLib.sol";
-import { MockTarget } from "./mocks/MockTarget.sol";
-import { MockDelegateTarget } from "./mocks/MockDelegateTarget.sol";
-import { MockERC1271Caller, MockMessage } from "./mocks/MockERC1271Caller.sol";
 
 contract MSATest is Test {
     EntryPoint public entryPoint;
