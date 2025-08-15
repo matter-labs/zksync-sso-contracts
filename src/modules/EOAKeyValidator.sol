@@ -76,6 +76,7 @@ contract EOAKeyValidator is IValidator {
         override
         returns (bytes4)
     {
+        // slither-disable-next-line unused-return
         (address signer, ECDSA.RecoverError err,) = ECDSA.tryRecover(hash, data);
         return err == ECDSA.RecoverError.NoError && owners[msg.sender].contains(signer)
             ? IERC1271.isValidSignature.selector

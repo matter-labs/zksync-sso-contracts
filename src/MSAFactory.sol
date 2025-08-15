@@ -35,8 +35,8 @@ contract MSAFactory is Ownable {
     function deployAccount(bytes32 accountId, bytes calldata initData) external onlyOwner returns (address account) {
         require(accountRegistry[accountId] == address(0), AccountAlreadyExists(accountId));
 
-        account = address(new BeaconProxy{ salt: accountId }(beacon, initData));
         accountRegistry[accountId] = address(account);
+        account = address(new BeaconProxy{ salt: accountId }(beacon, initData));
 
         emit AccountCreated(account, accountId);
     }
