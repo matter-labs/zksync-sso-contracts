@@ -168,8 +168,8 @@ contract BasicTest is MSATest {
     }
 
     function test_signatureTypedDataUnnested() public {
-        // This test is skipped because solady's implementation of ERC1271 does some weird checks with gas limit for RPC
-        // calls
+        // This test is skipped because solady's implementation of ERC1271
+        // does some weird checks with gas limit for RPC calls
         vm.skip(true);
 
         MockMessage memory mockMessage = MockMessage({ message: "Hello, world!", value: 42 });

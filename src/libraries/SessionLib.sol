@@ -280,10 +280,7 @@ library SessionLib {
     /// otherwise (which will be ignored).
     /// periodIds[0] is for fee limit (not used in this function),
     /// periodIds[1] is for value limit,
-    /// peroidIds[2:2+n] are for `ERC20.approve()` constraints, where `n` is the number of
-    /// constraints in the `ERC20.approve()` policy
-    ///   if an approval-based paymaster is used, 0 otherwise.
-    /// periodIds[2+n:] are for call constraints, if there are any.
+    /// periodIds[2:] are for call constraints, if there are any.
     /// It is required to pass them in (instead of computing via block.timestamp) since during
     /// validation
     /// we can only assert the range of the timestamp, but not access its value.
