@@ -2,7 +2,6 @@
 pragma solidity ^0.8.24;
 
 import { BeaconProxy } from "@openzeppelin/contracts/proxy/beacon/BeaconProxy.sol";
-import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 
 import { IMSA } from "./interfaces/IMSA.sol";
 
@@ -10,7 +9,7 @@ import { IMSA } from "./interfaces/IMSA.sol";
 /// @author Matter Labs
 /// @custom:security-contact security@matterlabs.dev
 /// @dev This contract is used to deploy SSO accounts as beacon proxies.
-contract MSAFactory is Ownable {
+contract MSAFactory {
     /// @dev The address of the beacon contract used for the accounts' beacon proxies.
     address public immutable beacon;
 
@@ -28,11 +27,11 @@ contract MSAFactory is Ownable {
 
     error AccountAlreadyExists(bytes32 accountId);
 
-    constructor(address _beacon) Ownable(msg.sender) {
+    constructor(address _beacon) {
         beacon = _beacon;
     }
 
-    function deployAccount(bytes32 accountId, bytes calldata initData) external onlyOwner returns (address account) {
+    function deployAccount(bytes32 accountId, bytes calldata initData) external returns (address account) {
         require(accountRegistry[accountId] == address(0), AccountAlreadyExists(accountId));
 
         accountRegistry[accountId] = address(account);

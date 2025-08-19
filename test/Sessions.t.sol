@@ -1,11 +1,8 @@
-// SPDX-License-Identifier: GPL-3.0
+// SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-// NOTE: this contract has to be licensed under the GPL-3.0
-// since it uses EntryPoint.sol which is licensed under the same license.
-import { EntryPoint } from "account-abstraction/core/EntryPoint.sol";
 import { PackedUserOperation } from "account-abstraction/interfaces/PackedUserOperation.sol";
-import { Test } from "forge-std/Test.sol";
+
 import { ModularSmartAccount } from "src/ModularSmartAccount.sol";
 import { MSAFactory } from "src/MSAFactory.sol";
 import { EOAKeyValidator } from "src/modules/EOAKeyValidator.sol";

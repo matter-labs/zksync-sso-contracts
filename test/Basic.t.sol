@@ -1,9 +1,7 @@
-// SPDX-License-Identifier: GPL-3.0
+// SPDX-License-Identifier: MIT
 
 pragma solidity ^0.8.24;
 
-// NOTE: this contract has to be licensed under the GPL-3.0
-// since it uses EntryPoint.sol which is licensed under the same license.
 import { PackedUserOperation } from "account-abstraction/interfaces/PackedUserOperation.sol";
 import { LibString } from "solady/utils/LibString.sol";
 

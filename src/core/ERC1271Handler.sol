@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0
+// SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
 import { ERC1271 } from "solady/accounts/ERC1271.sol";
