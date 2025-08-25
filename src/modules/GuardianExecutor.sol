@@ -1,0 +1,228 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.24;
+
+import { PackedUserOperation } from "account-abstraction/interfaces/PackedUserOperation.sol";
+import { EnumerableMap } from "@openzeppelin/contracts/utils/structs/EnumerableMap.sol";
+
+import { IExecutor, MODULE_TYPE_EXECUTOR, MODULE_TYPE_VALIDATOR } from "../interfaces/IERC7579Module.sol";
+import { IMSA } from "../interfaces/IMSA.sol";
+import { WebAuthnValidator } from "./WebAuthnValidator.sol";
+import { EOAKeyValidator } from "./EOAKeyValidator.sol";
+import { CallType, ModeCode, ExecType, CALLTYPE_SINGLE, ModeLib } from "../libraries/ModeLib.sol";
+import { ExecutionLib } from "../libraries/ExecutionLib.sol";
+import { IERC7579Account } from "../interfaces/IERC7579Account.sol";
+
+/// @title GuardianExecutor
+/// @author Matter Labs
+/// @custom:security-contact security@matterlabs.dev
+/// @dev This contract allows account recovery using trusted guardians.
+contract GuardianExecutor is IExecutor {
+    using EnumerableMap for EnumerableMap.AddressToUintMap;
+
+    enum RecoveryType {
+        EOA,
+        Passkey
+    }
+
+    struct RecoveryRequest {
+        RecoveryType recoveryType;
+        bytes data;
+        uint48 timestamp;
+    }
+
+    event RecoveryInitiated(address indexed account, address indexed guardian, RecoveryRequest request);
+    event RecoveryFinished(address indexed account);
+    event RecoveryDiscarded(address indexed account);
+
+    event GuardianProposed(address indexed account, address indexed guardian);
+    event GuardianAdded(address indexed account, address indexed guardian);
+    event GuardianRemoved(address indexed account, address indexed guardian);
+
+    error GuardianInvalidAddress(address guardian);
+    error GuardianAlreadyPresent(address account, address guardian);
+    error GuardianNotFound(address account, address guardian);
+    error GuardianNotActive(address account, address guardian);
+    error RecoveryInProgress(address account);
+    error NoRecoveryInProgress(address account);
+    error NoSupportedValidatorsInstalled();
+    error RecoveryTimestampInvalid(uint48 timestamp);
+
+    // TODO make configurable?
+    uint256 public constant REQUEST_VALIDITY_TIME = 72 hours;
+    uint256 public constant REQUEST_DELAY_TIME = 24 hours;
+
+    address public immutable webAuthValidator;
+    address public immutable eoaValidator;
+
+    mapping(address account => EnumerableMap.AddressToUintMap guardians) private accountGuardians;
+    mapping(address account => RecoveryRequest recoveryData) public pendingRecovery;
+
+    /// @notice This modifier allows execution only by active guardian of account
+    /// @param account Address of account for which we verify guardian existence
+    modifier onlyGuardianOf(address account) {
+        (bool exists, uint256 guardianData) = accountGuardians[account].tryGet(msg.sender);
+        require(exists, GuardianNotFound(account, msg.sender));
+
+        (bool isActive, ) = _unpackGuardianData(guardianData);
+        require(isActive, GuardianNotActive(account, msg.sender));
+        // Continue execution if called by guardian
+        _;
+    }
+
+    constructor(address _webAuthValidator, address _eoaValidator) {
+        webAuthValidator = _webAuthValidator;
+        eoaValidator = _eoaValidator;
+    }
+
+    /// @notice Validator initiator for given sso account.
+    /// @dev This module does not support initialization on creation,
+    /// but ensures that the WebAuthValidator is enabled for calling SsoAccount.
+    function onInstall(bytes calldata) external view {
+        require(IMSA(msg.sender).isModuleInstalled(MODULE_TYPE_VALIDATOR, address(webAuthValidator), "") ||
+                IMSA(msg.sender).isModuleInstalled(MODULE_TYPE_VALIDATOR, address(eoaValidator), ""),
+        NoSupportedValidatorsInstalled());
+    }
+
+    /// @notice Removes all past guardians when this module is disabled in a account
+    function onUninstall(bytes calldata) external {
+        accountGuardians[msg.sender].clear();
+        _discardRecovery();
+    }
+
+    function proposeGuardian(address newGuardian) external {
+        require(newGuardian != address(0) && newGuardian != msg.sender, GuardianInvalidAddress(newGuardian));
+        require(!accountGuardians[msg.sender].contains(newGuardian), GuardianAlreadyPresent(msg.sender, newGuardian));
+
+        bool _added = accountGuardians[msg.sender].set(
+            newGuardian,
+            _packGuardianData(false, uint48(block.timestamp))
+        );
+
+        emit GuardianProposed(msg.sender, newGuardian);
+    }
+
+    function removeGuardian(address guardianToRemove) external {
+        require(accountGuardians[msg.sender].contains(guardianToRemove), GuardianNotFound(msg.sender, guardianToRemove));
+
+        (bool wasActive, ) = _unpackGuardianData(
+            accountGuardians[msg.sender].get(guardianToRemove)
+        );
+
+        bool _removed = accountGuardians[msg.sender].remove(guardianToRemove);
+
+        if (wasActive) {
+            // In case an ongoing recovery was started by this guardian, discard it to prevent a potential
+            // account overtake by a second malicious guardian.
+            _discardRecovery();
+        }
+
+        emit GuardianRemoved(msg.sender, guardianToRemove);
+    }
+
+    function acceptGuardian(address accountToGuard) external returns (bool) {
+        (bool exists, uint256 data) = accountGuardians[accountToGuard].tryGet(msg.sender);
+        require(exists, GuardianNotFound(accountToGuard, msg.sender));
+
+        (bool isActive, uint48 addedAt) = _unpackGuardianData(data);
+        require(addedAt != 0); // sanity check
+
+        if (isActive) {
+            // No need to do anything, guardian already active
+            return false;
+        }
+
+        // TODO: why do we need this addedAt timestamp at all?
+        bool _added = accountGuardians[accountToGuard].set(msg.sender, _packGuardianData(true, addedAt));
+
+        emit GuardianAdded(accountToGuard, msg.sender);
+        return true;
+    }
+
+    function initializeRecovery(
+        address accountToRecover,
+        RecoveryType recoveryType,
+        bytes calldata data
+    )
+        external
+        onlyGuardianOf(accountToRecover)
+    {
+        require(pendingRecovery[accountToRecover].timestamp + REQUEST_VALIDITY_TIME < block.timestamp, RecoveryInProgress(accountToRecover));
+        RecoveryRequest memory recovery = RecoveryRequest(recoveryType, data, uint48(block.timestamp));
+        pendingRecovery[accountToRecover] = recovery;
+        emit RecoveryInitiated(accountToRecover, msg.sender, recovery);
+    }
+
+    function finalizeRecovery(address account) external {
+        RecoveryRequest memory recovery = pendingRecovery[account];
+        require(recovery.timestamp != 0 && recovery.data.length != 0, NoRecoveryInProgress(account));
+
+        bytes memory execution;
+
+        if (recovery.recoveryType == RecoveryType.EOA) {
+            address owner = abi.decode(recovery.data, (address));
+            execution = ExecutionLib.encodeSingle(
+                eoaValidator,
+                0,
+                abi.encodeCall(EOAKeyValidator.addOwner, owner)
+            );
+        } else if (recovery.recoveryType == RecoveryType.Passkey) {
+            (bytes memory credentialId, bytes32[2] memory rawPublicKey, string memory originDomain) = abi.decode(recovery.data, (bytes, bytes32[2], string));
+            execution = ExecutionLib.encodeSingle(
+                webAuthValidator,
+                0,
+                abi.encodeCall(WebAuthnValidator.addValidationKey, (credentialId, rawPublicKey, originDomain))
+            );
+        } else {
+            revert("Unsupported recovery type");
+        }
+
+
+        require(recovery.timestamp + REQUEST_DELAY_TIME < block.timestamp &&
+                recovery.timestamp + REQUEST_VALIDITY_TIME > block.timestamp, RecoveryTimestampInvalid(recovery.timestamp));
+
+        IERC7579Account(account).executeFromExecutor(ModeLib.encodeSimpleSingle(), execution);
+
+        emit RecoveryFinished(msg.sender);
+        delete pendingRecovery[msg.sender];
+    }
+
+    function guardiansFor(address account) external view returns (address[] memory) {
+        return accountGuardians[account].keys();
+    }
+
+    function guardianStatusFor(address account, address guardian) external view returns (bool isPresent, bool isActive, uint48 addedAt) {
+        uint256 data;
+        (isPresent, data) = accountGuardians[account].tryGet(guardian);
+        if (isPresent) {
+            (isActive, addedAt) = _unpackGuardianData(data);
+        }
+    }
+
+    /// @notice This method allows to discard currently pending recovery
+    function _discardRecovery() internal {
+        delete pendingRecovery[msg.sender];
+    }
+
+    function discardRecovery() public {
+        // TODO: add an if to check if there is an active recovery
+        emit RecoveryDiscarded(msg.sender);
+        _discardRecovery();
+    }
+
+    function _packGuardianData(bool isActive, uint48 addedAt) internal pure returns (uint256) {
+        return (isActive ? 1 : 0) | (uint256(addedAt) << 1);
+    }
+
+    function _unpackGuardianData(uint256 data) internal pure returns (bool isActive, uint48 addedAt) {
+        isActive = (data & 1) != 0;
+        addedAt = uint48(data >> 1);
+    }
+
+    function isModuleType(uint256 moduleType) external pure returns (bool) {
+        return moduleType == MODULE_TYPE_EXECUTOR;
+    }
+
+    function isInitialized(address account) external view returns (bool) {
+        return IMSA(account).isModuleInstalled(MODULE_TYPE_EXECUTOR, address(this), "");
+    }
+}
