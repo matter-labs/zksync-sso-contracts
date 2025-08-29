@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0
+// SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
 import { IERC165 } from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
@@ -6,6 +6,7 @@ import { Strings } from "@openzeppelin/contracts/utils/Strings.sol";
 import { Base64 } from "solady/utils/Base64.sol";
 import { JSONParserLib } from "solady/utils/JSONParserLib.sol";
 import { PackedUserOperation } from "account-abstraction/interfaces/PackedUserOperation.sol";
+import { IERC1271 } from "@openzeppelin/contracts/interfaces/IERC1271.sol";
 
 import { IMSA } from "../interfaces/IMSA.sol";
 import { IValidator, IModule, MODULE_TYPE_VALIDATOR } from "../interfaces/IERC7579Module.sol";
@@ -164,7 +165,7 @@ contract WebAuthnValidator is IValidator {
     /// @param signature The signature to validate
     // TODO return
     function isValidSignatureWithSender(
-        address sender,
+        address, // sender
         bytes32 signedHash,
         bytes calldata signature
     )
@@ -172,7 +173,7 @@ contract WebAuthnValidator is IValidator {
         view
         returns (bytes4)
     {
-        return webAuthVerify(signedHash, signature) ? bytes4(0x1626ba7e) : bytes4(0x00000000);
+        return webAuthVerify(signedHash, signature) ? IERC1271.isValidSignature.selector : bytes4(0xffffffff);
     }
 
     /// @notice Validates a transaction signed with a passkey
@@ -180,7 +181,7 @@ contract WebAuthnValidator is IValidator {
     /// due to the modular format
     /// @param signedHash The hash of the signed transaction
     /// @param userOp The user operation to validate
-    // TODO return
+    /// @return 0 if the signature is valid, 1 if invalid, otherwise reverts
     function validateUserOp(PackedUserOperation calldata userOp, bytes32 signedHash) external view returns (uint256) {
         (, bytes memory signature,) = abi.decode(userOp.signature, (address, bytes, bytes));
         return webAuthVerify(signedHash, signature) ? 0 : 1;
@@ -197,6 +198,8 @@ contract WebAuthnValidator is IValidator {
     function webAuthVerify(bytes32 transactionHash, bytes memory fatSignature) internal view returns (bool) {
         (bytes memory authenticatorData, string memory clientDataJSON, bytes32[2] memory rs, bytes memory credentialId)
         = _decodeFatSignature(fatSignature);
+
+        // TODO: this call should revert in all cases except invalid signature. Format should be correct regardless.
 
         // prevent signature replay https://yondon.blog/2019/01/01/how-not-to-use-ecdsa/
         if (uint256(rs[0]) == 0 || rs[0] > HIGH_R_MAX || uint256(rs[1]) == 0 || rs[1] > LOW_S_MAX) {

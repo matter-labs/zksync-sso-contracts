@@ -1,18 +1,16 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.23;
 
+import { PackedUserOperation } from "account-abstraction/interfaces/PackedUserOperation.sol";
+import { Initializable } from "@openzeppelin/contracts/proxy/utils/Initializable.sol";
+import { ERC1271 } from "solady/accounts/ERC1271.sol";
+
 import { ExecutionLib } from "./libraries/ExecutionLib.sol";
 import { ExecutionHelper } from "./core/ExecutionHelper.sol";
-import { PackedUserOperation } from "account-abstraction/interfaces/PackedUserOperation.sol";
 import { IERC7579Account, Execution } from "./interfaces/IERC7579Account.sol";
 import { IMSA } from "./interfaces/IMSA.sol";
-import { ModuleManager } from "./core/ModuleManager.sol";
-// import { HookManager } from "./core/HookManager.sol";
+import { ERC1271Handler } from "./core/ERC1271Handler.sol";
 import { RegistryAdapter } from "./core/RegistryAdapter.sol";
-import { ECDSA } from "solady/utils/ECDSA.sol";
-import { Initializable } from "./libraries/Initializable.sol";
-// import { ERC7779Adapter } from "./core/ERC7779Adapter.sol";
-// import { PreValidationHookManager } from "./core/PreValidationHookManager.sol";
 
 import {
     IModule,
@@ -37,8 +35,6 @@ import {
     CALLTYPE_DELEGATECALL,
     ModeLib
 } from "./libraries/ModeLib.sol";
-import { AccountBase } from "./core/AccountBase.sol";
-import { console } from "forge-std/console.sol";
 
 /**
  * @author zeroknots.eth | rhinestone.wtf
@@ -47,19 +43,13 @@ import { console } from "forge-std/console.sol";
  * This account implements ExecType: DEFAULT and TRY.
  * Hook support is implemented
  */
-contract ModularSmartAccount is
-    IMSA,
-    ExecutionHelper,
-    ModuleManager,
-    // HookManager,
-    // PreValidationHookManager,
-    RegistryAdapter
-{
-    // ERC7779Adapter
-
+contract ModularSmartAccount is IMSA, ExecutionHelper, ERC1271Handler, RegistryAdapter, Initializable {
     using ExecutionLib for bytes;
     using ModeLib for ModeCode;
-    using ECDSA for bytes32;
+
+    constructor() {
+        _disableInitializers();
+    }
 
     /**
      * @inheritdoc IERC7579Account
@@ -200,7 +190,6 @@ contract ModularSmartAccount is
         external
         payable
         onlyEntryPointOrSelf
-        // withHook
         withRegistry(module, moduleTypeId)
     {
         if (!IModule(module).isModuleType(moduleTypeId)) revert MismatchModuleTypeId(moduleTypeId);
@@ -211,17 +200,7 @@ contract ModularSmartAccount is
             _installExecutor(module, initData);
         } else if (moduleTypeId == MODULE_TYPE_FALLBACK) {
             _installFallbackHandler(module, initData);
-        }
-        // TODO
-        // else if (moduleTypeId == MODULE_TYPE_HOOK) {
-        //     _installHook(module, initData);
-        // } else if (
-        //     moduleTypeId == MODULE_TYPE_PREVALIDATION_HOOK_ERC1271
-        //         || moduleTypeId == MODULE_TYPE_PREVALIDATION_HOOK_ERC4337
-        // ) {
-        //     _installPreValidationHook(module, moduleTypeId, initData);
-        // }
-        else {
+        } else {
             revert UnsupportedModuleType(moduleTypeId);
         }
         emit ModuleInstalled(moduleTypeId, module);
@@ -238,7 +217,6 @@ contract ModularSmartAccount is
         external
         payable
         onlyEntryPointOrSelf
-    // withHook
     {
         if (moduleTypeId == MODULE_TYPE_VALIDATOR) {
             _uninstallValidator(module, deInitData);
@@ -246,17 +224,7 @@ contract ModularSmartAccount is
             _uninstallExecutor(module, deInitData);
         } else if (moduleTypeId == MODULE_TYPE_FALLBACK) {
             _uninstallFallbackHandler(module, deInitData);
-        }
-        // TODO
-        // else if (moduleTypeId == MODULE_TYPE_HOOK) {
-        //     _uninstallHook(module, deInitData);
-        // } else if (
-        //     moduleTypeId == MODULE_TYPE_PREVALIDATION_HOOK_ERC1271
-        //         || moduleTypeId == MODULE_TYPE_PREVALIDATION_HOOK_ERC4337
-        // ) {
-        //     _uninstallPreValidationHook(module, moduleTypeId, deInitData);
-        // }
-        else {
+        } else {
             revert UnsupportedModuleType(moduleTypeId);
         }
         emit ModuleUninstalled(moduleTypeId, module);
@@ -289,30 +257,21 @@ contract ModularSmartAccount is
         if (!_isValidatorInstalled(validator)) {
             return VALIDATION_FAILED;
         } else {
-            // TODO
-            // (userOpHash, userOp.signature) = _withPreValidationHook(userOpHash, userOp, missingAccountFunds);
             // bubble up the return value of the validator module
             validSignature = IValidator(validator).validateUserOp(userOp, userOpHash);
         }
     }
 
-    /**
-     * @dev ERC-1271 isValidSignature
-     *         This function is intended to be used to validate a smart account signature
-     * and may forward the call to a validator module
-     *
-     * @param hash The hash of the data that is signed
-     * @param data The data that is signed
-     */
-    function isValidSignature(bytes32 hash, bytes calldata data) external view virtual override returns (bytes4) {
-        address validator = address(bytes20(data[:20]));
-        if (!_isValidatorInstalled(validator)) {
-            revert InvalidModule(validator);
-        }
-        // TODO
-        // bytes memory signature_;
-        // (hash, signature_) = _withPreValidationHook(hash, data[20:]);
-        return IValidator(validator).isValidSignatureWithSender(msg.sender, hash, data[20:]);
+    function isValidSignature(
+        bytes32 hash,
+        bytes calldata data
+    )
+        public
+        view
+        override(ERC1271, IERC7579Account)
+        returns (bytes4)
+    {
+        return super.isValidSignature(hash, data);
     }
 
     /**
@@ -334,17 +293,7 @@ contract ModularSmartAccount is
             return _isExecutorInstalled(module);
         } else if (moduleTypeId == MODULE_TYPE_FALLBACK) {
             return _isFallbackHandlerInstalled(abi.decode(additionalContext, (bytes4)), module);
-        }
-        // TODO
-        // else if (moduleTypeId == MODULE_TYPE_HOOK) {
-        //     return _isHookInstalled(module);
-        // } else if (
-        //     moduleTypeId == MODULE_TYPE_PREVALIDATION_HOOK_ERC1271
-        //         || moduleTypeId == MODULE_TYPE_PREVALIDATION_HOOK_ERC4337
-        // ) {
-        //     return _isPreValidationHookInstalled(module, moduleTypeId);
-        // }
-        else {
+        } else {
             return false;
         }
     }
@@ -394,15 +343,17 @@ contract ModularSmartAccount is
      * @dev Initializes the account. Function might be called directly, or by a Factory
      * @param data. encoded data that can be used during the initialization phase
      */
-    function initializeAccount(address entryPoint, address validator, bytes calldata data) public payable virtual {
-        // protect this function to only be callable when used with the proxy factory or when
-        // account calls itself
-        if (msg.sender != address(this)) {
-            Initializable.checkInitializable();
+    function initializeAccount(
+        address[] calldata validators,
+        bytes[] calldata data
+    )
+        external
+        payable
+        virtual
+        initializer
+    {
+        for (uint256 i = 0; i < validators.length; i++) {
+            _installValidator(address(validators[i]), data[i]);
         }
-
-        ENTRY_POINT = entryPoint;
-
-        _installValidator(address(validator), data);
     }
 }
