@@ -19,5 +19,5 @@ interface IMSA is IERC7579Account, IERC4337Account {
     error MismatchModuleTypeId(uint256 moduleTypeId);
 
     /// @dev Initializes the account. Function might be called directly, or by a Factory
-    function initializeAccount(address[] calldata validators, bytes[] calldata data) external payable;
+    function initializeAccount(address[] calldata modules, bytes[] calldata data) external payable;
 }

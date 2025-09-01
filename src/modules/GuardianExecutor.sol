@@ -163,7 +163,7 @@ contract GuardianExecutor is IExecutor {
 
         bytes memory execution;
 
-        // slither-disable-next-line dangerous-strict-equalities
+        // slither-disable-start incorrect-equality
         if (recovery.recoveryType == RecoveryType.EOA) {
             require(
                 IMSA(account).isModuleInstalled(MODULE_TYPE_VALIDATOR, eoaValidator, ""),
@@ -171,7 +171,6 @@ contract GuardianExecutor is IExecutor {
             );
             address owner = abi.decode(recovery.data, (address));
             execution = ExecutionLib.encodeSingle(eoaValidator, 0, abi.encodeCall(EOAKeyValidator.addOwner, owner));
-        // slither-disable-next-line dangerous-strict-equalities
         } else if (recovery.recoveryType == RecoveryType.Passkey) {
             require(
                 IMSA(account).isModuleInstalled(MODULE_TYPE_VALIDATOR, webAuthValidator, ""),
@@ -187,6 +186,7 @@ contract GuardianExecutor is IExecutor {
         } else {
             revert("Unsupported recovery type");
         }
+        // slither-disable-end incorrect-equality
 
         delete pendingRecovery[msg.sender];
         returnData = IERC7579Account(account).executeFromExecutor(ModeLib.encodeSimpleSingle(), execution)[0];
