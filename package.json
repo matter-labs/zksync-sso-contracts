@@ -3,7 +3,13 @@
   "version": "0.1.0",
   "description": "ERC-7579 compatible ZKsync SSO contracts",
   "main": "index.js",
-  "scripts": {},
+  "scripts": {
+      "bundler": "alto --config ./alto.json",
+      "test": "forge test",
+      "deploy": "forge script script/Deploy.s.sol --rpc-url http://127.0.0.1:8545 --broadcast --private-key 0x2a871d0798f97d79848a013d4936a73bf4cc922c825d33c1cf7073dff6d409c6 --sig 'run(bool)' false",
+      "deploy-test": "forge script script/Deploy.s.sol --rpc-url http://127.0.0.1:8545 --broadcast --private-key 0x2a871d0798f97d79848a013d4936a73bf4cc922c825d33c1cf7073dff6d409c6 --sig 'run(bool)' true",
+      "bundler-test": "tsx ./test/integration/basic.ts"
+  },
   "keywords": [
     "zksync",
     "account-abstraction",
@@ -11,5 +17,11 @@
   ],
   "author": "Matter Labs <zksync.io>",
   "license": "MIT",
-  "packageManager": "pnpm@10.13.0"
+  "packageManager": "pnpm@10.13.0",
+  "devDependencies": {
+    "@pimlico/alto": "^0.0.19",
+    "@types/node": "^24.3.0",
+    "tsx": "^4.20.5",
+    "viem": "^2.36.0"
+  }
 }

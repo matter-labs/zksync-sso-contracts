@@ -44,6 +44,10 @@ contract EOAKeyValidator is IValidator {
         return moduleTypeId == MODULE_TYPE_VALIDATOR;
     }
 
+    function getOwners(address smartAccount) external view returns (address[] memory) {
+        return owners[smartAccount].values();
+    }
+
     function validateUserOp(PackedUserOperation calldata userOp, bytes32 userOpHash) external view returns (uint256) {
         (, bytes memory signature,) = abi.decode(userOp.signature, (address, bytes, bytes));
 
