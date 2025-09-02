@@ -8,12 +8,7 @@ pragma solidity ^0.8.21;
 contract AccountBase {
     error AccountAccessUnauthorized();
 
-    // TODO: custom slot for this?
-    address public ENTRY_POINT;
-
-    /////////////////////////////////////////////////////
-    // Access Control
-    ////////////////////////////////////////////////////
+    address public constant ENTRY_POINT = 0x4337084D9E255Ff0702461CF8895CE9E3b5Ff108;
 
     modifier onlyEntryPointOrSelf() virtual {
         if (!(msg.sender == ENTRY_POINT || msg.sender == address(this))) {

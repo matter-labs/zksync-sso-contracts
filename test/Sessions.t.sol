@@ -1,168 +1,110 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-import { Test } from "forge-std/Test.sol";
-import { EntryPoint } from "account-abstraction/core/EntryPoint.sol";
-import { ModularSmartAccount } from "../src/ModularSmartAccount.sol";
-import { MSAProxy } from "../src/utils/MSAProxy.sol";
-import { EOAKeyValidator } from "../src/modules/EOAKeyValidator.sol";
-import { SessionKeyValidator } from "../src/modules/SessionKeyValidator.sol";
 import { PackedUserOperation } from "account-abstraction/interfaces/PackedUserOperation.sol";
-import { IMSA } from "../src/interfaces/IMSA.sol";
-import { ExecutionLib } from "../src/libraries/ExecutionLib.sol";
-import { ModeLib } from "../src/libraries/ModeLib.sol";
-import { MODULE_TYPE_VALIDATOR } from "../src/interfaces/IERC7579Module.sol";
-import { IERC7579Account } from "../src/interfaces/IERC7579Account.sol";
-import { SessionLib } from "../src/libraries/SessionLib.sol";
-import { console } from "forge-std/console.sol";
 
-contract Basic is Test {
-    EntryPoint public entryPoint;
-    ModularSmartAccount public account;
-    IMSA public accountProxy;
-    uint256 accountNonce = 0;
+import { ModularSmartAccount } from "src/ModularSmartAccount.sol";
+import { MSAFactory } from "src/MSAFactory.sol";
+import { EOAKeyValidator } from "src/modules/EOAKeyValidator.sol";
+import { SessionKeyValidator } from "src/modules/SessionKeyValidator.sol";
+import { IMSA } from "src/interfaces/IMSA.sol";
+import { ExecutionLib } from "src/libraries/ExecutionLib.sol";
+import { ModeLib } from "src/libraries/ModeLib.sol";
+import { MODULE_TYPE_VALIDATOR } from "src/interfaces/IERC7579Module.sol";
+import { IERC7579Account } from "src/interfaces/IERC7579Account.sol";
+import { SessionLib } from "src/libraries/SessionLib.sol";
 
-    EOAKeyValidator public eoaValidator;
+import { MSATest } from "./MSATest.sol";
+
+contract SessionsTest is MSATest {
     SessionKeyValidator public sessionKeyValidator;
-    Account public owner;
+    uint256 accountNonce = 0;
     Account public sessionOwner;
     address recipient;
-    address bundler;
 
     SessionLib.SessionSpec public spec;
 
-    function setUp() public {
-        owner = makeAccount("owner");
-        sessionOwner = makeAccount("sessionOwner");
+    function setUp() public override {
+        super.setUp();
+
         recipient = makeAddr("sessionRecipient");
-        bundler = makeAddr("bundler");
-
-        address[] memory owners = new address[](1);
-        owners[0] = owner.addr;
-
-        entryPoint = new EntryPoint();
-        account = new ModularSmartAccount();
-        eoaValidator = new EOAKeyValidator();
+        sessionOwner = makeAccount("sessionOwner");
         sessionKeyValidator = new SessionKeyValidator();
-        accountProxy = IMSA(
-            address(
-                new MSAProxy(
-                    address(account),
-                    abi.encodeCall(
-                        ModularSmartAccount.initializeAccount,
-                        (address(entryPoint), address(eoaValidator), abi.encode(owners))
-                    )
-                )
-            )
-        );
     }
 
-    function makeUserOp(
-        bytes memory data,
-        uint256 signerKey,
-        address validator,
-        bytes memory validatorData
-    )
-        public
-        returns (PackedUserOperation memory userOp)
-    {
-        userOp = PackedUserOperation({
-            sender: address(accountProxy),
-            nonce: accountNonce++,
-            initCode: "",
-            callData: data,
-            accountGasLimits: bytes32(uint256((100_000 << 128) | 100_000)),
-            preVerificationGas: 0,
-            gasFees: bytes32(0),
-            paymasterAndData: "",
-            signature: ""
-        });
-
-        bytes32 userOpHash = entryPoint.getUserOpHash(userOp);
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(signerKey, userOpHash);
-        userOp.signature = abi.encode(address(validator), abi.encodePacked(r, s, v), validatorData);
-    }
-
-    function makeUserOp(
-        address target,
-        uint256 value,
-        bytes memory data,
-        uint256 signerKey,
-        address validator,
-        bytes memory validatorData
-    )
-        public
-        returns (PackedUserOperation memory)
-    {
-        bytes memory callData = ExecutionLib.encodeSingle(target, value, data);
-        bytes memory executeData = abi.encodeCall(ModularSmartAccount.execute, (ModeLib.encodeSimpleSingle(), callData));
-        return makeUserOp(executeData, signerKey, validator, validatorData);
-    }
-
-    function test_InstallValidator() public {
+    function test_installValidator() public {
         bytes memory data =
             abi.encodeCall(ModularSmartAccount.installModule, (MODULE_TYPE_VALIDATOR, address(sessionKeyValidator), ""));
         PackedUserOperation[] memory userOps = new PackedUserOperation[](1);
-        userOps[0] = makeUserOp(data, owner.key, address(eoaValidator), "");
+        userOps[0] = makeSignedUserOp(data, owner.key, address(eoaValidator));
 
         vm.expectEmit(true, false, false, false);
         emit IERC7579Account.ModuleInstalled(MODULE_TYPE_VALIDATOR, address(sessionKeyValidator));
-        entryPoint.handleOps(userOps, payable(bundler));
+        entryPoint.handleOps(userOps, bundler);
     }
 
-    function test_CreateSession() public {
-        test_InstallValidator();
-
-        SessionLib.UsageLimit memory feeLimit =
-            SessionLib.UsageLimit({ limitType: SessionLib.LimitType.Lifetime, limit: 0.15 ether, period: 0 });
-
-        SessionLib.UsageLimit memory transferLimit =
-            SessionLib.UsageLimit({ limitType: SessionLib.LimitType.Unlimited, limit: 0, period: 0 });
+    function test_createSession() public {
+        test_installValidator();
 
         SessionLib.TransferSpec[] memory transferPolicies = new SessionLib.TransferSpec[](1);
-        transferPolicies[0] =
-            SessionLib.TransferSpec({ target: recipient, maxValuePerUse: 0.1 ether, valueLimit: transferLimit });
+        transferPolicies[0] = SessionLib.TransferSpec({
+            target: recipient,
+            maxValuePerUse: 0.1 ether,
+            valueLimit: SessionLib.UsageLimit({ limitType: SessionLib.LimitType.Unlimited, limit: 0, period: 0 })
+        });
 
         spec = SessionLib.SessionSpec({
             signer: sessionOwner.addr,
             expiresAt: uint48(block.timestamp + 1000),
             transferPolicies: transferPolicies,
             callPolicies: new SessionLib.CallSpec[](0),
-            feeLimit: feeLimit
+            feeLimit: SessionLib.UsageLimit({ limitType: SessionLib.LimitType.Lifetime, limit: 0.15 ether, period: 0 })
         });
 
-        PackedUserOperation[] memory userOps = new PackedUserOperation[](1);
-        userOps[0] = makeUserOp(
-            address(sessionKeyValidator),
-            0,
-            abi.encodeCall(SessionKeyValidator.createSession, (spec)),
-            owner.key,
-            address(eoaValidator),
-            ""
+        bytes memory call = ExecutionLib.encodeSingle(
+            address(sessionKeyValidator), 0, abi.encodeCall(SessionKeyValidator.createSession, (spec))
         );
+        bytes memory callData = abi.encodeCall(IERC7579Account.execute, (ModeLib.encodeSimpleSingle(), call));
+
+        PackedUserOperation[] memory userOps = new PackedUserOperation[](1);
+        userOps[0] = makeSignedUserOp(callData, owner.key, address(eoaValidator));
 
         bytes32 sessionHash = keccak256(abi.encode(spec));
         vm.expectEmit(true, true, true, true);
-        emit SessionKeyValidator.SessionCreated(address(accountProxy), sessionHash, spec);
-        entryPoint.handleOps(userOps, payable(bundler));
+        emit SessionKeyValidator.SessionCreated(address(account), sessionHash, spec);
+        entryPoint.handleOps(userOps, bundler);
 
-        SessionLib.Status status = sessionKeyValidator.sessionStatus(address(accountProxy), sessionHash);
+        SessionLib.Status status = sessionKeyValidator.sessionStatus(address(account), sessionHash);
         vm.assertTrue(status == SessionLib.Status.Active);
     }
 
-    function test_UseSession() public {
-        test_CreateSession();
+    function test_useSession() public {
+        test_createSession();
 
-        vm.deal(address(accountProxy), 0.2 ether);
-
-        accountNonce = uint256(uint160(sessionOwner.addr)) << 64;
+        bytes memory call = ExecutionLib.encodeSingle(recipient, 0.05 ether, "");
+        bytes memory callData = abi.encodeCall(IERC7579Account.execute, (ModeLib.encodeSimpleSingle(), call));
 
         PackedUserOperation[] memory userOps = new PackedUserOperation[](1);
-        userOps[0] = makeUserOp(
-            recipient, 0.05 ether, "", sessionOwner.key, address(sessionKeyValidator), abi.encode(spec, new uint48[](2))
-        );
+        userOps[0] = makeUserOp(callData);
+        userOps[0].nonce = uint256(uint160(sessionOwner.addr)) << 64;
+        signUserOp(userOps[0], sessionOwner.key, address(sessionKeyValidator), abi.encode(spec, new uint48[](2)));
 
-        entryPoint.handleOps(userOps, payable(bundler));
+        entryPoint.handleOps(userOps, bundler);
         vm.assertEq(recipient.balance, 0.05 ether);
+    }
+
+    function testRevert_useSession() public {
+        test_createSession();
+
+        bytes memory call = ExecutionLib.encodeSingle(recipient, 0.11 ether, ""); // more than maxValuePerUse
+        bytes memory callData = abi.encodeCall(IERC7579Account.execute, (ModeLib.encodeSimpleSingle(), call));
+
+        PackedUserOperation[] memory userOps = new PackedUserOperation[](1);
+        userOps[0] = makeUserOp(callData);
+        userOps[0].nonce = uint256(uint160(sessionOwner.addr)) << 64;
+        signUserOp(userOps[0], sessionOwner.key, address(sessionKeyValidator), abi.encode(spec, new uint48[](2)));
+
+        vm.expectRevert();
+        entryPoint.handleOps(userOps, bundler);
     }
 }
