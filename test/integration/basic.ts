@@ -10,7 +10,7 @@ const altoRpc = `http://localhost:${altoPort}`
 const privateKey = "0x2a871d0798f97d79848a013d4936a73bf4cc922c825d33c1cf7073dff6d409c6"
 
 function getContractAddresses() {
-    const txs = require('../../broadcast/Deploy.s.sol/31337/run-latest.json').transactions;
+    const txs = require('../../broadcast/Deploy.s.sol/31337/deployAll-latest.json').transactions;
     return {
         eoaValidator: txs[1].contractAddress as Address,
         factory: txs[txs.length - 3].contractAddress as Address,
