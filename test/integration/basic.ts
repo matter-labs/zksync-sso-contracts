@@ -1,11 +1,7 @@
-import { http } from 'viem'
-import { entryPoint08Address, entryPoint08Abi } from "viem/account-abstraction"
-import { privateKeyToAccount, generatePrivateKey } from 'viem/accounts';
-import { createPublicClient } from 'viem';
+import { privateKeyToAccount } from 'viem/accounts';
 import { localhost } from "viem/chains"
-import { createBundlerClient, toSmartAccount, getUserOperationHash } from 'viem/account-abstraction'
-import { encodeAbiParameters, decodeAbiParameters, pad, concat } from 'viem'
-import type { Address, Hex } from 'viem'
+import { createBundlerClient, toSmartAccount, getUserOperationHash, entryPoint08Abi, entryPoint08Address } from 'viem/account-abstraction'
+import { encodeAbiParameters, pad, concat, type Address, http, createPublicClient } from 'viem'
 
 const anvilPort = 8545
 const altoPort = require("../../alto.json").port
@@ -62,9 +58,6 @@ function getContractAddresses() {
             version: '0.8',
             abi: entryPoint08Abi
         },
-        async decodeCalls(data) {
-            return [];
-        },
         async encodeCalls(calls) {
             const modeCode = pad('0x01', { dir: 'right' }); // simple batch execute
             const executionData = encodeAbiParameters(callAbi, [calls.map(call => ({ to: call.to, value: call.value ?? 0n, data: call.data ?? '0x' }))])
@@ -74,9 +67,6 @@ function getContractAddresses() {
         async getAddress() {
             return contracts.account
         },
-        async getFactoryArgs() {
-            return {}
-        },
         async getNonce() {
             return await client.readContract({ abi: entryPoint08Abi, address: entryPoint08Address, functionName: 'getNonce', args: [contracts.account, 0n] })
         },
@@ -85,12 +75,6 @@ function getContractAddresses() {
                 [{ type: "address" }, { type: "bytes" }, { type: "bytes" }],
                 [contracts.eoaValidator, pad("0x", { size: 65 }), "0x"]
             )
-        },
-        async signMessage(message) {
-            return "0x"
-        },
-        async signTypedData(typedData) {
-            return "0x"
         },
         async signUserOperation(userOperation) {
             const userOpHash = getUserOperationHash({
@@ -104,6 +88,22 @@ function getContractAddresses() {
                 [{ type: "address" }, { type: "bytes" }, { type: "bytes" }],
                 [contracts.eoaValidator, signature, "0x"]
             )
+        },
+        async decodeCalls(data) {
+            // Not used in this test
+            return [];
+        },
+        async getFactoryArgs() {
+            // Not used in this test
+            return {}
+        },
+        async signMessage(message) {
+            // Not used in this test
+            return "0x"
+        },
+        async signTypedData(typedData) {
+            // Not used in this test
+            return "0x"
         },
     })
 

@@ -19,11 +19,10 @@ contract Deploy is Script {
         return address(new TransparentUpgradeableProxy(impl, msg.sender, ""));
     }
 
-    function run(bool deployAccount) public {
-        address[] memory defaultModules = new address[](4);
-
+    function deployFactory() internal returns (address factory, address[] memory defaultModules) {
         vm.startBroadcast();
 
+        defaultModules = new address[](4);
         defaultModules[0] = makeProxy(address(new EOAKeyValidator()));
         defaultModules[1] = makeProxy(address(new SessionKeyValidator()));
         defaultModules[2] = makeProxy(address(new WebAuthnValidator()));
@@ -31,20 +30,7 @@ contract Deploy is Script {
 
         address accountImpl = address(new ModularSmartAccount());
         address beacon = address(new UpgradeableBeacon(accountImpl, msg.sender));
-        address factory = makeProxy(address(new MSAFactory(beacon)));
-
-        // For testing purposes
-        if (deployAccount) {
-            bytes[] memory initData = new bytes[](4);
-            address[] memory accountOwners = new address[](1);
-            accountOwners[0] = msg.sender;
-            initData[0] = abi.encode(accountOwners);
-
-            bytes memory data = abi.encodeCall(ModularSmartAccount.initializeAccount, (defaultModules, initData));
-            address account = MSAFactory(factory).deployAccount(keccak256("my-account-id"), data);
-            payable(account).transfer(1 ether);
-            console.log("Initialized account:", account);
-        }
+        factory = makeProxy(address(new MSAFactory(beacon)));
 
         vm.stopBroadcast();
 
@@ -55,5 +41,34 @@ contract Deploy is Script {
         console.log("ModularSmartAccount implementation:", accountImpl);
         console.log("UpgradeableBeacon:", beacon);
         console.log("MSAFactory:", factory);
+
+    }
+
+    function run() public {
+        deployFactory();
+    }
+
+    /// @dev This function is used for tests only
+    function deployAccount(address factory, address[] memory modules) public {
+        bytes[] memory initData = new bytes[](4);
+        address[] memory accountOwners = new address[](1);
+        accountOwners[0] = msg.sender;
+        initData[0] = abi.encode(accountOwners);
+        bytes memory data = abi.encodeCall(ModularSmartAccount.initializeAccount, (modules, initData));
+
+        vm.startBroadcast();
+
+        address account = MSAFactory(factory).deployAccount(keccak256("my-account-id"), data);
+        payable(account).transfer(1 ether);
+
+        vm.stopBroadcast();
+
+        console.log("Initialized account:", account);
+
+    }
+
+    function deployAll() public {
+        (address factoryAddr, address[] memory modules) = deployFactory();
+        deployAccount(factoryAddr, modules);
     }
 }
