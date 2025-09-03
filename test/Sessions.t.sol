@@ -18,7 +18,6 @@ import { MSATest } from "./MSATest.sol";
 
 contract SessionsTest is MSATest {
     SessionKeyValidator public sessionKeyValidator;
-    uint256 accountNonce = 0;
     Account public sessionOwner;
     address recipient;
 
