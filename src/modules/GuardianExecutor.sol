@@ -177,22 +177,15 @@ contract GuardianExecutor is IExecutor {
             RecoveryTimestampInvalid(recovery.timestamp)
         );
 
-        bytes memory execution;
+        // slither-disable-next-line incorrect-equality
+        address validator = recovery.recoveryType == RecoveryType.EOA ? eoaValidator : webAuthValidator;
+        // slither-disable-next-line incorrect-equality
+        bytes4 selector = recovery.recoveryType == RecoveryType.EOA
+            ? EOAKeyValidator.addOwner.selector
+            : WebAuthnValidator.addValidationKey.selector;
+        bytes memory execution = ExecutionLib.encodeSingle(validator, 0, abi.encodePacked(selector, recovery.data));
 
-        if (recovery.recoveryType == RecoveryType.EOA) {
-            address owner = abi.decode(recovery.data, (address));
-            execution = ExecutionLib.encodeSingle(eoaValidator, 0, abi.encodeCall(EOAKeyValidator.addOwner, owner));
-        } else if (recovery.recoveryType == RecoveryType.Passkey) {
-            (bytes memory credentialId, bytes32[2] memory rawPublicKey, string memory originDomain) =
-                abi.decode(recovery.data, (bytes, bytes32[2], string));
-            execution = ExecutionLib.encodeSingle(
-                webAuthValidator,
-                0,
-                abi.encodeCall(WebAuthnValidator.addValidationKey, (credentialId, rawPublicKey, originDomain))
-            );
-        }
-
-        delete pendingRecovery[msg.sender];
+        delete pendingRecovery[account];
         returnData = IERC7579Account(account).executeFromExecutor(ModeLib.encodeSimpleSingle(), execution)[0];
         emit RecoveryFinished(account);
     }
