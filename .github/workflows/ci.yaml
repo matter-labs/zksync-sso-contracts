@@ -68,3 +68,41 @@ jobs:
         run: pip install slither-analyzer
       - name: Run Slither
         run: slither --config ./slither.config.json .
+
+  integration:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout the repository
+        uses: actions/checkout@v4
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1.4.0
+
+      - name: Install dependencies
+        run: forge soldeer install
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.13.0
+
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: lts/Jod
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install -r --frozen-lockfile
+
+      - name: Run anvil
+        run: pnpm anvil &
+
+      - name: Run bundler
+        run: pnpm bundler &
+
+      - name: Deploy contracts
+        run: pnpm deploy-test
+
+      - name: Run integration test
+        run: pnpm bundler-test

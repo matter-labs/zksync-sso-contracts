@@ -17,12 +17,8 @@ import {
     IValidator,
     MODULE_TYPE_EXECUTOR,
     MODULE_TYPE_VALIDATOR,
-    MODULE_TYPE_HOOK,
     MODULE_TYPE_FALLBACK,
-    VALIDATION_FAILED,
-    VALIDATION_SUCCESS,
-    MODULE_TYPE_PREVALIDATION_HOOK_ERC4337,
-    MODULE_TYPE_PREVALIDATION_HOOK_ERC1271
+    VALIDATION_FAILED
 } from "./interfaces/IERC7579Module.sol";
 import {
     CallType,
@@ -331,20 +327,12 @@ contract ModularSmartAccount is IMSA, ExecutionHelper, ERC1271Handler, RegistryA
         if (modulTypeId == MODULE_TYPE_VALIDATOR) return true;
         else if (modulTypeId == MODULE_TYPE_EXECUTOR) return true;
         else if (modulTypeId == MODULE_TYPE_FALLBACK) return true;
-        else if (modulTypeId == MODULE_TYPE_HOOK) return true;
-        else if (
-            modulTypeId == MODULE_TYPE_PREVALIDATION_HOOK_ERC1271
-                || modulTypeId == MODULE_TYPE_PREVALIDATION_HOOK_ERC4337
-        ) return true;
         else return false;
     }
 
-    /**
-     * @dev Initializes the account. Function might be called directly, or by a Factory
-     * @param data. encoded data that can be used during the initialization phase
-     */
+    /// @dev Initializes the accccount.
     function initializeAccount(
-        address[] calldata validators,
+        address[] calldata modules,
         bytes[] calldata data
     )
         external
@@ -352,8 +340,17 @@ contract ModularSmartAccount is IMSA, ExecutionHelper, ERC1271Handler, RegistryA
         virtual
         initializer
     {
-        for (uint256 i = 0; i < validators.length; i++) {
-            _installValidator(address(validators[i]), data[i]);
+        for (uint256 i = 0; i < modules.length; i++) {
+            address module = modules[i];
+            if (IModule(module).isModuleType(MODULE_TYPE_VALIDATOR)) {
+                _installValidator(module, data[i]);
+            }
+            if (IModule(module).isModuleType(MODULE_TYPE_EXECUTOR)) {
+                _installExecutor(module, data[i]);
+            }
+            if (IModule(module).isModuleType(MODULE_TYPE_FALLBACK)) {
+                _installFallbackHandler(module, data[i]);
+            }
         }
     }
 }

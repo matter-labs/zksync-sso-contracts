@@ -4,9 +4,12 @@ out = "out"
 libs = ["lib", "dependencies"]
 fs_permissions = [{ access = "read", path = "out-optimized" }]
 allow_paths = ["*", "/"]
+
 optimizer = true
-optimizer_runs = 2_000
+optimizer_runs = 1_000_000
 via_ir = true
+evm_version = "cancun"
+solc = "0.8.28"
 
 [fmt]
 bracket_spacing = true

@@ -2,6 +2,7 @@
 pragma solidity ^0.8.24;
 
 import { BeaconProxy } from "@openzeppelin/contracts/proxy/beacon/BeaconProxy.sol";
+import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 import { IMSA } from "./interfaces/IMSA.sol";
 
@@ -9,7 +10,7 @@ import { IMSA } from "./interfaces/IMSA.sol";
 /// @author Matter Labs
 /// @custom:security-contact security@matterlabs.dev
 /// @dev This contract is used to deploy SSO accounts as beacon proxies.
-contract MSAFactory {
+contract MSAFactory is ReentrancyGuard {
     /// @dev The address of the beacon contract used for the accounts' beacon proxies.
     address public immutable beacon;
 
@@ -31,11 +32,12 @@ contract MSAFactory {
         beacon = _beacon;
     }
 
-    function deployAccount(bytes32 accountId, bytes calldata initData) external returns (address account) {
+    function deployAccount(bytes32 accountId, bytes calldata initData) external nonReentrant returns (address account) {
         require(accountRegistry[accountId] == address(0), AccountAlreadyExists(accountId));
 
-        accountRegistry[accountId] = address(account);
+        // slither-disable-next-line reentrancy-no-eth
         account = address(new BeaconProxy{ salt: accountId }(beacon, initData));
+        accountRegistry[accountId] = account;
 
         emit AccountCreated(account, accountId);
     }
