@@ -41,7 +41,6 @@ contract Deploy is Script {
         console.log("ModularSmartAccount implementation:", accountImpl);
         console.log("UpgradeableBeacon:", beacon);
         console.log("MSAFactory:", factory);
-
     }
 
     function run() public {
@@ -64,7 +63,6 @@ contract Deploy is Script {
         vm.stopBroadcast();
 
         console.log("Initialized account:", account);
-
     }
 
     function deployAll() public {

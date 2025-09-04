@@ -44,10 +44,6 @@ contract EOAKeyValidator is IValidator {
         return moduleTypeId == MODULE_TYPE_VALIDATOR;
     }
 
-    function getOwners(address smartAccount) external view returns (address[] memory) {
-        return owners[smartAccount].values();
-    }
-
     function validateUserOp(PackedUserOperation calldata userOp, bytes32 userOpHash) external view returns (uint256) {
         (, bytes memory signature,) = abi.decode(userOp.signature, (address, bytes, bytes));
 
@@ -85,5 +81,9 @@ contract EOAKeyValidator is IValidator {
         return err == ECDSA.RecoverError.NoError && owners[msg.sender].contains(signer)
             ? IERC1271.isValidSignature.selector
             : bytes4(0xffffffff);
+    }
+
+    function getOwners(address smartAccount) external view returns (address[] memory) {
+        return owners[smartAccount].values();
     }
 }
