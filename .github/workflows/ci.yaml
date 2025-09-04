@@ -32,6 +32,25 @@ jobs:
       - name: Test
         run: forge test
 
+  coverage:
+    runs-on: "ubuntu-latest"
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Checkout the repository
+        uses: actions/checkout@v4
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1.4.0
+      - name: Install dependencies
+        run: forge soldeer install
+      - name: Generate coverage
+        run: forge coverage --ir-minimum --no-match-coverage 'script|test' --report lcov
+      - uses: kefasjw/lcov-pull-request-report@v1
+        with:
+          lcov-file: lcov.info
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
   slither:
     runs-on: ubuntu-latest
     steps:
