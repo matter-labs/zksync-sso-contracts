@@ -20,6 +20,7 @@ contract GuardianExecutor is IExecutor {
     using EnumerableMap for EnumerableMap.AddressToUintMap;
 
     enum RecoveryType {
+        None,
         EOA,
         Passkey
     }
@@ -46,6 +47,7 @@ contract GuardianExecutor is IExecutor {
     error NoRecoveryInProgress(address account);
     error ValidatorNotInstalled(address account, address validator);
     error RecoveryTimestampInvalid(uint48 timestamp);
+    error UnsupportedRecoveryType(RecoveryType recoveryType);
 
     // TODO make configurable?
     uint256 public constant REQUEST_VALIDITY_TIME = 72 hours;
@@ -77,12 +79,7 @@ contract GuardianExecutor is IExecutor {
     /// @notice Validator initiator for given sso account.
     /// @dev This module does not support initialization on creation,
     /// but ensures that the WebAuthValidator is enabled for calling SsoAccount.
-    function onInstall(bytes calldata) external view {
-        // TODO do we need this? we check at finalization anyway
-        // require(IMSA(msg.sender).isModuleInstalled(MODULE_TYPE_VALIDATOR, address(webAuthValidator), "") ||
-        //         IMSA(msg.sender).isModuleInstalled(MODULE_TYPE_VALIDATOR, address(eoaValidator), ""),
-        // NoSupportedValidatorsInstalled());
-    }
+    function onInstall(bytes calldata) external view { }
 
     /// @notice Removes all past guardians when this module is disabled in a account
     function onUninstall(bytes calldata) external {
@@ -103,7 +100,6 @@ contract GuardianExecutor is IExecutor {
         require(accountGuardians[msg.sender].contains(guardianToRemove), GuardianNotFound(msg.sender, guardianToRemove));
 
         (bool wasActive,) = _unpackGuardianData(accountGuardians[msg.sender].get(guardianToRemove));
-
         bool _removed = accountGuardians[msg.sender].remove(guardianToRemove);
 
         if (wasActive) {
@@ -143,8 +139,10 @@ contract GuardianExecutor is IExecutor {
         virtual
         onlyGuardianOf(accountToRecover)
     {
+        checkInstalledValidator(accountToRecover, recoveryType);
+        uint256 pendingRecoveryTimestamp = pendingRecovery[accountToRecover].timestamp;
         require(
-            pendingRecovery[accountToRecover].timestamp + REQUEST_VALIDITY_TIME < block.timestamp,
+            pendingRecoveryTimestamp == 0 || pendingRecoveryTimestamp + REQUEST_VALIDITY_TIME < block.timestamp,
             RecoveryInProgress(accountToRecover)
         );
         RecoveryRequest memory recovery = RecoveryRequest(recoveryType, data, uint48(block.timestamp));
@@ -152,8 +150,27 @@ contract GuardianExecutor is IExecutor {
         emit RecoveryInitiated(accountToRecover, msg.sender, recovery);
     }
 
+    function checkInstalledValidator(address account, RecoveryType recoveryType) internal view {
+        // slither-disable-start incorrect-equality
+        if (recoveryType == RecoveryType.EOA) {
+            require(
+                IMSA(account).isModuleInstalled(MODULE_TYPE_VALIDATOR, eoaValidator, ""),
+                ValidatorNotInstalled(account, eoaValidator)
+            );
+        } else if (recoveryType == RecoveryType.Passkey) {
+            require(
+                IMSA(account).isModuleInstalled(MODULE_TYPE_VALIDATOR, webAuthValidator, ""),
+                ValidatorNotInstalled(account, webAuthValidator)
+            );
+        } else {
+            revert UnsupportedRecoveryType(recoveryType);
+        }
+        // slither-disable-end incorrect-equality
+    }
+
     function finalizeRecovery(address account) external virtual returns (bytes memory returnData) {
         RecoveryRequest memory recovery = pendingRecovery[account];
+        checkInstalledValidator(account, recovery.recoveryType);
         require(recovery.timestamp != 0 && recovery.data.length != 0, NoRecoveryInProgress(account));
         require(
             recovery.timestamp + REQUEST_DELAY_TIME < block.timestamp
@@ -161,36 +178,18 @@ contract GuardianExecutor is IExecutor {
             RecoveryTimestampInvalid(recovery.timestamp)
         );
 
-        bytes memory execution;
+        // NOTE: the fact that recovery type is not `None` is checked in `checkInstalledValidator`.
+        // slither-disable-next-line incorrect-equality
+        address validator = recovery.recoveryType == RecoveryType.EOA ? eoaValidator : webAuthValidator;
+        // slither-disable-next-line incorrect-equality
+        bytes4 selector = recovery.recoveryType == RecoveryType.EOA
+            ? EOAKeyValidator.addOwner.selector
+            : WebAuthnValidator.addValidationKey.selector;
+        bytes memory execution = ExecutionLib.encodeSingle(validator, 0, abi.encodePacked(selector, recovery.data));
 
-        // slither-disable-start incorrect-equality
-        if (recovery.recoveryType == RecoveryType.EOA) {
-            require(
-                IMSA(account).isModuleInstalled(MODULE_TYPE_VALIDATOR, eoaValidator, ""),
-                ValidatorNotInstalled(account, eoaValidator)
-            );
-            address owner = abi.decode(recovery.data, (address));
-            execution = ExecutionLib.encodeSingle(eoaValidator, 0, abi.encodeCall(EOAKeyValidator.addOwner, owner));
-        } else if (recovery.recoveryType == RecoveryType.Passkey) {
-            require(
-                IMSA(account).isModuleInstalled(MODULE_TYPE_VALIDATOR, webAuthValidator, ""),
-                ValidatorNotInstalled(account, webAuthValidator)
-            );
-            (bytes memory credentialId, bytes32[2] memory rawPublicKey, string memory originDomain) =
-                abi.decode(recovery.data, (bytes, bytes32[2], string));
-            execution = ExecutionLib.encodeSingle(
-                webAuthValidator,
-                0,
-                abi.encodeCall(WebAuthnValidator.addValidationKey, (credentialId, rawPublicKey, originDomain))
-            );
-        } else {
-            revert("Unsupported recovery type");
-        }
-        // slither-disable-end incorrect-equality
-
-        delete pendingRecovery[msg.sender];
+        delete pendingRecovery[account];
         returnData = IERC7579Account(account).executeFromExecutor(ModeLib.encodeSimpleSingle(), execution)[0];
-        emit RecoveryFinished(msg.sender);
+        emit RecoveryFinished(account);
     }
 
     function guardiansFor(address account) external view returns (address[] memory) {
@@ -213,9 +212,11 @@ contract GuardianExecutor is IExecutor {
     }
 
     function discardRecovery() public {
-        // TODO: add an if to check if there is an active recovery
-        emit RecoveryDiscarded(msg.sender);
+        RecoveryRequest memory recovery = pendingRecovery[msg.sender];
         delete pendingRecovery[msg.sender];
+        if (recovery.timestamp != 0 && recovery.data.length != 0) {
+            emit RecoveryDiscarded(msg.sender);
+        }
     }
 
     function _packGuardianData(bool isActive, uint48 addedAt) internal pure returns (uint256) {

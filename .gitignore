@@ -8,3 +8,6 @@ broadcast/
 
 # Soldeer
 dependencies
+
+# coverage
+lcov.info
