@@ -18,7 +18,6 @@ import { MSATest } from "./MSATest.sol";
 
 contract SessionsTest is MSATest {
     SessionKeyValidator public sessionKeyValidator;
-    uint256 accountNonce = 0;
     Account public sessionOwner;
     address recipient;
 
@@ -38,7 +37,7 @@ contract SessionsTest is MSATest {
         PackedUserOperation[] memory userOps = new PackedUserOperation[](1);
         userOps[0] = makeSignedUserOp(data, owner.key, address(eoaValidator));
 
-        vm.expectEmit(true, false, false, false);
+        vm.expectEmit(true, true, true, true);
         emit IERC7579Account.ModuleInstalled(MODULE_TYPE_VALIDATOR, address(sessionKeyValidator));
         entryPoint.handleOps(userOps, bundler);
     }
@@ -75,7 +74,7 @@ contract SessionsTest is MSATest {
         entryPoint.handleOps(userOps, bundler);
 
         SessionLib.Status status = sessionKeyValidator.sessionStatus(address(account), sessionHash);
-        vm.assertTrue(status == SessionLib.Status.Active);
+        vm.assertTrue(status == SessionLib.Status.Active, "Session not active after creating");
     }
 
     function test_useSession() public {
@@ -90,7 +89,7 @@ contract SessionsTest is MSATest {
         signUserOp(userOps[0], sessionOwner.key, address(sessionKeyValidator), abi.encode(spec, new uint48[](2)));
 
         entryPoint.handleOps(userOps, bundler);
-        vm.assertEq(recipient.balance, 0.05 ether);
+        vm.assertEq(recipient.balance, 0.05 ether, "Value not transferred using session");
     }
 
     function testRevert_useSession() public {

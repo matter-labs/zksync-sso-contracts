@@ -82,4 +82,8 @@ contract EOAKeyValidator is IValidator {
             ? IERC1271.isValidSignature.selector
             : bytes4(0xffffffff);
     }
+
+    function getOwners(address smartAccount) external view returns (address[] memory) {
+        return owners[smartAccount].values();
+    }
 }
