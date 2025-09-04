@@ -20,6 +20,7 @@ contract GuardianExecutor is IExecutor {
     using EnumerableMap for EnumerableMap.AddressToUintMap;
 
     enum RecoveryType {
+        None,
         EOA,
         Passkey
     }
@@ -177,6 +178,7 @@ contract GuardianExecutor is IExecutor {
             RecoveryTimestampInvalid(recovery.timestamp)
         );
 
+        // NOTE: the fact that recovery type is not `None` is checked in `checkInstalledValidator`.
         // slither-disable-next-line incorrect-equality
         address validator = recovery.recoveryType == RecoveryType.EOA ? eoaValidator : webAuthValidator;
         // slither-disable-next-line incorrect-equality

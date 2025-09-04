@@ -36,7 +36,7 @@ contract BasicTest is MSATest {
         userOps[0] = makeSignedUserOp(callData, owner.key, address(eoaValidator));
 
         entryPoint.handleOps(userOps, bundler);
-        vm.assertEq(recipient.balance, 1 ether);
+        vm.assertEq(recipient.balance, 1 ether, "Value not transferred via simple call");
     }
 
     function test_execSingle() public {
@@ -47,7 +47,7 @@ contract BasicTest is MSATest {
         userOps[0] = makeSignedUserOp(callData, owner.key, address(eoaValidator));
 
         entryPoint.handleOps(userOps, bundler);
-        vm.assertEq(target.value(), 1337);
+        vm.assertEq(target.value(), 1337, "State not changed via simple call");
     }
 
     function test_execBatch() public {
@@ -66,8 +66,8 @@ contract BasicTest is MSATest {
         userOps[0] = makeSignedUserOp(callData, owner.key, address(eoaValidator));
 
         entryPoint.handleOps(userOps, bundler);
-        vm.assertEq(target.value(), 1337);
-        vm.assertEq(target2.balance, target2Amount);
+        vm.assertEq(target.value(), 1337, "State not changed via batch call");
+        vm.assertEq(target2.balance, target2Amount, "Value not transferred via batch call");
     }
 
     function test_delegateCall() public {
@@ -87,7 +87,7 @@ contract BasicTest is MSATest {
         userOps[0] = makeSignedUserOp(callData, owner.key, address(eoaValidator));
 
         entryPoint.handleOps(userOps, bundler);
-        vm.assertEq(valueTarget.balance, value);
+        vm.assertEq(valueTarget.balance, value, "Value not transferred via delegatecall");
     }
 
     function test_signatureTypedData() public view {
@@ -162,7 +162,7 @@ contract BasicTest is MSATest {
         bytes memory signature = abi.encodePacked(address(eoaValidator), originalSignature);
 
         bytes4 magic = account.isValidSignature(messageHash, signature);
-        vm.assertEq(magic, account.isValidSignature.selector);
+        vm.assertEq(magic, account.isValidSignature.selector, "Signature verification failed");
     }
 
     function test_signatureTypedDataUnnested() public {
