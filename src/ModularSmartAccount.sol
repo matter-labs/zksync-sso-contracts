@@ -330,7 +330,7 @@ contract ModularSmartAccount is IMSA, ExecutionHelper, ERC1271Handler, RegistryA
         else return false;
     }
 
-    /// @dev Initializes the accccount.
+    /// @dev Initializes the account.
     function initializeAccount(
         address[] calldata modules,
         bytes[] calldata data
