@@ -3,6 +3,8 @@ cache/
 out/
 node_modules/
 
+# Scripts output
+broadcast/
 
 # Soldeer
 dependencies
