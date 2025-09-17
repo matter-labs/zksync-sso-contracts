@@ -72,7 +72,7 @@ abstract contract ModuleManager {
 
     function _uninstallValidator(address validator, bytes calldata data) internal {
         require($moduleManager().$valdiators.remove(validator), NotInstalled(validator));
-        require($moduleManager().$valdiators.length() > 1, CannotRemoveLastValidator());
+        require($moduleManager().$valdiators.length() > 0, CannotRemoveLastValidator());
         IValidator(validator).onUninstall(data);
     }
     // TODO: unlink validator

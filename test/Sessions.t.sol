@@ -15,6 +15,8 @@ import { IERC7579Account } from "src/interfaces/IERC7579Account.sol";
 import { SessionLib } from "src/libraries/SessionLib.sol";
 
 import { MSATest } from "./MSATest.sol";
+import { MockERC20 } from "./mocks/MockERC20.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 contract SessionsTest is MSATest {
     SessionKeyValidator public sessionKeyValidator;
@@ -105,5 +107,94 @@ contract SessionsTest is MSATest {
 
         vm.expectRevert();
         entryPoint.handleOps(userOps, bundler);
+    }
+
+    function test_uninstallModule() public {
+        test_createSession();
+
+        bytes32 sessionHash = keccak256(abi.encode(spec));
+        vm.assertEq(
+            sessionKeyValidator.sessionSigner(sessionOwner.addr), sessionHash, "stored session hash mismatch"
+        );
+        bytes32[] memory sessionHashes = new bytes32[](1);
+        sessionHashes[0] = sessionHash;
+
+        SessionLib.Status statusBefore = sessionKeyValidator.sessionStatus(address(account), sessionHash);
+        vm.assertEq(uint256(statusBefore), uint256(SessionLib.Status.Active), "Session inactive before uninstall");
+
+        bytes memory data = abi.encodeCall(
+            ModularSmartAccount.uninstallModule,
+            (MODULE_TYPE_VALIDATOR, address(sessionKeyValidator), abi.encode(sessionHashes))
+        );
+
+        PackedUserOperation[] memory userOps = new PackedUserOperation[](1);
+        userOps[0] = makeSignedUserOp(data, owner.key, address(eoaValidator));
+
+        entryPoint.handleOps(userOps, bundler);
+
+        SessionLib.Status status = sessionKeyValidator.sessionStatus(address(account), sessionHash);
+        vm.assertFalse(
+            account.isModuleInstalled(MODULE_TYPE_VALIDATOR, address(sessionKeyValidator), ""),
+            "Validator still installed"
+        );
+        vm.assertEq(uint256(status), uint256(SessionLib.Status.Closed), "Session not revoked on uninstall");
+    }
+
+    function test_sessionTransferERC20() public {
+        test_installValidator();
+
+        MockERC20 token = new MockERC20(address(account));
+        address tokenRecipient = makeAddr("sessionTokenRecipient");
+
+        SessionLib.CallSpec[] memory callPolicies = new SessionLib.CallSpec[](1);
+        callPolicies[0] = SessionLib.CallSpec({
+            target: address(token),
+            selector: IERC20.transfer.selector,
+            maxValuePerUse: 0,
+            valueLimit: SessionLib.UsageLimit({
+                limitType: SessionLib.LimitType.Unlimited,
+                limit: 0,
+                period: 0
+            }),
+            constraints: new SessionLib.Constraint[](0)
+        });
+
+        spec = SessionLib.SessionSpec({
+            signer: sessionOwner.addr,
+            expiresAt: uint48(block.timestamp + 1000),
+            transferPolicies: new SessionLib.TransferSpec[](0),
+            callPolicies: callPolicies,
+            feeLimit: SessionLib.UsageLimit({
+                limitType: SessionLib.LimitType.Lifetime,
+                limit: 0.15 ether,
+                period: 0
+            })
+        });
+
+        bytes memory createSessionCall = ExecutionLib.encodeSingle(
+            address(sessionKeyValidator), 0, abi.encodeCall(SessionKeyValidator.createSession, (spec))
+        );
+        bytes memory createSessionCallData =
+            abi.encodeCall(IERC7579Account.execute, (ModeLib.encodeSimpleSingle(), createSessionCall));
+
+        PackedUserOperation[] memory userOps = new PackedUserOperation[](1);
+        userOps[0] = makeSignedUserOp(createSessionCallData, owner.key, address(eoaValidator));
+
+        entryPoint.handleOps(userOps, bundler);
+
+        bytes memory transferCall = ExecutionLib.encodeSingle(
+            address(token), 0, abi.encodeCall(IERC20.transfer, (tokenRecipient, 0.25 ether))
+        );
+        bytes memory transferCallData =
+            abi.encodeCall(IERC7579Account.execute, (ModeLib.encodeSimpleSingle(), transferCall));
+
+        PackedUserOperation[] memory sessionOps = new PackedUserOperation[](1);
+        sessionOps[0] = makeUserOp(transferCallData);
+        sessionOps[0].nonce = uint256(uint160(sessionOwner.addr)) << 64;
+        signUserOp(sessionOps[0], sessionOwner.key, address(sessionKeyValidator), abi.encode(spec, new uint48[](2)));
+
+        entryPoint.handleOps(sessionOps, bundler);
+
+        vm.assertEq(token.balanceOf(tokenRecipient), 0.25 ether, "ERC20 not transferred via session");
     }
 }
