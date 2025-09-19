@@ -2,6 +2,8 @@ import { privateKeyToAccount } from 'viem/accounts';
 import { localhost } from "viem/chains"
 import { createBundlerClient, toSmartAccount, getUserOperationHash, entryPoint08Abi, entryPoint08Address } from 'viem/account-abstraction'
 import { encodeAbiParameters, pad, concat, type Address, http, createPublicClient } from 'viem'
+import { writeFileSync } from 'fs'
+import path from 'path'
 
 const anvilPort = 8545
 const altoPort = require("../../alto.json").port
@@ -77,17 +79,55 @@ function getContractAddresses() {
             )
         },
         async signUserOperation(userOperation) {
+            // Print and persist the userOperation for downstream unit testing
+            const userOperationWithSender = { ...userOperation, sender: contracts.account }
+            console.log("userOperation:", userOperationWithSender)
+
+            // Create a clean user operation object without the account reference
+            const cleanUserOp = {
+                sender: userOperationWithSender.sender,
+                nonce: userOperationWithSender.nonce,
+                initCode: userOperationWithSender.initCode || '0x',
+                callData: userOperationWithSender.callData,
+                callGasLimit: userOperationWithSender.callGasLimit,
+                verificationGasLimit: userOperationWithSender.verificationGasLimit,
+                preVerificationGas: userOperationWithSender.preVerificationGas,
+                maxFeePerGas: userOperationWithSender.maxFeePerGas,
+                maxPriorityFeePerGas: userOperationWithSender.maxPriorityFeePerGas,
+                paymasterAndData: userOperationWithSender.paymasterAndData || '0x',
+                signature: userOperationWithSender.signature || '0x'
+            }
+
+            const outPath = path.join(__dirname, 'erc4337-userop.json')
+            const replacer = (_key: string, value: unknown) => typeof value === 'bigint' ? `0x${(value as bigint).toString(16)}` : value
+            writeFileSync(outPath, JSON.stringify({
+                userOperation: cleanUserOp,
+                metadata: {
+                    chainId: 31337,
+                    entryPointAddress: entryPoint08Address,
+                    entryPointVersion: '0.8'
+                }
+            }, replacer, 2))
+            console.log(`Saved userOperation to ${outPath}`)
+
+            // Compute hash and signature as in original basic.ts
             const userOpHash = getUserOperationHash({
-                userOperation: { ...userOperation, sender: contracts.account },
+                userOperation: userOperationWithSender,
                 entryPointAddress: entryPoint08Address,
                 entryPointVersion: '0.8',
                 chainId: 31337
             });
+            console.log("userOperationHash:", userOpHash)
+
             const signature = await privateKeyToAccount(privateKey).sign({ hash: userOpHash });
-            return encodeAbiParameters(
+
+            console.log("signature:", signature)
+            const encodedSignaturePayload = encodeAbiParameters(
                 [{ type: "address" }, { type: "bytes" }, { type: "bytes" }],
                 [contracts.eoaValidator, signature, "0x"]
-            )
+            );
+            console.log("encodedSignaturePayload:", encodedSignaturePayload);
+            return encodedSignaturePayload;
         },
         async decodeCalls(data) {
             // Not used in this test
