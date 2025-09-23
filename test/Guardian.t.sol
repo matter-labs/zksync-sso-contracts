@@ -88,7 +88,8 @@ contract GuardianTest is MSATest {
             address(account), GuardianExecutor.RecoveryType.EOA, abi.encode(newOwner.addr)
         );
 
-        (GuardianExecutor.RecoveryType recoveryType, bytes memory data, uint256 timestamp) = guardiansExecutor.pendingRecovery(address(account));
+        (GuardianExecutor.RecoveryType recoveryType, bytes memory data, uint256 timestamp) =
+            guardiansExecutor.pendingRecovery(address(account));
         vm.assertEq(uint256(recoveryType), uint256(GuardianExecutor.RecoveryType.EOA), "Invalid recovery type");
         vm.assertEq(abi.decode(data, (address)), newOwner.addr, "Invalid recovery data");
         vm.assertTrue(timestamp != 0, "Recovery timestamp is empty");
@@ -129,7 +130,8 @@ contract GuardianTest is MSATest {
     }
 
     function assertPendingRecoveryCleared() internal view {
-        (GuardianExecutor.RecoveryType recoveryType, bytes memory data, uint256 timestamp) = guardiansExecutor.pendingRecovery(address(account));
+        (GuardianExecutor.RecoveryType recoveryType, bytes memory data, uint256 timestamp) =
+            guardiansExecutor.pendingRecovery(address(account));
         vm.assertEq(uint256(recoveryType), uint256(GuardianExecutor.RecoveryType.None), "Recovery type not cleared");
         vm.assertEq(data.length, 0, "Recovery data not cleared");
         vm.assertEq(timestamp, 0, "Recovery timestamp not cleared");

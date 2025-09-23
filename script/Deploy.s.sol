@@ -14,7 +14,6 @@ import { WebAuthnHarness } from "test/harness/WebAuthnHarness.sol";
 import { GuardianExecutor } from "src/modules/GuardianExecutor.sol";
 import { ModularSmartAccount } from "src/ModularSmartAccount.sol";
 
-
 contract Deploy is Script {
     function makeProxy(address impl) internal returns (address) {
         return address(new TransparentUpgradeableProxy(impl, msg.sender, ""));
