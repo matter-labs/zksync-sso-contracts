@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "bundler": "alto --config ./alto.json",
-    "test": "tsx ./test/integration/basic.ts && tsx ./test/integration/passkey.ts",
+    "test": "tsx ./test/integration/basic.test.ts && tsx ./test/integration/passkey.test.ts",
     "anvil": "anvil --fork-url https://reth-ethereum.ithaca.xyz/rpc --chain-id 31337",
     "deploy": "forge script script/Deploy.s.sol",
     "//": "Uses the last private key of anvil's rich accounts list",
