@@ -10,7 +10,6 @@ import { MSAFactory } from "src/MSAFactory.sol";
 import { EOAKeyValidator } from "src/modules/EOAKeyValidator.sol";
 import { SessionKeyValidator } from "src/modules/SessionKeyValidator.sol";
 import { WebAuthnValidator } from "src/modules/WebAuthnValidator.sol";
-import { WebAuthnHarness } from "test/harness/WebAuthnHarness.sol";
 import { GuardianExecutor } from "src/modules/GuardianExecutor.sol";
 import { ModularSmartAccount } from "src/ModularSmartAccount.sol";
 
@@ -32,15 +31,12 @@ contract Deploy is Script {
         address beacon = address(new UpgradeableBeacon(accountImpl, msg.sender));
         factory = makeProxy(address(new MSAFactory(beacon)));
 
-        WebAuthnHarness harness = new WebAuthnHarness();
-
         vm.stopBroadcast();
 
         console.log("EOAKeyValidator:", defaultModules[0]);
         console.log("SessionKeyValidator:", defaultModules[1]);
         console.log("WebAuthnValidator:", defaultModules[2]);
         console.log("GuardianExecutor:", defaultModules[3]);
-        console.log("WebAuthnHarness:", address(harness));
         console.log("ModularSmartAccount implementation:", accountImpl);
         console.log("UpgradeableBeacon:", beacon);
         console.log("MSAFactory:", factory);
