@@ -5,9 +5,8 @@
   "main": "index.js",
   "scripts": {
     "bundler": "alto --config ./alto.json",
-    "bundler-test": "tsx ./test/integration/basic.ts",
+    "test": "tsx ./test/integration/basic.ts && tsx ./test/integration/passkey.ts",
     "anvil": "anvil --fork-url https://reth-ethereum.ithaca.xyz/rpc --chain-id 31337",
-    "test": "forge test",
     "deploy": "forge script script/Deploy.s.sol",
     "//": "Uses the last private key of anvil's rich accounts list",
     "deploy-test": "forge script script/Deploy.s.sol --rpc-url http://127.0.0.1:8545 --broadcast --private-key 0x2a871d0798f97d79848a013d4936a73bf4cc922c825d33c1cf7073dff6d409c6 --sig 'deployAll()'"
@@ -21,13 +20,7 @@
   "license": "MIT",
   "packageManager": "pnpm@10.13.0",
   "devDependencies": {
-    "@hexagon/base64": "^2.0.4",
-    "@levischuck/tiny-cbor": "^0.3.1",
-    "@peculiar/asn1-ecc": "^2.5.0",
-    "@peculiar/asn1-schema": "^2.5.0",
-    "@pimlico/alto": "^0.0.19",
     "@types/node": "^24.3.0",
-    "bigint-conversion": "^2.4.3",
     "tsx": "^4.20.5",
     "viem": "^2.36.0"
   }

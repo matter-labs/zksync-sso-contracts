@@ -27,4 +27,4 @@ To run the integration tests:
 2. Run the local development node with `pnpm anvil`.
 3. In a separate terminal, run the bundler with `pnpm bundler`
 4. Deploy all contracts and a test account with `pnpm deploy-test`
-5. Run integration tests with `pnpm bundler-test`
+5. Run integration tests with `pnpm test`

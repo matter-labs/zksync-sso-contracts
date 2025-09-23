@@ -110,14 +110,10 @@ function getContractAddresses() {
     // zero transfer to a random address
     const hash = await bundlerClient.sendUserOperation({
         account,
-        calls: [{
-            to: '0xcb98643b8786950F0461f3B0edf99D88F274574D',
-            value: 0n,
-            data: '0x'
-        }]
+        calls: [{ to: '0xcb98643b8786950F0461f3B0edf99D88F274574D' }]
     })
     const receipt = await bundlerClient.waitForUserOperationReceipt({ hash });
-    console.log(receipt);
+    console.log(receipt.receipt.status);
 
     process.exit(0)
 })()
