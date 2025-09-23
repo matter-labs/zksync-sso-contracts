@@ -28,7 +28,9 @@ contract WebAuthnValidator is IValidator {
     error EmtpyKey();
     error BadDomainLength();
     error BadCredentialIDLength();
-    error WebAuthnCheckFailed(uint8 reason);
+    error KeyNotFound(string originDomain, bytes credentialId, address account);
+    error InvalidClientData(string field);
+    error InvalidAuthDataFlags(bytes1 flags);
 
     /// @notice Represents a passkey identifier, which includes the domain and credential ID
     struct PasskeyId {
@@ -51,14 +53,11 @@ contract WebAuthnValidator is IValidator {
     mapping(string originDomain => mapping(bytes credentialId => mapping(address account => bytes32[2] publicKey)))
         private publicKeys;
 
-     // TODO we don't need this mapping
     /// @dev Mapping of domain-bound credential IDs to the account address that owns them
     mapping(string originDomain => mapping(bytes credentialId => address accountAddress)) public registeredAddress;
 
     /// @dev check for secure validation: bit 0 = 1 (user present), bit 2 = 1 (user verified)
     bytes1 private constant AUTH_DATA_MASK = 0x05;
-    bytes32 private constant LOW_S_MAX = 0x7fffffff800000007fffffffffffffffde737d56d38bcf4279dce5617e3192a8;
-    bytes32 private constant HIGH_R_MAX = 0xffffffff00000000ffffffffffffffffbce6faada7179e84f3b9cac2fc632551;
     bytes32 private constant WEBAUTHN_GET_HASH = keccak256("webauthn.get");
     bytes32 private constant FALSE_HASH = keccak256("false");
 
@@ -131,7 +130,7 @@ contract WebAuthnValidator is IValidator {
     {
         bytes32[2] memory oldKey = publicKeys[originDomain][credentialId][msg.sender];
         // only allow adding new keys, no overwrites/updates
-        require(uint256(oldKey[0]) == 0 && uint256(oldKey[1]) == 0, KeyAlreadyExists());
+        require(oldKey[0] == 0 && oldKey[1] == 0, KeyAlreadyExists());
         // this key already exists on the domain for an existing account
         require(registeredAddress[originDomain][credentialId] == address(0), AccountAlreadyExists());
         // empty keys aren't valid
@@ -151,7 +150,7 @@ contract WebAuthnValidator is IValidator {
     /// @notice Validates a WebAuthn signature
     /// @param signedHash The hash of the signed message
     /// @param signature The signature to validate
-    // TODO return
+    /// @return the magic value if the signature is valid, 0xffffffff otherwise
     function isValidSignatureWithSender(
         address, // sender
         bytes32 signedHash,
@@ -171,11 +170,6 @@ contract WebAuthnValidator is IValidator {
     /// @param userOp The user operation to validate
     /// @return 0 if the signature is valid, 1 if invalid, otherwise reverts
     function validateUserOp(PackedUserOperation calldata userOp, bytes32 signedHash) external view returns (uint256) {
-        // TODO is this ok?
-        if (userOp.unpackCallGasLimit() == 0 && userOp.unpackVerificationGasLimit() == 0) {
-            return 0;
-        }
-
         (, bytes memory signature,) = abi.decode(userOp.signature, (address, bytes, bytes));
         return webAuthVerify(signedHash, signature) ? 0 : 1;
     }
@@ -185,41 +179,34 @@ contract WebAuthnValidator is IValidator {
     /// @dev Checks passkey authenticator data flags (valid number of credentials)
     /// @dev Requires that the transaction signature hash was the signed challenge
     /// @dev Verifies that the signature was performed by a 'get' request
-    /// @param transactionHash The hash of the signed message
-    /// @param fatSignature The signature to validate (authenticator data, client data, [r, s])
+    /// @param signedHash The hash of the signed message
+    /// @param fatSignature The signature to validate (authenticator data, client data, [r, s], credential ID)
     /// @return true if the signature is valid
-    function webAuthVerify(bytes32 transactionHash, bytes memory fatSignature) internal view returns (bool) {
+    function webAuthVerify(bytes32 signedHash, bytes memory fatSignature) internal view returns (bool) {
         (bytes memory authenticatorData, string memory clientDataJSON, bytes32[2] memory rs, bytes memory credentialId)
         = abi.decode(fatSignature, (bytes, string, bytes32[2], bytes));
 
-        // TODO: this call should revert in all cases except invalid signature. Format should be correct regardless.
-
-        // prevent signature replay https://yondon.blog/2019/01/01/how-not-to-use-ecdsa/
-        if (uint256(rs[0]) == 0 || rs[0] > HIGH_R_MAX || uint256(rs[1]) == 0 || rs[1] > LOW_S_MAX) {
-            revert WebAuthnCheckFailed(1);
-        }
-
         // https://developer.mozilla.org/en-US/docs/Web/API/Web_Authentication_API/Authenticator_data#attestedcredentialdata
-        if (authenticatorData[32] & AUTH_DATA_MASK != AUTH_DATA_MASK) {
-            revert WebAuthnCheckFailed(2);
-        }
+        require(authenticatorData[32] & AUTH_DATA_MASK == AUTH_DATA_MASK, InvalidAuthDataFlags(authenticatorData[32]));
 
         // parse out the required fields (type, challenge, crossOrigin): https://goo.gl/yabPex
         JSONParserLib.Item memory root = JSONParserLib.parse(clientDataJSON);
         // challenge should contain the transaction hash, ensuring that the transaction is signed
         string memory challenge = root.at('"challenge"').value().decodeString();
         bytes memory challengeData = Base64.decode(challenge);
-        require(challengeData.length == 32 && bytes32(challengeData) == transactionHash, WebAuthnCheckFailed(3));
+        // TODO this should probably not revert, but return false
+        require(challengeData.length == 32 && bytes32(challengeData) == signedHash, InvalidClientData("challenge"));
 
         // type ensures the signature was created from a validation request
         string memory webauthnType = root.at('"type"').value().decodeString();
-        require(WEBAUTHN_GET_HASH == keccak256(bytes(webauthnType)), WebAuthnCheckFailed(4));
+        require(WEBAUTHN_GET_HASH == keccak256(bytes(webauthnType)), InvalidClientData("type"));
 
         // the origin determines which key to validate against
         // as passkeys are linked to domains, so the storage mapping reflects that
         string memory origin = root.at('"origin"').value().decodeString();
         bytes32[2] memory publicKey = publicKeys[origin][credentialId][msg.sender];
-        require(uint256(publicKey[0]) != 0 || uint256(publicKey[1]) != 0, EmtpyKey());
+        // TODO this should probably not revert, but return false
+        require(publicKey[0] != 0 || publicKey[1] != 0, KeyNotFound(origin, credentialId, msg.sender));
 
         // cross-origin validation is optional, but explicitly not supported.
         // cross-origin requests would be from embedding the auth request
@@ -228,11 +215,12 @@ contract WebAuthnValidator is IValidator {
         JSONParserLib.Item memory crossOriginItem = root.at('"crossOrigin"');
         if (!crossOriginItem.isUndefined()) {
             string memory crossOrigin = crossOriginItem.value();
-            require(FALSE_HASH == keccak256(bytes(crossOrigin)), WebAuthnCheckFailed(7));
+            require(FALSE_HASH == keccak256(bytes(crossOrigin)), InvalidClientData("crossOrigin"));
         }
 
         bytes32 clientDataHash = sha256(bytes(clientDataJSON));
         bytes32 message = sha256(bytes.concat(authenticatorData, clientDataHash));
+        // Malleability checks are done in the library
         return P256.verifySignature(message, rs[0], rs[1], publicKey[0], publicKey[1]);
     }
 
