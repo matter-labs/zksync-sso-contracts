@@ -6,7 +6,6 @@ import { Strings } from "@openzeppelin/contracts/utils/Strings.sol";
 import { Base64 } from "solady/utils/Base64.sol";
 import { JSONParserLib } from "solady/utils/JSONParserLib.sol";
 import { PackedUserOperation } from "account-abstraction/interfaces/PackedUserOperation.sol";
-import { UserOperationLib } from "account-abstraction/core/UserOperationLib.sol";
 import { IERC1271 } from "@openzeppelin/contracts/interfaces/IERC1271.sol";
 import { P256 } from "solady/utils/P256.sol";
 
@@ -18,7 +17,6 @@ import { IValidator, IModule, MODULE_TYPE_VALIDATOR } from "../interfaces/IERC75
 /// @custom:security-contact security@matterlabs.dev
 /// @dev This contract allows secure user authentication using WebAuthn public keys.
 contract WebAuthnValidator is IValidator {
-    using UserOperationLib for PackedUserOperation;
     using JSONParserLib for JSONParserLib.Item;
     using JSONParserLib for string;
 
