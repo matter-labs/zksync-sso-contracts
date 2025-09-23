@@ -1,13 +1,10 @@
 import {
   encodeAbiParameters,
   encodeFunctionData,
-  decodeAbiParameters,
   Hex,
-  hexToBytes,
   pad,
   toHex,
   concat,
-  concat as concatHex,
   http,
   createPublicClient,
   parseAbi,
@@ -22,86 +19,10 @@ import {
   entryPoint08Address,
 } from "viem/account-abstraction";
 import { localhost } from "viem/chains";
-
 import crypto from "crypto";
 
-// Utility: SHA-256 hash
 function sha256(buffer: Buffer): Buffer {
     return crypto.createHash('sha256').update(buffer).digest();
-}
-
-// 1. Generate a keypair (P-256)
-const keyPair = crypto.generateKeyPairSync("ec", { namedCurve: "P-256" });
-
-function signWithPasskey(data: Buffer, privateKey: crypto.KeyObject) {
-    // 2. Create clientDataJSON
-    const clientData = {
-        type: "webauthn.get",
-        challenge: data.toString("base64url"),
-        origin: "https://example.com",
-        crossOrigin: false
-    };
-    const clientDataJSON = Buffer.from(JSON.stringify(clientData));
-    const clientDataHash = sha256(clientDataJSON);
-
-    // 3. Construct AuthenticatorData
-    const rpIdHash = sha256(Buffer.from("example.com")); // SHA256(RP ID)
-    const flags = Buffer.from([0x05]); // user present & user verified
-    const signCount = Buffer.alloc(4); // 4-byte counter (0)
-
-    const authenticatorData = Buffer.concat([
-        rpIdHash,
-        flags,
-        signCount
-    ]);
-
-    // 4. Create signature (authenticatorData || hash(clientDataJSON))
-    const signData = Buffer.concat([
-        authenticatorData,
-        clientDataHash
-    ]);
-
-    const signer = crypto.createSign("SHA256");
-    signer.update(signData);
-    signer.end();
-    const raw = signer.sign({ key: keyPair.privateKey, dsaEncoding: "ieee-p1363" }); // 64 bytes for P-256
-    const r = raw.subarray(0, raw.length / 2);
-    const s = raw.subarray(raw.length / 2);
-
-    // Export to JWK
-    const jwk = keyPair.publicKey.export({ format: "jwk" }) as JsonWebKey;
-
-    return {
-        authenticatorData: toHex(authenticatorData),
-        clientDataJSON: clientDataJSON.toString("utf8"),
-        r: toHex(r),
-        s: normalizeS(toHex(s)),
-        x: toHex(Buffer.from(jwk.x!, "base64url")),
-        y: toHex(Buffer.from(jwk.y!, "base64url")),
-    };
-}
-
-// TODO verify on-chain on the webauthn validator
-
-//
-//
-//
-// //////////////////////////////////////////////////
-//
-const anvilPort = 8545
-const altoPort = require("../../alto.json").port
-const anvilRpc = `http://localhost:${anvilPort}`
-const altoRpc = `http://localhost:${altoPort}`
-const privateKey = "0x2a871d0798f97d79848a013d4936a73bf4cc922c825d33c1cf7073dff6d409c6"
-
-function getContractAddresses() {
-    const txs = require('../../broadcast/Deploy.s.sol/31337/deployAll-latest.json').transactions;
-    return {
-        eoaValidator: txs[1].contractAddress as Address,
-        webauthnValidator: txs[5].contractAddress as Address,
-        factory: txs[txs.length - 3].contractAddress as Address,
-        account: txs[txs.length - 2].additionalContracts[0].address as Address
-    }
 }
 
 function normalizeS(s: Hex) {
@@ -114,36 +35,77 @@ function normalizeS(s: Hex) {
     return pad(toHex(sBigInt));
 }
 
+function signWithPasskey(data: Buffer, privateKey: crypto.KeyObject) {
+    const clientData = {
+        type: "webauthn.get",
+        challenge: data.toString("base64url"),
+        origin: "https://example.com",
+        crossOrigin: false
+    };
+    const clientDataJSON = Buffer.from(JSON.stringify(clientData));
+    const clientDataHash = sha256(clientDataJSON);
+
+    const rpIdHash = sha256(Buffer.from("example.com")); // SHA256(RP ID)
+    const flags = Buffer.from([0x05]); // user present & user verified
+    const signCount = Buffer.alloc(4); // 4-byte counter (0)
+
+    const authenticatorData = Buffer.concat([
+        rpIdHash,
+        flags,
+        signCount
+    ]);
+
+    const signData = Buffer.concat([
+        authenticatorData,
+        clientDataHash
+    ]);
+
+    const signer = crypto.createSign("SHA256");
+    signer.update(signData);
+    signer.end();
+    const raw = signer.sign({ key: privateKey, dsaEncoding: "ieee-p1363" });
+    const r = raw.subarray(0, raw.length / 2);
+    const s = raw.subarray(raw.length / 2);
+
+
+    return {
+        authenticatorData: toHex(authenticatorData),
+        clientDataJSON: clientDataJSON.toString("utf8"),
+        r: toHex(r),
+        s: normalizeS(toHex(s)),
+    };
+}
+
+function getContractAddresses() {
+    const txs = require('../../broadcast/Deploy.s.sol/31337/deployAll-latest.json').transactions;
+    return {
+        eoaValidator: txs[1].contractAddress as Address,
+        webauthnValidator: txs[5].contractAddress as Address,
+        factory: txs[txs.length - 3].contractAddress as Address,
+        account: txs[txs.length - 2].additionalContracts[0].address as Address
+    }
+}
+
+const anvilPort = 8545;
+const altoPort = require("../../alto.json").port;
+const anvilRpc = `http://localhost:${anvilPort}`;
+const altoRpc = `http://localhost:${altoPort}`;
+const privateKey = "0x2a871d0798f97d79848a013d4936a73bf4cc922c825d33c1cf7073dff6d409c6";
+
 (async () => {
     const contracts = getContractAddresses();
-    console.log(contracts)
+
+    const keyPair = crypto.generateKeyPairSync("ec", { namedCurve: "P-256" });
+    const jwk = keyPair.publicKey.export({ format: "jwk" }) as JsonWebKey;
+    const publicKey = {
+        x: toHex(Buffer.from(jwk.x!, "base64url")),
+        y: toHex(Buffer.from(jwk.y!, "base64url")),
+    }
 
     const client = createPublicClient({
         chain: localhost,
         transport: http(anvilRpc),
     })
-
-    const output = signWithPasskey(Buffer.from("hello"), keyPair.privateKey);
-
-    const fatSignature = encodeAbiParameters([
-        { type: "bytes" }, // authenticatorData
-        { type: "string"}, // clientDataJSON
-        { type: "bytes32[2]" }, // r and s
-        { type: "bytes" }  // credentialId
-    ], [
-        output.authenticatorData, output.clientDataJSON, [output.r, output.s], "0x" // empty credentialId for now
-    ]);
-
-    const result = await client.readContract({
-        address: contracts.webauthnValidator,
-        abi: parseAbi(["function temp(bytes calldata fatSignature, bytes32 x, bytes32 y) external view returns (bool)"]),
-        args: [fatSignature, output.x, output.y],
-        functionName: "temp",
-    })
-
-    console.log(result)
-
-    //////////////////////////////////////////////////////
 
     const bundlerClient = createBundlerClient({
         client,
@@ -232,9 +194,9 @@ function normalizeS(s: Hex) {
             value: 0n,
             data: encodeFunctionData({
                 abi: parseAbi(["function addValidationKey(bytes memory credentialId, bytes32[2] memory newKey, string memory originDomain) public"]),
-                args: [credentialId, [output.x, output.y], "https://example.com"]
+                args: [credentialId, [publicKey.x, publicKey.y], "https://example.com"]
             })
-        }]
+        }],
     })
     let receipt = await bundlerClient.waitForUserOperationReceipt({ hash: addValidationKey });
     console.log(receipt.receipt.status);
@@ -264,13 +226,12 @@ function normalizeS(s: Hex) {
         account,
         calls: [{
             to: '0xcb98643b8786950F0461f3B0edf99D88F274574D',
-            value: 0n,
-            data: '0x'
-        }]
+        }],
+        // because stub signature is wrong for this validator
+        verificationGasLimit: 400000n,
     })
     receipt = await bundlerClient.waitForUserOperationReceipt({ hash });
-    console.log(receipt.receipt);
-
+    console.log(receipt.receipt.status);
 
     process.exit(0)
 })()

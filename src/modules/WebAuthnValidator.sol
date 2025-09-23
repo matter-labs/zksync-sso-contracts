@@ -240,12 +240,4 @@ contract WebAuthnValidator is IValidator {
         return interfaceId == type(IERC165).interfaceId || interfaceId == type(IValidator).interfaceId
             || interfaceId == type(IModule).interfaceId;
     }
-
-    function temp(bytes calldata fatSignature, bytes32 x, bytes32 y) external view returns (bool) {
-        (bytes memory authenticatorData, string memory clientDataJSON, bytes32[2] memory rs,) =
-            abi.decode(fatSignature, (bytes, string, bytes32[2], bytes));
-        bytes32 clientDataHash = sha256(bytes(clientDataJSON));
-        bytes32 message = sha256(bytes.concat(authenticatorData, clientDataHash));
-        return P256.verifySignature(message, rs[0], rs[1], x, y);
-    }
 }
