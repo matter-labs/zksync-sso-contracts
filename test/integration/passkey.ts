@@ -67,7 +67,6 @@ function signWithPasskey(data: Buffer, privateKey: crypto.KeyObject) {
     const r = raw.subarray(0, raw.length / 2);
     const s = raw.subarray(raw.length / 2);
 
-
     return {
         authenticatorData: toHex(authenticatorData),
         clientDataJSON: clientDataJSON.toString("utf8"),
@@ -151,10 +150,8 @@ const privateKey = "0x2a871d0798f97d79848a013d4936a73bf4cc922c825d33c1cf7073dff6
             return await client.readContract({ abi: entryPoint08Abi, address: entryPoint08Address, functionName: 'getNonce', args: [contracts.account, 0n] })
         },
         async getStubSignature() {
-            return encodeAbiParameters(
-                [{ type: "address" }, { type: "bytes" }, { type: "bytes" }],
-                [contracts.eoaValidator, pad("0x", { size: 65 }), "0x"]
-            )
+            // bad signature, but correct format
+            return await signHash(pad("0x", { size: 32 }));
         },
         async signUserOperation(userOperation) {
             const userOpHash = getUserOperationHash({
@@ -224,11 +221,7 @@ const privateKey = "0x2a871d0798f97d79848a013d4936a73bf4cc922c825d33c1cf7073dff6
     // zero transfer to a random address
     const hash = await bundlerClient.sendUserOperation({
         account,
-        calls: [{
-            to: '0xcb98643b8786950F0461f3B0edf99D88F274574D',
-        }],
-        // because stub signature is wrong for this validator
-        verificationGasLimit: 400000n,
+        calls: [{ to: '0xcb98643b8786950F0461f3B0edf99D88F274574D' }],
     })
     receipt = await bundlerClient.waitForUserOperationReceipt({ hash });
     console.log(receipt.receipt.status);

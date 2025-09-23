@@ -194,8 +194,7 @@ contract WebAuthnValidator is IValidator {
         // challenge should contain the transaction hash, ensuring that the transaction is signed
         string memory challenge = root.at('"challenge"').value().decodeString();
         bytes memory challengeData = Base64.decode(challenge);
-        // TODO this should probably not revert, but return false
-        require(challengeData.length == 32 && bytes32(challengeData) == signedHash, InvalidClientData("challenge"));
+        bool challengeValid = (challengeData.length == 32 && bytes32(challengeData) == signedHash);
 
         // type ensures the signature was created from a validation request
         string memory webauthnType = root.at('"type"').value().decodeString();
@@ -220,8 +219,9 @@ contract WebAuthnValidator is IValidator {
 
         bytes32 clientDataHash = sha256(bytes(clientDataJSON));
         bytes32 message = sha256(bytes.concat(authenticatorData, clientDataHash));
-        // Malleability checks are done in the library
-        return P256.verifySignature(message, rs[0], rs[1], publicKey[0], publicKey[1]);
+        // Malleability checks are done in this call as well
+        bool signatureValid = P256.verifySignature(message, rs[0], rs[1], publicKey[0], publicKey[1]);
+        return signatureValid && challengeValid;
     }
 
     function supportsInterface(bytes4 interfaceId) external pure returns (bool) {
