@@ -101,8 +101,8 @@ jobs:
       - name: Run bundler
         run: pnpm bundler &
 
-      - name: Deploy contracts
+      - name: Deploy contracts and a test account
         run: pnpm deploy-test
 
       - name: Run integration test
-        run: pnpm bundler-test
+        run: pnpm test

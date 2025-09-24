@@ -32,7 +32,14 @@ contract MSAFactory is ReentrancyGuard {
         beacon = _beacon;
     }
 
-    function deployAccount(bytes32 accountId, bytes calldata initData) external nonReentrant returns (address account) {
+    function deployAccount(
+        bytes32 accountId,
+        bytes calldata initData
+    )
+        external
+        nonReentrant
+        returns (address account)
+    {
         require(accountRegistry[accountId] == address(0), AccountAlreadyExists(accountId));
 
         // slither-disable-next-line reentrancy-no-eth
