@@ -11,7 +11,6 @@ import { EnumerableSet } from "@openzeppelin/contracts/utils/structs/EnumerableS
 contract EOAKeyValidator is IValidator {
     using EnumerableSet for EnumerableSet.AddressSet;
 
-    // TODO: is this actually needed?
     mapping(address => bool) internal _initialized;
     mapping(address => EnumerableSet.AddressSet) owners;
 
@@ -21,7 +20,7 @@ contract EOAKeyValidator is IValidator {
     error OwnerAlreadyExists(address smartAccount, address owner);
     error OwnerDoesNotExist(address smartAccount, address owner);
 
-    function onInstall(bytes calldata data) external override {
+    function onInstall(bytes calldata data) external {
         if (isInitialized(msg.sender)) revert AlreadyInitialized(msg.sender);
         _initialized[msg.sender] = true;
         address[] memory initialOwners = abi.decode(data, (address[]));
@@ -30,17 +29,17 @@ contract EOAKeyValidator is IValidator {
         }
     }
 
-    function onUninstall(bytes calldata) external override {
+    function onUninstall(bytes calldata) external {
         if (!isInitialized(msg.sender)) revert NotInitialized(msg.sender);
         _initialized[msg.sender] = false;
         // TODO: clear owners?
     }
 
-    function isInitialized(address smartAccount) public view override returns (bool) {
+    function isInitialized(address smartAccount) public view returns (bool) {
         return _initialized[smartAccount];
     }
 
-    function isModuleType(uint256 moduleTypeId) external pure override returns (bool) {
+    function isModuleType(uint256 moduleTypeId) external pure returns (bool) {
         return moduleTypeId == MODULE_TYPE_VALIDATOR;
     }
 

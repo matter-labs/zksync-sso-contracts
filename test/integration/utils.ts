@@ -1,12 +1,15 @@
 import {
     createPublicClient,
     encodeAbiParameters,
+    walletActions,
     pad,
     toHex,
     http,
     concat,
     type Hex,
     type Address,
+    type WalletClient,
+    type PublicClient,
 } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { createBundlerClient } from "viem/account-abstraction";
@@ -15,7 +18,7 @@ import { localhost } from "viem/chains";
 import crypto from "crypto";
 
 export function contractAddresses() {
-    const txs = require('../../broadcast/Deploy.s.sol/31337/deployAll-latest.json').transactions;
+    const txs = require('../../broadcast/Deploy.s.sol/1337/deployAll-latest.json').transactions;
     return {
         eoaValidator: txs[1].contractAddress as Address,
         sessionValidator: txs[3].contractAddress as Address,
@@ -34,7 +37,7 @@ export function createClients(anvilPort: number, bundlerPort: number) {
         chain: localhost,
         transport: http(`http://localhost:${anvilPort}`),
         pollingInterval,
-    });
+    }).extend(walletActions);
 
     const bundlerClient = createBundlerClient({
         client,
@@ -43,6 +46,21 @@ export function createClients(anvilPort: number, bundlerPort: number) {
     });
 
     return { client, bundlerClient }
+}
+
+export function randomAddress(): Address {
+    return `0x${crypto.randomBytes(20).toString("hex")}`;
+}
+
+export async function deployContract(client: any, privateKey: Hex, name: string) {
+    const deployer = privateKeyToAccount(privateKey);
+    const deploymentHash = await client.deployContract({
+        account: deployer,
+        abi: [],
+        bytecode: require(`../../out/${name}.sol/${name}.json`).bytecode.object
+    });
+    const deployment = await client.waitForTransactionReceipt({ hash: deploymentHash, timeout: 100 });
+    return deployment.contractAddress!;
 }
 
 function sha256(buffer: Buffer): Buffer {

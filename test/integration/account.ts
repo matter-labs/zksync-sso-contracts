@@ -3,6 +3,7 @@ import {
   Hex,
   pad,
   concat,
+  slice,
   type Address,
   type PublicClient,
 } from "viem";
@@ -14,6 +15,8 @@ import {
   entryPoint08Address,
   type SmartAccount
 } from "viem/account-abstraction";
+
+import { hashTypedData, wrapTypedDataSignature } from "viem/experimental/erc7739";
 
 const callAbi = [{
     components: [
@@ -76,7 +79,7 @@ export class SsoAccount {
                     userOperation: { ...userOperation, sender: address },
                     entryPointAddress: entryPoint08Address,
                     entryPointVersion: '0.8',
-                    chainId: 31337
+                    chainId: 1337
                 });
                 return await sso.signer(userOpHash);
             },
@@ -93,8 +96,23 @@ export class SsoAccount {
                 return "0x";
             },
             async signTypedData(typedData) {
-                // Not used in tests
-                return "0x";
+                const verifierDomain = {
+                    chainId: 1337,
+                    name: "zksync-sso-1271",
+                    version: "1.0.0",
+                    verifyingContract: address,
+                    salt: pad('0x', { size: 32 })
+                };
+                const erc7739Data: any = {
+                    ...typedData,
+                    verifierDomain
+                }
+                const hash = hashTypedData(erc7739Data);
+                const signature = await sso.signer(hash);
+                return wrapTypedDataSignature({
+                    ...erc7739Data,
+                    signature
+                });
             },
         })
 

@@ -4,7 +4,7 @@ import crypto from "crypto";
 import { encodeFunctionData, toHex, parseAbi, type Address } from "viem";
 
 import { SsoAccount } from "./account";
-import { contractAddresses, toEOASigner, toPasskeySigner, createClients } from "./utils";
+import { contractAddresses, toEOASigner, toPasskeySigner, createClients, randomAddress } from "./utils";
 
 const anvilPort = 8545;
 const altoPort = require("../../alto.json").port;
@@ -51,7 +51,7 @@ test("executes a simple transfer signed using Passkey", { timeout: 120_000 }, as
     sso.signer = toPasskeySigner(keyPair.privateKey, credentialId);
 
     // transfer to a random address using passkey signer
-    const target: Address = `0x${crypto.randomBytes(20).toString("hex")}`;
+    const target = randomAddress();
     const hash = await bundlerClient.sendUserOperation({
         account: sso.account,
         calls: [{
