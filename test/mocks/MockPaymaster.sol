@@ -6,8 +6,6 @@ import {ERC4337Utils} from "@openzeppelin/contracts/account/utils/draft-ERC4337U
 import {IEntryPoint, IPaymaster, PackedUserOperation} from "@openzeppelin/contracts/interfaces/draft-IERC4337.sol";
 
 contract MockPaymaster is IPaymaster {
-    error PaymasterUnauthorized(address sender);
-
     modifier onlyEntryPoint() {
         require(msg.sender == address(entryPoint()));
         _;
@@ -22,6 +20,7 @@ contract MockPaymaster is IPaymaster {
         bytes32, // userOpHash
         uint256  // maxCost
     ) public virtual onlyEntryPoint returns (bytes memory context, uint256 validationData) {
+        // Allow any userOp from anyone.
         return ("", 0);
     }
 

@@ -196,7 +196,6 @@ contract BasicTest is MSATest {
 
     function test_paymaster() public {
         vm.deal(address(account), 0);
-        vm.deal(address(paymaster), 1 ether);
 
         PackedUserOperation[] memory userOps = new PackedUserOperation[](1);
         bytes memory callData = ExecutionLib.encodeSingle(address(target), 0, abi.encodeCall(MockTarget.setValue, 1337));
