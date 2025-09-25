@@ -13,12 +13,14 @@ import "src/libraries/ModeLib.sol";
 import { MockTarget } from "./mocks/MockTarget.sol";
 import { MockDelegateTarget } from "./mocks/MockDelegateTarget.sol";
 import { MockERC1271Caller, MockMessage } from "./mocks/MockERC1271Caller.sol";
+import { MockPaymaster } from "./mocks/MockPaymaster.sol";
 import { MSATest } from "./MSATest.sol";
 
 contract BasicTest is MSATest {
     MockTarget public target;
     MockDelegateTarget public delegateTarget;
     MockERC1271Caller public erc1271Caller;
+    MockPaymaster public paymaster;
 
     function setUp() public override {
         super.setUp();
@@ -26,6 +28,7 @@ contract BasicTest is MSATest {
         target = new MockTarget();
         delegateTarget = new MockDelegateTarget();
         erc1271Caller = new MockERC1271Caller();
+        paymaster = new MockPaymaster();
     }
 
     function test_transfer() public {
@@ -189,5 +192,21 @@ contract BasicTest is MSATest {
 
         bool success = erc1271Caller.validateStruct(mockMessage, address(account), signature);
         vm.assertTrue(success, "Signature validation failed");
+    }
+
+    function test_paymaster() public {
+        vm.deal(address(account), 0);
+        vm.deal(address(paymaster), 1 ether);
+
+        PackedUserOperation[] memory userOps = new PackedUserOperation[](1);
+        bytes memory callData = ExecutionLib.encodeSingle(address(target), 0, abi.encodeCall(MockTarget.setValue, 1337));
+        userOps[0] = makeUserOp(abi.encodeCall(IERC7579Account.execute, (ModeLib.encodeSimpleSingle(), callData)));
+        userOps[0].paymasterAndData = abi.encodePacked(address(paymaster), uint128(2e6), uint128(2e6));
+        signUserOp(userOps[0], owner.key, address(eoaValidator));
+
+        paymaster.deposit{ value: 0.5 ether }();
+
+        entryPoint.handleOps(userOps, bundler);
+        vm.assertEq(target.value(), 1337, "State not changed via simple call");
     }
 }
