@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import crypto from "crypto";
-import { encodeFunctionData, toHex, parseAbi } from "viem";
+import { encodeFunctionData, toHex, parseAbi, type Address } from "viem";
 
 import { SsoAccount } from "./account";
 import { contractAddresses, toEOASigner, toPasskeySigner, createClients } from "./utils";
@@ -51,10 +51,11 @@ test("executes a simple transfer signed using Passkey", { timeout: 120_000 }, as
     sso.signer = toPasskeySigner(keyPair.privateKey, credentialId);
 
     // transfer to a random address using passkey signer
+    const target: Address = `0x${crypto.randomBytes(20).toString("hex")}`;
     const hash = await bundlerClient.sendUserOperation({
         account: sso.account,
         calls: [{
-            to: "0xcb98643b8786950F0461f3B0edf99D88F274574D",
+            to: target,
             value: 1n
         }],
     });
@@ -69,4 +70,7 @@ test("executes a simple transfer signed using Passkey", { timeout: 120_000 }, as
         "success",
         "user operation with passkey signer should succeed",
     );
+
+    const balance = await client.getBalance({ address: target });
+    assert.equal(balance, 1n, "target should receive 1 wei");
 });

@@ -4,6 +4,7 @@ import {
     pad,
     toHex,
     http,
+    concat,
     type Hex,
     type Address,
 } from "viem";
@@ -102,10 +103,7 @@ export function toEOASigner(privateKey: Hex) {
     const { eoaValidator } = contractAddresses();
     return async function(userOpHash: Hex) {
         const signature = await privateKeyToAccount(privateKey).sign({ hash: userOpHash });
-        return encodeAbiParameters(
-            [{ type: "address" }, { type: "bytes" }, { type: "bytes" }],
-            [eoaValidator, signature, "0x"]
-        )
+        return concat([eoaValidator, signature]);
     };
 }
 
@@ -124,9 +122,6 @@ export function toPasskeySigner(privateKey: crypto.KeyObject, credentialId: Hex)
             [signature.r, signature.s],
             credentialId
         ]);
-        return encodeAbiParameters(
-            [{ type: "address" }, { type: "bytes" }, { type: "bytes" }],
-            [webauthnValidator, fatSignature, "0x"]
-        );
-    };
+        return concat([webauthnValidator, fatSignature]);
+    }
 }

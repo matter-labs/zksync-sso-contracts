@@ -247,7 +247,7 @@ contract ModularSmartAccount is IMSA, ExecutionHelper, ERC1271Handler, RegistryA
         payPrefund(missingAccountFunds)
         returns (uint256 validSignature)
     {
-        address validator = address(bytes20(userOp.signature[12:32]));
+        address validator = address(bytes20(userOp.signature[:20]));
 
         // check if validator is enabled. If not terminate the validation phase.
         if (!_isValidatorInstalled(validator)) {

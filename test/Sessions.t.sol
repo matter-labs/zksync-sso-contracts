@@ -90,7 +90,7 @@ contract SessionsTest is MSATest {
         PackedUserOperation[] memory userOps = new PackedUserOperation[](1);
         userOps[0] = makeUserOp(callData);
         userOps[0].nonce = uint256(uint160(sessionOwner.addr)) << 64;
-        signUserOp(userOps[0], sessionOwner.key, address(sessionKeyValidator), abi.encode(spec, new uint48[](2)));
+        _signSessionUserOp(userOps[0]);
 
         entryPoint.handleOps(userOps, bundler);
         vm.assertEq(recipient.balance, 0.05 ether, "Value not transferred using session");
@@ -105,7 +105,7 @@ contract SessionsTest is MSATest {
         PackedUserOperation[] memory userOps = new PackedUserOperation[](1);
         userOps[0] = makeUserOp(callData);
         userOps[0].nonce = uint256(uint160(sessionOwner.addr)) << 64;
-        signUserOp(userOps[0], sessionOwner.key, address(sessionKeyValidator), abi.encode(spec, new uint48[](2)));
+        _signSessionUserOp(userOps[0]);
 
         vm.expectRevert();
         entryPoint.handleOps(userOps, bundler);
@@ -142,21 +142,8 @@ contract SessionsTest is MSATest {
         vm.assertEq(uint256(status), uint256(SessionLib.Status.Closed), "Session not revoked on uninstall");
     }
 
-    function test_createSessionERC20() public {
-        _setupErc20Session();
-        bytes32 sessionHash = keccak256(abi.encode(spec));
-
-        vm.assertEq(
-            sessionKeyValidator.sessionSigner(sessionOwner.addr), sessionHash, "Session hash not stored for signer"
-        );
-        SessionLib.Status status = sessionKeyValidator.sessionStatus(address(account), sessionHash);
-        vm.assertEq(uint256(status), uint256(SessionLib.Status.Active), "ERC20 session not active after creation");
-        vm.assertEq(spec.callPolicies.length, 1, "Unexpected call policies configured");
-        vm.assertEq(spec.callPolicies[0].constraints.length, 2, "Constraints not set");
-    }
-
     function test_sessionTransferERC20() public {
-        _setupErc20Session();
+        test_createSessionERC20();
 
         _sendSessionTransfer(recipient, 0.15 ether, false);
         vm.assertEq(erc20.balanceOf(recipient), 0.15 ether, "First transfer did not succeed");
@@ -166,14 +153,14 @@ contract SessionsTest is MSATest {
     }
 
     function testRevert_sessionTransferERC20_invalidRecipient() public {
-        _setupErc20Session();
+        test_createSessionERC20();
 
         address wrongRecipient = makeAddr("wrongRecipient");
         _sendSessionTransfer(wrongRecipient, 0.01 ether, true);
     }
 
     function testRevert_sessionTransferERC20_exceedsLimit() public {
-        _setupErc20Session();
+        test_createSessionERC20();
 
         _sendSessionTransfer(recipient, 0.25 ether, false);
         vm.assertEq(erc20.balanceOf(recipient), 0.25 ether, "Initial transfer should consume full limit");
@@ -184,7 +171,7 @@ contract SessionsTest is MSATest {
         );
     }
 
-    function _setupErc20Session() internal {
+    function test_createSessionERC20() public {
         test_installValidator();
 
         SessionLib.CallSpec[] memory callPolicies = new SessionLib.CallSpec[](1);
@@ -248,6 +235,14 @@ contract SessionsTest is MSATest {
         emit SessionKeyValidator.SessionCreated(address(account), sessionHash, spec);
 
         entryPoint.handleOps(userOps, bundler);
+
+        vm.assertEq(
+            sessionKeyValidator.sessionSigner(sessionOwner.addr), sessionHash, "Session hash not stored for signer"
+        );
+        SessionLib.Status status = sessionKeyValidator.sessionStatus(address(account), sessionHash);
+        vm.assertEq(uint256(status), uint256(SessionLib.Status.Active), "ERC20 session not active after creation");
+        vm.assertEq(spec.callPolicies.length, 1, "Unexpected call policies configured");
+        vm.assertEq(spec.callPolicies[0].constraints.length, 2, "Constraints not set");
     }
 
     function _sendSessionTransfer(
@@ -266,13 +261,25 @@ contract SessionsTest is MSATest {
         PackedUserOperation[] memory sessionOps = new PackedUserOperation[](1);
         sessionOps[0] = makeUserOp(transferCallData);
         sessionOps[0].nonce = entryPoint.getNonce(address(account), uint192(uint160(sessionOwner.addr)));
-        uint48[] memory periodIds = new uint48[](2 + spec.callPolicies[0].constraints.length);
-        signUserOp(sessionOps[0], sessionOwner.key, address(sessionKeyValidator), abi.encode(spec, periodIds));
+        _signSessionUserOp(sessionOps[0]);
 
         if (expectRevert) {
             vm.expectRevert();
         }
 
         entryPoint.handleOps(sessionOps, bundler);
+    }
+
+    function _signSessionUserOp(PackedUserOperation memory userOp) internal view {
+        uint256 constraints = 0;
+        for (uint256 i = 0; i < spec.callPolicies.length; i++) {
+            constraints += spec.callPolicies[i].constraints.length;
+        }
+
+        uint48[] memory periodIds = new uint48[](2 + constraints);
+        bytes32 userOpHash = entryPoint.getUserOpHash(userOp);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(sessionOwner.key, userOpHash);
+        bytes memory signature = abi.encodePacked(r, s, v);
+        userOp.signature = abi.encodePacked(sessionKeyValidator, abi.encode(signature, spec, periodIds));
     }
 }

@@ -1,5 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import crypto from "crypto";
+import type { Address } from "viem";
 
 import { SsoAccount } from "./account";
 import { contractAddresses, toEOASigner, createClients } from "./utils";
@@ -13,10 +15,11 @@ test("executes a simple transfer signed using EOA", { timeout: 120_000 }, async 
     const { client, bundlerClient } = createClients(anvilPort, altoPort);
     const sso = await SsoAccount.create(client, account, toEOASigner(privateKey));
 
+    const target: Address = `0x${crypto.randomBytes(20).toString("hex")}`;
     const hash = await bundlerClient.sendUserOperation({
         account: sso.account,
         calls: [{
-            to: "0xcb98643b8786950F0461f3B0edf99D88F274574D",
+            to: target,
             value: 1n
         }],
     });
@@ -31,4 +34,11 @@ test("executes a simple transfer signed using EOA", { timeout: 120_000 }, async 
         "success",
         "user operation should execute successfully",
     );
+
+    const balance = await client.getBalance({ address: target });
+    assert.equal(balance, 1n, "target should receive 1 wei");
+});
+
+test("checks ERC779 signature via ERC1271", { timeout: 120_000 }, async () => {
+
 });

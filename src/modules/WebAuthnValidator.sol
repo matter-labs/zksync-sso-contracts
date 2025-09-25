@@ -168,8 +168,7 @@ contract WebAuthnValidator is IValidator {
     /// @param userOp The user operation to validate
     /// @return 0 if the signature is valid, 1 if invalid, otherwise reverts
     function validateUserOp(PackedUserOperation calldata userOp, bytes32 signedHash) external view returns (uint256) {
-        (, bytes memory signature,) = abi.decode(userOp.signature, (address, bytes, bytes));
-        return webAuthVerify(signedHash, signature) ? 0 : 1;
+        return webAuthVerify(signedHash, userOp.signature[20:]) ? 0 : 1;
     }
 
     /// @notice Validates a WebAuthn signature

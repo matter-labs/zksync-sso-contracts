@@ -45,7 +45,7 @@ contract EOAKeyValidator is IValidator {
     }
 
     function validateUserOp(PackedUserOperation calldata userOp, bytes32 userOpHash) external view returns (uint256) {
-        (, bytes memory signature,) = abi.decode(userOp.signature, (address, bytes, bytes));
+        bytes calldata signature = userOp.signature[20:];
 
         // slither-disable-next-line unused-return
         (address signer, ECDSA.RecoverError err,) = ECDSA.tryRecover(userOpHash, signature);
