@@ -1,11 +1,16 @@
 import {
-  encodeAbiParameters,
-  Hex,
-  pad,
-  toHex,
-  type Address,
+    createPublicClient,
+    encodeAbiParameters,
+    pad,
+    toHex,
+    http,
+    type Hex,
+    type Address,
 } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
+import { createBundlerClient } from "viem/account-abstraction";
+import { localhost } from "viem/chains";
+
 import crypto from "crypto";
 
 export function contractAddresses() {
@@ -18,6 +23,25 @@ export function contractAddresses() {
         factory: txs[11].contractAddress as Address,
         account: txs[12].additionalContracts[0].address as Address
     }
+}
+
+export function createClients(anvilPort: number, bundlerPort: number) {
+    // smaller polling interval to speed up the test
+    const pollingInterval = 100;
+
+    const client = createPublicClient({
+        chain: localhost,
+        transport: http(`http://localhost:${anvilPort}`),
+        pollingInterval,
+    });
+
+    const bundlerClient = createBundlerClient({
+        client,
+        transport: http(`http://localhost:${bundlerPort}`),
+        pollingInterval,
+    });
+
+    return { client, bundlerClient }
 }
 
 function sha256(buffer: Buffer): Buffer {
@@ -74,9 +98,9 @@ function signWithPasskey(data: Buffer, privateKey: crypto.KeyObject) {
     };
 }
 
-export function toEoaSigner(privateKey: Hex) {
+export function toEOASigner(privateKey: Hex) {
     const { eoaValidator } = contractAddresses();
-    return async function (userOpHash: Hex) {
+    return async function(userOpHash: Hex) {
         const signature = await privateKeyToAccount(privateKey).sign({ hash: userOpHash });
         return encodeAbiParameters(
             [{ type: "address" }, { type: "bytes" }, { type: "bytes" }],
@@ -87,11 +111,11 @@ export function toEoaSigner(privateKey: Hex) {
 
 export function toPasskeySigner(privateKey: crypto.KeyObject, credentialId: Hex) {
     const { webauthnValidator } = contractAddresses();
-    return async function (userOpHash: Hex) {
+    return async function(userOpHash: Hex) {
         const signature = signWithPasskey(Buffer.from(userOpHash.slice(2), 'hex'), privateKey);
         const fatSignature = encodeAbiParameters([
             { type: "bytes" }, // authenticatorData
-            { type: "string"}, // clientDataJSON
+            { type: "string" }, // clientDataJSON
             { type: "bytes32[2]" }, // r and s
             { type: "bytes" }  // credentialId
         ], [

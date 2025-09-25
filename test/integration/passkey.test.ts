@@ -1,28 +1,16 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import crypto from "crypto";
-import {
-    encodeFunctionData,
-    toHex,
-    http,
-    createPublicClient,
-    parseAbi,
-} from "viem";
-import { createBundlerClient } from "viem/account-abstraction";
-import { localhost } from "viem/chains";
+import { encodeFunctionData, toHex, parseAbi } from "viem";
 
 import { SsoAccount } from "./account";
-import { contractAddresses, toEoaSigner, toPasskeySigner } from "./utils";
+import { contractAddresses, toEOASigner, toPasskeySigner, createClients } from "./utils";
 
 const anvilPort = 8545;
 const altoPort = require("../../alto.json").port;
-const anvilRpc = `http://localhost:${anvilPort}`;
-const altoRpc = `http://localhost:${altoPort}`;
 const privateKey = "0x2a871d0798f97d79848a013d4936a73bf4cc922c825d33c1cf7073dff6d409c6";
 
 test("executes a simple transfer signed using Passkey", { timeout: 120_000 }, async () => {
-    const { account, webauthnValidator } = contractAddresses();
-
     const keyPair = crypto.generateKeyPairSync("ec", { namedCurve: "P-256" });
     const jwk = keyPair.publicKey.export({ format: "jwk" });
     const publicKey = {
@@ -30,17 +18,9 @@ test("executes a simple transfer signed using Passkey", { timeout: 120_000 }, as
         y: toHex(Buffer.from(jwk.y!, "base64url")),
     };
 
-    const client = createPublicClient({
-        chain: localhost,
-        transport: http(anvilRpc),
-    });
-
-    const bundlerClient = createBundlerClient({
-        client,
-        transport: http(altoRpc),
-    });
-
-    const sso = await SsoAccount.create(client, account, toEoaSigner(privateKey));
+    const { account, webauthnValidator } = contractAddresses();
+    const { client, bundlerClient } = createClients(anvilPort, altoPort);
+    const sso = await SsoAccount.create(client, account, toEOASigner(privateKey));
     const credentialId = toHex(crypto.randomBytes(16));
 
     // add validation key via the passkey validator contract
