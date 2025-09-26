@@ -81,6 +81,9 @@ jobs:
       - name: Install dependencies
         run: forge soldeer install
 
+      - name: Build contracts
+        run: forge build
+
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
@@ -104,5 +107,5 @@ jobs:
       - name: Deploy contracts and a test account
         run: pnpm deploy-test
 
-      - name: Run integration test
+      - name: Run integration tests
         run: pnpm test

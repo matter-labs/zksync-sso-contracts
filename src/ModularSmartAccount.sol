@@ -54,10 +54,7 @@ contract ModularSmartAccount is IMSA, ExecutionHelper, ERC1271Handler, RegistryA
      * CallType SINGLE and BATCH and ExecType DEFAULT and TRY
      * @dev this function demonstrates how to implement hook support (modifier)
      */
-    function execute(
-        ModeCode mode,
-        bytes calldata executionCalldata
-    )
+    function execute(ModeCode mode, bytes calldata executionCalldata)
         external
         payable
         onlyEntryPointOrSelf /*withHook*/
@@ -101,10 +98,7 @@ contract ModularSmartAccount is IMSA, ExecutionHelper, ERC1271Handler, RegistryA
      * CallType SINGLE and BATCH and ExecType DEFAULT and TRY
      * @dev this function demonstrates how to implement hook support (modifier)
      */
-    function executeFromExecutor(
-        ModeCode mode,
-        bytes calldata executionCalldata
-    )
+    function executeFromExecutor(ModeCode mode, bytes calldata executionCalldata)
         external
         payable
         onlyExecutorModule
@@ -165,11 +159,7 @@ contract ModularSmartAccount is IMSA, ExecutionHelper, ERC1271Handler, RegistryA
     function executeUserOp(
         PackedUserOperation calldata userOp,
         bytes32 // userOpHash
-    )
-        external
-        payable
-        onlyEntryPoint
-    {
+    ) external payable onlyEntryPoint {
         bytes calldata callData = userOp.callData[4:];
         (bool success,) = address(this).delegatecall(callData);
         if (!success) revert ExecutionFailed();
@@ -178,11 +168,7 @@ contract ModularSmartAccount is IMSA, ExecutionHelper, ERC1271Handler, RegistryA
     /**
      * @inheritdoc IERC7579Account
      */
-    function installModule(
-        uint256 moduleTypeId,
-        address module,
-        bytes calldata initData
-    )
+    function installModule(uint256 moduleTypeId, address module, bytes calldata initData)
         external
         payable
         onlyEntryPointOrSelf
@@ -205,11 +191,7 @@ contract ModularSmartAccount is IMSA, ExecutionHelper, ERC1271Handler, RegistryA
     /**
      * @inheritdoc IERC7579Account
      */
-    function uninstallModule(
-        uint256 moduleTypeId,
-        address module,
-        bytes calldata deInitData
-    )
+    function uninstallModule(uint256 moduleTypeId, address module, bytes calldata deInitData)
         external
         payable
         onlyEntryPointOrSelf
@@ -235,11 +217,7 @@ contract ModularSmartAccount is IMSA, ExecutionHelper, ERC1271Handler, RegistryA
      * @dev MSA MUST implement this function signature.
      * @param userOp PackedUserOperation struct (see ERC-4337 v0.7+)
      */
-    function validateUserOp(
-        PackedUserOperation calldata userOp,
-        bytes32 userOpHash,
-        uint256 missingAccountFunds
-    )
+    function validateUserOp(PackedUserOperation calldata userOp, bytes32 userOpHash, uint256 missingAccountFunds)
         external
         payable
         virtual
@@ -247,7 +225,7 @@ contract ModularSmartAccount is IMSA, ExecutionHelper, ERC1271Handler, RegistryA
         payPrefund(missingAccountFunds)
         returns (uint256 validSignature)
     {
-        address validator = address(bytes20(userOp.signature[12:32]));
+        address validator = address(bytes20(userOp.signature[:20]));
 
         // check if validator is enabled. If not terminate the validation phase.
         if (!_isValidatorInstalled(validator)) {
@@ -258,10 +236,7 @@ contract ModularSmartAccount is IMSA, ExecutionHelper, ERC1271Handler, RegistryA
         }
     }
 
-    function isValidSignature(
-        bytes32 hash,
-        bytes calldata data
-    )
+    function isValidSignature(bytes32 hash, bytes calldata data)
         public
         view
         override(ERC1271, IERC7579Account)
@@ -273,11 +248,7 @@ contract ModularSmartAccount is IMSA, ExecutionHelper, ERC1271Handler, RegistryA
     /**
      * @inheritdoc IERC7579Account
      */
-    function isModuleInstalled(
-        uint256 moduleTypeId,
-        address module,
-        bytes calldata additionalContext
-    )
+    function isModuleInstalled(uint256 moduleTypeId, address module, bytes calldata additionalContext)
         external
         view
         override
@@ -331,10 +302,7 @@ contract ModularSmartAccount is IMSA, ExecutionHelper, ERC1271Handler, RegistryA
     }
 
     /// @dev Initializes the account.
-    function initializeAccount(
-        address[] calldata modules,
-        bytes[] calldata data
-    )
+    function initializeAccount(address[] calldata modules, bytes[] calldata data)
         external
         payable
         virtual

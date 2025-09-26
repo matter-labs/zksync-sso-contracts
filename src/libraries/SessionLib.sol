@@ -162,12 +162,7 @@ library SessionLib {
     /// @param period The period ID to check the limit against. Ignored if the limit is not of type
     /// Allowance.
     /// @dev Reverts if the limit is exceeded or the period is invalid.
-    function checkAndUpdate(
-        UsageLimit memory limit,
-        UsageTracker storage tracker,
-        uint256 value,
-        uint48 period
-    )
+    function checkAndUpdate(UsageLimit memory limit, UsageTracker storage tracker, uint256 value, uint48 period)
         internal
         returns (uint48 validAfter, uint48 validUntil)
     {
@@ -202,10 +197,7 @@ library SessionLib {
         UsageTracker storage tracker,
         bytes memory data,
         uint48 period
-    )
-        internal
-        returns (uint48, uint48)
-    {
+    ) internal returns (uint48, uint48) {
         uint256 expectedLength = 4 + constraint.index * 32 + 32;
         if (data.length < expectedLength) {
             revert InvalidDataLength(data.length, expectedLength);
@@ -250,10 +242,7 @@ library SessionLib {
         PackedUserOperation calldata userOp,
         SessionSpec memory spec,
         uint48 periodId
-    )
-        internal
-        returns (uint48 validAfter, uint48 validUntil)
-    {
+    ) internal returns (uint48 validAfter, uint48 validUntil) {
         // If a paymaster is paying the fee, we don't need to check the fee limit
         if (userOp.paymasterAndData.length == 0) {
             uint256 gasPrice = userOp.gasPrice();
@@ -289,10 +278,7 @@ library SessionLib {
         PackedUserOperation calldata userOp,
         SessionSpec memory spec,
         uint48[] memory periodIds
-    )
-        internal
-        returns (uint48, uint48)
-    {
+    ) internal returns (uint48, uint48) {
         require(state.status[msg.sender] == Status.Active, SessionNotActive());
 
         bytes4 topLevelSelector = bytes4(userOp.callData[:4]);
@@ -364,11 +350,7 @@ library SessionLib {
     /// @param tracker The corresponding usage tracker to get the usage from.
     /// @param account The account to get the usage for.
     /// @return The remaining limit. If unlimited, returns `type(uint256).max`.
-    function remainingLimit(
-        UsageLimit memory limit,
-        UsageTracker storage tracker,
-        address account
-    )
+    function remainingLimit(UsageLimit memory limit, UsageTracker storage tracker, address account)
         private
         view
         returns (uint256)
@@ -395,11 +377,7 @@ library SessionLib {
     /// @param spec The session spec to get the state for.
     /// @return The session state: status, remaining fee limit, transfer limits, call value and call
     /// parameter limits.
-    function getState(
-        SessionStorage storage session,
-        address account,
-        SessionSpec calldata spec
-    )
+    function getState(SessionStorage storage session, address account, SessionSpec calldata spec)
         internal
         view
         returns (SessionState memory)

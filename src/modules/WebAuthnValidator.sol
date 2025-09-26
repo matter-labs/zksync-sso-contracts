@@ -65,11 +65,7 @@ contract WebAuthnValidator is IValidator {
     /// @param credentialId the passkey unique identifier
     /// @param accountAddress the address of the account that owns the key
     /// @return publicKeys the public key
-    function getAccountKey(
-        string calldata originDomain,
-        bytes calldata credentialId,
-        address accountAddress
-    )
+    function getAccountKey(string calldata originDomain, bytes calldata credentialId, address accountAddress)
         external
         view
         returns (bytes32[2] memory)
@@ -119,13 +115,7 @@ contract WebAuthnValidator is IValidator {
     /// @param credentialId unique public identifier for the key
     /// @param newKey New WebAuthn public key to add
     /// @param originDomain the domain this associated with
-    function addValidationKey(
-        bytes memory credentialId,
-        bytes32[2] memory newKey,
-        string memory originDomain
-    )
-        public
-    {
+    function addValidationKey(bytes memory credentialId, bytes32[2] memory newKey, string memory originDomain) public {
         bytes32[2] memory oldKey = publicKeys[originDomain][credentialId][msg.sender];
         // only allow adding new keys, no overwrites/updates
         require(oldKey[0] == 0 && oldKey[1] == 0, KeyAlreadyExists());
@@ -153,11 +143,7 @@ contract WebAuthnValidator is IValidator {
         address, // sender
         bytes32 signedHash,
         bytes calldata signature
-    )
-        external
-        view
-        returns (bytes4)
-    {
+    ) external view returns (bytes4) {
         return webAuthVerify(signedHash, signature) ? IERC1271.isValidSignature.selector : bytes4(0xffffffff);
     }
 
@@ -168,8 +154,7 @@ contract WebAuthnValidator is IValidator {
     /// @param userOp The user operation to validate
     /// @return 0 if the signature is valid, 1 if invalid, otherwise reverts
     function validateUserOp(PackedUserOperation calldata userOp, bytes32 signedHash) external view returns (uint256) {
-        (, bytes memory signature,) = abi.decode(userOp.signature, (address, bytes, bytes));
-        return webAuthVerify(signedHash, signature) ? 0 : 1;
+        return webAuthVerify(signedHash, userOp.signature[20:]) ? 0 : 1;
     }
 
     /// @notice Validates a WebAuthn signature

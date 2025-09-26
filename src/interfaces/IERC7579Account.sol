@@ -35,10 +35,7 @@ interface IERC7579Account {
      * @param mode The encoded execution mode of the transaction. See ModeLib.sol for details
      * @param executionCalldata The encoded execution call data
      */
-    function executeFromExecutor(
-        ModeCode mode,
-        bytes calldata executionCalldata
-    )
+    function executeFromExecutor(ModeCode mode, bytes calldata executionCalldata)
         external
         payable
         returns (bytes[] memory returnData);
@@ -96,11 +93,7 @@ interface IERC7579Account {
      *                          usually this is not necessary, but for some special hooks that
      *                          are stored in mappings, this param might be needed
      */
-    function isModuleInstalled(
-        uint256 moduleTypeId,
-        address module,
-        bytes calldata additionalContext
-    )
+    function isModuleInstalled(uint256 moduleTypeId, address module, bytes calldata additionalContext)
         external
         view
         returns (bool);

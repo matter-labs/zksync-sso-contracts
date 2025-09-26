@@ -1,15 +1,24 @@
 import {
-  encodeAbiParameters,
-  Hex,
-  pad,
-  toHex,
-  type Address,
+    createPublicClient,
+    encodeAbiParameters,
+    walletActions,
+    pad,
+    toHex,
+    http,
+    concat,
+    type Hex,
+    type Address,
+    type WalletClient,
+    type PublicClient,
 } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
+import { createBundlerClient } from "viem/account-abstraction";
+import { localhost } from "viem/chains";
+
 import crypto from "crypto";
 
 export function contractAddresses() {
-    const txs = require('../../broadcast/Deploy.s.sol/31337/deployAll-latest.json').transactions;
+    const txs = require('../../broadcast/Deploy.s.sol/1337/deployAll-latest.json').transactions;
     return {
         eoaValidator: txs[1].contractAddress as Address,
         sessionValidator: txs[3].contractAddress as Address,
@@ -18,6 +27,40 @@ export function contractAddresses() {
         factory: txs[11].contractAddress as Address,
         account: txs[12].additionalContracts[0].address as Address
     }
+}
+
+export function createClients(anvilPort: number, bundlerPort: number) {
+    // smaller polling interval to speed up the test
+    const pollingInterval = 100;
+
+    const client = createPublicClient({
+        chain: localhost,
+        transport: http(`http://localhost:${anvilPort}`),
+        pollingInterval,
+    }).extend(walletActions);
+
+    const bundlerClient = createBundlerClient({
+        client,
+        transport: http(`http://localhost:${bundlerPort}`),
+        pollingInterval,
+    });
+
+    return { client, bundlerClient }
+}
+
+export function randomAddress(): Address {
+    return `0x${crypto.randomBytes(20).toString("hex")}`;
+}
+
+export async function deployContract(client: any, privateKey: Hex, name: string) {
+    const deployer = privateKeyToAccount(privateKey);
+    const deploymentHash = await client.deployContract({
+        account: deployer,
+        abi: [],
+        bytecode: require(`../../out/${name}.sol/${name}.json`).bytecode.object
+    });
+    const deployment = await client.waitForTransactionReceipt({ hash: deploymentHash, timeout: 100 });
+    return deployment.contractAddress!;
 }
 
 function sha256(buffer: Buffer): Buffer {
@@ -74,24 +117,21 @@ function signWithPasskey(data: Buffer, privateKey: crypto.KeyObject) {
     };
 }
 
-export function toEoaSigner(privateKey: Hex) {
+export function toEOASigner(privateKey: Hex) {
     const { eoaValidator } = contractAddresses();
-    return async function (userOpHash: Hex) {
+    return async function(userOpHash: Hex) {
         const signature = await privateKeyToAccount(privateKey).sign({ hash: userOpHash });
-        return encodeAbiParameters(
-            [{ type: "address" }, { type: "bytes" }, { type: "bytes" }],
-            [eoaValidator, signature, "0x"]
-        )
+        return concat([eoaValidator, signature]);
     };
 }
 
 export function toPasskeySigner(privateKey: crypto.KeyObject, credentialId: Hex) {
     const { webauthnValidator } = contractAddresses();
-    return async function (userOpHash: Hex) {
+    return async function(userOpHash: Hex) {
         const signature = signWithPasskey(Buffer.from(userOpHash.slice(2), 'hex'), privateKey);
         const fatSignature = encodeAbiParameters([
             { type: "bytes" }, // authenticatorData
-            { type: "string"}, // clientDataJSON
+            { type: "string" }, // clientDataJSON
             { type: "bytes32[2]" }, // r and s
             { type: "bytes" }  // credentialId
         ], [
@@ -100,9 +140,6 @@ export function toPasskeySigner(privateKey: crypto.KeyObject, credentialId: Hex)
             [signature.r, signature.s],
             credentialId
         ]);
-        return encodeAbiParameters(
-            [{ type: "address" }, { type: "bytes" }, { type: "bytes" }],
-            [webauthnValidator, fatSignature, "0x"]
-        );
-    };
+        return concat([webauthnValidator, fatSignature]);
+    }
 }

@@ -28,10 +28,7 @@ contract SessionKeyValidator is IValidator {
     /// @param spec The session specification to get the state of
     /// @return The session state: status, remaining fee limit, transfer limits, call value and call
     /// parameter limits
-    function sessionState(
-        address account,
-        SessionLib.SessionSpec calldata spec
-    )
+    function sessionState(address account, SessionLib.SessionSpec calldata spec)
         external
         view
         virtual
@@ -174,12 +171,8 @@ contract SessionKeyValidator is IValidator {
     /// @return uint256 Validation data, according to ERC-4337 (EntryPoint v0.8)
     /// @dev Session spec and period IDs must be provided as validator data
     function validateUserOp(PackedUserOperation calldata userOp, bytes32 userOpHash) public virtual returns (uint256) {
-        (, bytes memory transactionSignature, bytes memory validatorData) =
-            abi.decode(userOp.signature, (address, bytes, bytes));
-        (SessionLib.SessionSpec memory spec, uint48[] memory periodIds) = abi.decode(
-            validatorData, // this is passed by the signature builder
-            (SessionLib.SessionSpec, uint48[])
-        );
+        (bytes memory transactionSignature, SessionLib.SessionSpec memory spec, uint48[] memory periodIds) =
+            abi.decode(userOp.signature[20:], (bytes, SessionLib.SessionSpec, uint48[]));
         require(spec.signer != address(0), SessionLib.ZeroSigner());
         bytes32 sessionHash = keccak256(abi.encode(spec));
         uint192 nonceKey = uint192(userOp.nonce >> 64);

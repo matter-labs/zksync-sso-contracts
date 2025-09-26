@@ -67,11 +67,7 @@ interface IValidator is IModule {
     /**
      * Validator can be used for ERC-1271 validation
      */
-    function isValidSignatureWithSender(
-        address sender,
-        bytes32 hash,
-        bytes calldata data
-    )
+    function isValidSignatureWithSender(address sender, bytes32 hash, bytes calldata data)
         external
         view
         returns (bytes4);
@@ -80,11 +76,7 @@ interface IValidator is IModule {
 interface IExecutor is IModule { }
 
 interface IHook is IModule {
-    function preCheck(
-        address msgSender,
-        uint256 msgValue,
-        bytes calldata msgData
-    )
+    function preCheck(address msgSender, uint256 msgValue, bytes calldata msgData)
         external
         returns (bytes memory hookData);
 
@@ -94,11 +86,7 @@ interface IHook is IModule {
 interface IFallback is IModule { }
 
 interface IPreValidationHookERC1271 is IModule {
-    function preValidationHookERC1271(
-        address sender,
-        bytes32 hash,
-        bytes calldata data
-    )
+    function preValidationHookERC1271(address sender, bytes32 hash, bytes calldata data)
         external
         view
         returns (bytes32 hookHash, bytes memory hookSignature);
@@ -109,7 +97,5 @@ interface IPreValidationHookERC4337 is IModule {
         PackedUserOperation calldata userOp,
         uint256 missingAccountFunds,
         bytes32 userOpHash
-    )
-        external
-        returns (bytes32 hookHash, bytes memory hookSignature);
+    ) external returns (bytes32 hookHash, bytes memory hookSignature);
 }
