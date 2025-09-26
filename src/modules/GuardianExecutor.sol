@@ -130,11 +130,7 @@ contract GuardianExecutor is IExecutor {
         return true;
     }
 
-    function initializeRecovery(
-        address accountToRecover,
-        RecoveryType recoveryType,
-        bytes calldata data
-    )
+    function initializeRecovery(address accountToRecover, RecoveryType recoveryType, bytes calldata data)
         external
         virtual
         onlyGuardianOf(accountToRecover)
@@ -196,10 +192,7 @@ contract GuardianExecutor is IExecutor {
         return accountGuardians[account].keys();
     }
 
-    function guardianStatusFor(
-        address account,
-        address guardian
-    )
+    function guardianStatusFor(address account, address guardian)
         external
         view
         returns (bool isPresent, bool isActive, uint48 addedAt)

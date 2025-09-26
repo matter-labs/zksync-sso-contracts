@@ -14,11 +14,7 @@ struct MockMessage {
 contract MockERC1271Caller is EIP712 {
     constructor() EIP712("ERC1271Caller", "1.0.0") { }
 
-    function validateStruct(
-        MockMessage calldata mockMessage,
-        address signer,
-        bytes calldata signature
-    )
+    function validateStruct(MockMessage calldata mockMessage, address signer, bytes calldata signature)
         external
         view
         returns (bool)

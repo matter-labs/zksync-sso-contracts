@@ -23,11 +23,7 @@ abstract contract RegistryAdapter is AccountBase {
         _;
     }
 
-    function setRegistry(
-        IERC7484 registry,
-        address[] calldata attesters,
-        uint8 threshold
-    )
+    function setRegistry(IERC7484 registry, address[] calldata attesters, uint8 threshold)
         external
         onlyEntryPointOrSelf
     {

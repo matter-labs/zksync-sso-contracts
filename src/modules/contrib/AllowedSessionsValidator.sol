@@ -42,10 +42,7 @@ contract AllowedSessionsValidator is SessionKeyValidator, AccessControl {
     /// @param allowed Boolean indicating if the session actions are allowed.
     /// @dev Session actions represent the set of operations, such as fee limits, call policies, and transfer policies,
     /// that define the behavior and constraints of a session.
-    function setSessionActionsAllowed(
-        bytes32 sessionActionsHash,
-        bool allowed
-    )
+    function setSessionActionsAllowed(bytes32 sessionActionsHash, bool allowed)
         external
         virtual
         onlyRole(SESSION_REGISTRY_MANAGER_ROLE)
@@ -106,10 +103,7 @@ contract AllowedSessionsValidator is SessionKeyValidator, AccessControl {
     /// @param userOpHash The hash of the operation.
     /// @return true if the transaction is valid.
     /// @dev Session spec and period IDs must be provided as validator data.
-    function validateUserOp(
-        PackedUserOperation calldata userOp,
-        bytes32 userOpHash
-    )
+    function validateUserOp(PackedUserOperation calldata userOp, bytes32 userOpHash)
         public
         override
         returns (uint256)

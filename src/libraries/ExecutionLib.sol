@@ -67,11 +67,7 @@ library ExecutionLib {
         callData = executionCalldata[52:];
     }
 
-    function encodeSingle(
-        address target,
-        uint256 value,
-        bytes memory callData
-    )
+    function encodeSingle(address target, uint256 value, bytes memory callData)
         internal
         pure
         returns (bytes memory userOpCalldata)

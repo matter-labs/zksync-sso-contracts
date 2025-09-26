@@ -29,10 +29,7 @@ abstract contract ERC1271Handler is ERC1271, ModuleManager {
     // @param hash bytes32 - Hash of the data that is signed
     // @param signature bytes calldata - K1 owner signature OR validator address concatenated to signature
     // @return bool - Whether the signature is valid
-    function _erc1271IsValidSignatureNowCalldata(
-        bytes32 hash,
-        bytes calldata data
-    )
+    function _erc1271IsValidSignatureNowCalldata(bytes32 hash, bytes calldata data)
         internal
         view
         virtual

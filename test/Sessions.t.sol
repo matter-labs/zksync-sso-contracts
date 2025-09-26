@@ -115,9 +115,7 @@ contract SessionsTest is MSATest {
         test_createSession();
 
         bytes32 sessionHash = keccak256(abi.encode(spec));
-        vm.assertEq(
-            sessionKeyValidator.sessionSigner(sessionOwner.addr), sessionHash, "stored session hash mismatch"
-        );
+        vm.assertEq(sessionKeyValidator.sessionSigner(sessionOwner.addr), sessionHash, "stored session hash mismatch");
         bytes32[] memory sessionHashes = new bytes32[](1);
         sessionHashes[0] = sessionHash;
 
@@ -148,7 +146,7 @@ contract SessionsTest is MSATest {
         _sendSessionTransfer(recipient, 0.15 ether, false);
         vm.assertEq(erc20.balanceOf(recipient), 0.15 ether, "First transfer did not succeed");
 
-        _sendSessionTransfer(recipient, 0.10 ether, false);
+        _sendSessionTransfer(recipient, 0.1 ether, false);
         vm.assertEq(erc20.balanceOf(recipient), 0.25 ether, "Second transfer cumulative balance mismatch");
     }
 
@@ -166,9 +164,7 @@ contract SessionsTest is MSATest {
         vm.assertEq(erc20.balanceOf(recipient), 0.25 ether, "Initial transfer should consume full limit");
 
         _sendSessionTransfer(recipient, 0.01 ether, true);
-        vm.assertEq(
-            erc20.balanceOf(recipient), 0.25 ether, "Balance should remain capped after exceeding attempt"
-        );
+        vm.assertEq(erc20.balanceOf(recipient), 0.25 ether, "Balance should remain capped after exceeding attempt");
     }
 
     function test_createSessionERC20() public {
@@ -180,31 +176,19 @@ contract SessionsTest is MSATest {
             condition: SessionLib.Condition.Equal,
             index: 0,
             refValue: bytes32(uint256(uint160(recipient))),
-            limit: SessionLib.UsageLimit({
-                limitType: SessionLib.LimitType.Unlimited,
-                limit: 0,
-                period: 0
-            })
+            limit: SessionLib.UsageLimit({ limitType: SessionLib.LimitType.Unlimited, limit: 0, period: 0 })
         });
         constraints[1] = SessionLib.Constraint({
             condition: SessionLib.Condition.LessOrEqual,
             index: 1,
             refValue: bytes32(uint256(0.25 ether)),
-            limit: SessionLib.UsageLimit({
-                limitType: SessionLib.LimitType.Lifetime,
-                limit: 0.25 ether,
-                period: 0
-            })
+            limit: SessionLib.UsageLimit({ limitType: SessionLib.LimitType.Lifetime, limit: 0.25 ether, period: 0 })
         });
         callPolicies[0] = SessionLib.CallSpec({
             target: address(erc20),
             selector: IERC20.transfer.selector,
             maxValuePerUse: 0,
-            valueLimit: SessionLib.UsageLimit({
-                limitType: SessionLib.LimitType.Unlimited,
-                limit: 0,
-                period: 0
-            }),
+            valueLimit: SessionLib.UsageLimit({ limitType: SessionLib.LimitType.Unlimited, limit: 0, period: 0 }),
             constraints: constraints
         });
 
@@ -213,11 +197,7 @@ contract SessionsTest is MSATest {
             expiresAt: uint48(block.timestamp + 1000),
             transferPolicies: new SessionLib.TransferSpec[](0),
             callPolicies: callPolicies,
-            feeLimit: SessionLib.UsageLimit({
-                limitType: SessionLib.LimitType.Lifetime,
-                limit: 0.15 ether,
-                period: 0
-            })
+            feeLimit: SessionLib.UsageLimit({ limitType: SessionLib.LimitType.Lifetime, limit: 0.15 ether, period: 0 })
         });
 
         bytes32 sessionHash = keccak256(abi.encode(spec));
@@ -245,16 +225,9 @@ contract SessionsTest is MSATest {
         vm.assertEq(spec.callPolicies[0].constraints.length, 2, "Constraints not set");
     }
 
-    function _sendSessionTransfer(
-        address to,
-        uint256 amount,
-        bool expectRevert
-    )
-        internal
-    {
-        bytes memory transferCall = ExecutionLib.encodeSingle(
-            address(erc20), 0, abi.encodeCall(IERC20.transfer, (to, amount))
-        );
+    function _sendSessionTransfer(address to, uint256 amount, bool expectRevert) internal {
+        bytes memory transferCall =
+            ExecutionLib.encodeSingle(address(erc20), 0, abi.encodeCall(IERC20.transfer, (to, amount)));
         bytes memory transferCallData =
             abi.encodeCall(IERC7579Account.execute, (ModeLib.encodeSimpleSingle(), transferCall));
 

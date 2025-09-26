@@ -32,10 +32,7 @@ contract MSAFactory is ReentrancyGuard {
         beacon = _beacon;
     }
 
-    function deployAccount(
-        bytes32 accountId,
-        bytes calldata initData
-    )
+    function deployAccount(bytes32 accountId, bytes calldata initData)
         external
         nonReentrant
         returns (address account)

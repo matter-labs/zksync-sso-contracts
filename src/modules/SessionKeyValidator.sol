@@ -28,10 +28,7 @@ contract SessionKeyValidator is IValidator {
     /// @param spec The session specification to get the state of
     /// @return The session state: status, remaining fee limit, transfer limits, call value and call
     /// parameter limits
-    function sessionState(
-        address account,
-        SessionLib.SessionSpec calldata spec
-    )
+    function sessionState(address account, SessionLib.SessionSpec calldata spec)
         external
         view
         virtual

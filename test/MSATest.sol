@@ -62,11 +62,7 @@ contract MSATest is Test {
         });
     }
 
-    function makeSignedUserOp(
-        bytes memory callData,
-        uint256 key,
-        address validator
-    )
+    function makeSignedUserOp(bytes memory callData, uint256 key, address validator)
         public
         view
         returns (PackedUserOperation memory userOp)
@@ -75,14 +71,7 @@ contract MSATest is Test {
         signUserOp(userOp, key, validator);
     }
 
-    function signUserOp(
-        PackedUserOperation memory userOp,
-        uint256 key,
-        address validator
-    )
-        public
-        view
-    {
+    function signUserOp(PackedUserOperation memory userOp, uint256 key, address validator) public view {
         bytes32 userOpHash = entryPoint.getUserOpHash(userOp);
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(key, userOpHash);
         userOp.signature = abi.encodePacked(validator, r, s, v);

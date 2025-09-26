@@ -23,12 +23,7 @@ interface IERC7484 {
 
     function checkN(address module, address[] calldata attesters, uint256 threshold) external view;
 
-    function checkN(
-        address module,
-        uint256 moduleType,
-        address[] calldata attesters,
-        uint256 threshold
-    )
+    function checkN(address module, uint256 moduleType, address[] calldata attesters, uint256 threshold)
         external
         view;
 

@@ -2,8 +2,8 @@
 
 pragma solidity ^0.8.26;
 
-import {ERC4337Utils} from "@openzeppelin/contracts/account/utils/draft-ERC4337Utils.sol";
-import {IEntryPoint, IPaymaster, PackedUserOperation} from "@openzeppelin/contracts/interfaces/draft-IERC4337.sol";
+import { ERC4337Utils } from "@openzeppelin/contracts/account/utils/draft-ERC4337Utils.sol";
+import { IEntryPoint, IPaymaster, PackedUserOperation } from "@openzeppelin/contracts/interfaces/draft-IERC4337.sol";
 
 contract MockPaymaster is IPaymaster {
     modifier onlyEntryPoint() {
@@ -18,25 +18,23 @@ contract MockPaymaster is IPaymaster {
     function validatePaymasterUserOp(
         PackedUserOperation calldata, // userOp
         bytes32, // userOpHash
-        uint256  // maxCost
+        uint256 // maxCost
     ) public virtual onlyEntryPoint returns (bytes memory context, uint256 validationData) {
         // Allow any userOp from anyone.
         return ("", 0);
     }
 
-    function postOp(
-        PostOpMode mode,
-        bytes calldata context,
-        uint256 actualGasCost,
-        uint256 actualUserOpFeePerGas
-    ) public virtual onlyEntryPoint {
-    }
+    function postOp(PostOpMode mode, bytes calldata context, uint256 actualGasCost, uint256 actualUserOpFeePerGas)
+        public
+        virtual
+        onlyEntryPoint
+    { }
 
     function deposit() public payable virtual {
-        entryPoint().depositTo{value: msg.value}(address(this));
+        entryPoint().depositTo{ value: msg.value }(address(this));
     }
 
     function addStake(uint32 unstakeDelaySec) public payable virtual {
-        entryPoint().addStake{value: msg.value}(unstakeDelaySec);
+        entryPoint().addStake{ value: msg.value }(unstakeDelaySec);
     }
 }

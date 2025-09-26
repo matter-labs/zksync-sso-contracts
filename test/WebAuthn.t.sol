@@ -25,7 +25,8 @@ contract WebAuthnValidatorTest is Test {
         // Random bytes
         bytes memory credentialId = hex"26297dec52fc8943538108380adc9693d913add0bb2173fe29c6587ed46a299d";
 
-        // Test vector taken from https://github.com/Vectorized/solady/blob/208e4f31cfae26e4983eb95c3488a14fdc497ad7/test/WebAuthn.t.sol#L27
+        // Test vector taken from
+        // https://github.com/Vectorized/solady/blob/208e4f31cfae26e4983eb95c3488a14fdc497ad7/test/WebAuthn.t.sol#L27
         uint256 x = 0x3f2be075ef57d6c8374ef412fe54fdd980050f70f4f3a00b5b1b32d2def7d28d;
         uint256 y = 0x57095a365acc2590ade3583fabfe8fbd64a9ed3ec07520da00636fb21f0176c1;
         bytes memory challenge = abi.encode(0xf631058a3ba1116acce12396fad0a125b5041c43f8e15723709f81aa8d5f4ccf);

@@ -37,11 +37,7 @@ contract ExecutionHelper {
         }
     }
 
-    function _execute(
-        address target,
-        uint256 value,
-        bytes calldata callData
-    )
+    function _execute(address target, uint256 value, bytes calldata callData)
         internal
         virtual
         returns (bytes memory result)
@@ -62,11 +58,7 @@ contract ExecutionHelper {
         }
     }
 
-    function _tryExecute(
-        address target,
-        uint256 value,
-        bytes calldata callData
-    )
+    function _tryExecute(address target, uint256 value, bytes calldata callData)
         internal
         virtual
         returns (bool success, bytes memory result)
@@ -103,10 +95,7 @@ contract ExecutionHelper {
     }
 
     /// @dev Execute a delegatecall with `delegate` on this account and catch reverts.
-    function _tryExecuteDelegatecall(
-        address delegate,
-        bytes calldata callData
-    )
+    function _tryExecuteDelegatecall(address delegate, bytes calldata callData)
         internal
         returns (bool success, bytes memory result)
     {
