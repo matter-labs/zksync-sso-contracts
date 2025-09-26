@@ -3,7 +3,6 @@ import {
   Hex,
   pad,
   concat,
-  slice,
   type Address,
   type PublicClient,
 } from "viem";

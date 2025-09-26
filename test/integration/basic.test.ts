@@ -24,11 +24,7 @@ test("executes a simple transfer signed using EOA", { timeout: 120_000 }, async 
         }],
     });
 
-    const receipt = await bundlerClient.waitForUserOperationReceipt({
-        hash,
-        timeout: 0,
-    });
-
+    const receipt = await bundlerClient.waitForUserOperationReceipt({ hash, timeout: 0 });
     assert.equal(
         receipt.receipt.status,
         "success",
@@ -51,7 +47,7 @@ test("executes a transaction sponsored by a paymaster", { timeout: 120_000 }, as
         abi: parseAbi(["function deposit() external payable"]),
         functionName: "deposit",
         args: [],
-        value: 1_000_000_000_000_000_000n // 1 ETH
+        value: 10n ** 18n, // 1 ETH
     })
     await client.waitForTransactionReceipt({ hash: depositHash, timeout: 0 });
 
@@ -69,7 +65,7 @@ test("executes a transaction sponsored by a paymaster", { timeout: 120_000 }, as
     assert.equal(balanceAfter, balanceBefore, "account balance should not change");
 });
 
-test("checks ERC7739 signature using ERC1271", { timeout: 120_000 }, async () => {
+test("checks ERC7739 EOA signature using ERC1271", { timeout: 120_000 }, async () => {
     const { account } = contractAddresses();
     const { client } = createClients(anvilPort, altoPort);
     const sso = await SsoAccount.create(client, account, toEOASigner(privateKey));
