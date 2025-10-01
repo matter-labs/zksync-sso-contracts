@@ -80,7 +80,9 @@ export class SsoAccount {
                     entryPointVersion: '0.8',
                     chainId: 1337
                 });
-                return await sso.signer(userOpHash);
+                const signature = await sso.signer(userOpHash);
+                console.log("Signature:", signature);
+                return signature;
             },
             async decodeCalls(data) {
                 // Not used tests
