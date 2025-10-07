@@ -53,25 +53,31 @@ export class SsoAccount {
                     [calls.map(call => ({ to: call.to, value: call.value ?? 0n, data: call.data ?? '0x' }))]
                 );
                 const selector = '0xe9ae5c53'; // execute(bytes32,bytes)
-                return concat([
+                const encoded_calls = concat([
                     selector,
                     encodeAbiParameters([{ type: 'bytes32' }, { type: 'bytes' }], [modeCode, executionData])
                 ]);
+                console.log("Encoded calls:", encoded_calls);
+                return encoded_calls;
             },
             async getAddress() {
                 return address;
             },
             async getNonce() {
-                return await client.readContract({
+                const nonce = await client.readContract({
                     abi: entryPoint08Abi,
                     address: entryPoint08Address,
                     functionName: 'getNonce',
                     args: [address, 0n]
                 });
+                console.log("Nonce:", nonce);
+                return nonce;
             },
             async getStubSignature() {
                 // bad signature, but correct format
-                return await sso.signer(pad("0x", { size: 32 }));
+                const signature = await sso.signer(pad("0x", { size: 32 }));
+                console.log("Stub Signature:", signature);
+                return signature;
             },
             async signUserOperation(userOperation) {
                 const userOpHash = getUserOperationHash({
@@ -81,7 +87,7 @@ export class SsoAccount {
                     chainId: 1337
                 });
                 const signature = await sso.signer(userOpHash);
-                console.log("Signature:", signature);
+                console.log("User Op Signature:", signature);
                 return signature;
             },
             async decodeCalls(data) {
