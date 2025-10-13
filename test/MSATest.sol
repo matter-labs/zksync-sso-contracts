@@ -12,6 +12,7 @@ import { ModularSmartAccount } from "src/ModularSmartAccount.sol";
 import { MSAFactory } from "src/MSAFactory.sol";
 import { EOAKeyValidator } from "src/modules/EOAKeyValidator.sol";
 import { IMSA } from "src/interfaces/IMSA.sol";
+import { Execution } from "src/interfaces/IERC7579Account.sol";
 
 contract MSATest is Test {
     EntryPoint public entryPoint;
@@ -80,5 +81,13 @@ contract MSATest is Test {
 
     function simpleSingleMode() public pure returns (bytes32) {
         return LibERC7579.encodeMode(LibERC7579.CALLTYPE_SINGLE, LibERC7579.EXECTYPE_DEFAULT, 0, 0);
+    }
+
+    function encodeSingle(address target, uint256 value, bytes memory data) public pure returns (bytes memory) {
+        return abi.encodePacked(target, value, data);
+    }
+
+    function encodeBatch(Execution[] memory executions) public pure returns (bytes memory) {
+        return abi.encode(executions);
     }
 }

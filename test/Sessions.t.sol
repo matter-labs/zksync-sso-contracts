@@ -9,7 +9,6 @@ import { MSAFactory } from "src/MSAFactory.sol";
 import { EOAKeyValidator } from "src/modules/EOAKeyValidator.sol";
 import { SessionKeyValidator } from "src/modules/SessionKeyValidator.sol";
 import { IMSA } from "src/interfaces/IMSA.sol";
-import { ExecutionLib } from "src/libraries/ExecutionLib.sol";
 import { MODULE_TYPE_VALIDATOR } from "src/interfaces/IERC7579Module.sol";
 import { IERC7579Account } from "src/interfaces/IERC7579Account.sol";
 import { SessionLib } from "src/libraries/SessionLib.sol";
@@ -63,9 +62,8 @@ contract SessionsTest is MSATest {
             feeLimit: SessionLib.UsageLimit({ limitType: SessionLib.LimitType.Lifetime, limit: 0.15 ether, period: 0 })
         });
 
-        bytes memory call = ExecutionLib.encodeSingle(
-            address(sessionKeyValidator), 0, abi.encodeCall(SessionKeyValidator.createSession, (spec))
-        );
+        bytes memory call =
+            encodeSingle(address(sessionKeyValidator), 0, abi.encodeCall(SessionKeyValidator.createSession, (spec)));
         bytes memory callData = abi.encodeCall(IERC7579Account.execute, (simpleSingleMode(), call));
 
         PackedUserOperation[] memory userOps = new PackedUserOperation[](1);
@@ -83,7 +81,7 @@ contract SessionsTest is MSATest {
     function test_useSession() public {
         test_createSession();
 
-        bytes memory call = ExecutionLib.encodeSingle(recipient, 0.05 ether, "");
+        bytes memory call = encodeSingle(recipient, 0.05 ether, "");
         bytes memory callData = abi.encodeCall(IERC7579Account.execute, (simpleSingleMode(), call));
 
         PackedUserOperation[] memory userOps = new PackedUserOperation[](1);
@@ -98,7 +96,7 @@ contract SessionsTest is MSATest {
     function testRevert_useSession() public {
         test_createSession();
 
-        bytes memory call = ExecutionLib.encodeSingle(recipient, 0.11 ether, ""); // more than maxValuePerUse
+        bytes memory call = encodeSingle(recipient, 0.11 ether, ""); // more than maxValuePerUse
         bytes memory callData = abi.encodeCall(IERC7579Account.execute, (simpleSingleMode(), call));
 
         PackedUserOperation[] memory userOps = new PackedUserOperation[](1);
@@ -201,9 +199,8 @@ contract SessionsTest is MSATest {
 
         bytes32 sessionHash = keccak256(abi.encode(spec));
 
-        bytes memory createSessionCall = ExecutionLib.encodeSingle(
-            address(sessionKeyValidator), 0, abi.encodeCall(SessionKeyValidator.createSession, (spec))
-        );
+        bytes memory createSessionCall =
+            encodeSingle(address(sessionKeyValidator), 0, abi.encodeCall(SessionKeyValidator.createSession, (spec)));
         bytes memory createSessionCallData =
             abi.encodeCall(IERC7579Account.execute, (simpleSingleMode(), createSessionCall));
 
@@ -244,8 +241,7 @@ contract SessionsTest is MSATest {
     }
 
     function _sendSessionTransfer(address to, uint256 amount, bool expectRevert) internal {
-        bytes memory transferCall =
-            ExecutionLib.encodeSingle(address(erc20), 0, abi.encodeCall(IERC20.transfer, (to, amount)));
+        bytes memory transferCall = encodeSingle(address(erc20), 0, abi.encodeCall(IERC20.transfer, (to, amount)));
         bytes memory transferCallData = abi.encodeCall(IERC7579Account.execute, (simpleSingleMode(), transferCall));
 
         PackedUserOperation[] memory sessionOps = new PackedUserOperation[](1);

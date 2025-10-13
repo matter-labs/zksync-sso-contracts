@@ -8,7 +8,6 @@ import { LibBytes } from "solady/utils/LibBytes.sol";
 import { LibERC7579 } from "solady/accounts/LibERC7579.sol";
 
 import { IERC7579Account } from "../interfaces/IERC7579Account.sol";
-import { ExecutionLib } from "../libraries/ExecutionLib.sol";
 
 /// @title Session Library
 /// @author Matter Labs
@@ -292,7 +291,7 @@ library SessionLib {
         // TODO: put a comment about why this exact slice
         uint256 length = uint256(bytes32(userOp.callData[68:100]));
         (address target, uint256 value, bytes calldata callData) =
-            ExecutionLib.decodeSingle(userOp.callData[100:100 + length]);
+            LibERC7579.decodeSingle(userOp.callData[100:100 + length]);
 
         // Time range whithin which the transaction is valid.
         uint48[2] memory timeRange = [0, spec.expiresAt];

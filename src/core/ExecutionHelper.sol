@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.23;
 
+import { LibERC7579 } from "solady/accounts/LibERC7579.sol";
 import { Execution } from "../interfaces/IERC7579Account.sol";
 
 /// @title Execution
@@ -13,24 +14,24 @@ contract ExecutionHelper {
 
     event TryExecuteUnsuccessful(uint256 batchExecutionindex, bytes result);
 
-    function _execute(Execution[] calldata executions) internal returns (bytes[] memory result) {
+    function _execute(bytes32[] calldata executions) internal returns (bytes[] memory result) {
         uint256 length = executions.length;
         result = new bytes[](length);
 
         for (uint256 i; i < length; i++) {
-            Execution calldata _exec = executions[i];
-            result[i] = _execute(_exec.target, _exec.value, _exec.callData);
+            (address target, uint256 value, bytes calldata callData) = LibERC7579.getExecution(executions, i);
+            result[i] = _execute(target, value, callData);
         }
     }
 
-    function _tryExecute(Execution[] calldata executions) internal returns (bytes[] memory result) {
+    function _tryExecute(bytes32[] calldata executions) internal returns (bytes[] memory result) {
         uint256 length = executions.length;
         result = new bytes[](length);
 
         for (uint256 i; i < length; i++) {
-            Execution calldata _exec = executions[i];
+            (address target, uint256 value, bytes calldata callData) = LibERC7579.getExecution(executions, i);
             bool success;
-            (success, result[i]) = _tryExecute(_exec.target, _exec.value, _exec.callData);
+            (success, result[i]) = _tryExecute(target, value, callData);
             if (!success) emit TryExecuteUnsuccessful(i, result[i]);
         }
     }

@@ -7,7 +7,6 @@ import { LibString } from "solady/utils/LibString.sol";
 import { LibERC7579 } from "solady/accounts/LibERC7579.sol";
 
 import { IERC7579Account } from "src/interfaces/IERC7579Account.sol";
-import { ExecutionLib } from "src/libraries/ExecutionLib.sol";
 import { Execution } from "src/interfaces/IERC7579Account.sol";
 
 import { MockTarget } from "./mocks/MockTarget.sol";
@@ -33,7 +32,7 @@ contract BasicTest is MSATest {
 
     function test_transfer() public {
         address recipient = makeAddr("recipient");
-        bytes memory execution = ExecutionLib.encodeSingle(recipient, 1 ether, "");
+        bytes memory execution = encodeSingle(recipient, 1 ether, "");
         bytes memory callData = abi.encodeCall(IERC7579Account.execute, (simpleSingleMode(), execution));
         PackedUserOperation[] memory userOps = new PackedUserOperation[](1);
         userOps[0] = makeSignedUserOp(callData, owner.key, address(eoaValidator));
@@ -43,8 +42,7 @@ contract BasicTest is MSATest {
     }
 
     function test_execSingle() public {
-        bytes memory execution =
-            ExecutionLib.encodeSingle(address(target), 0, abi.encodeCall(MockTarget.setValue, 1337));
+        bytes memory execution = encodeSingle(address(target), 0, abi.encodeCall(MockTarget.setValue, 1337));
         bytes memory callData = abi.encodeCall(IERC7579Account.execute, (simpleSingleMode(), execution));
         PackedUserOperation[] memory userOps = new PackedUserOperation[](1);
         userOps[0] = makeSignedUserOp(callData, owner.key, address(eoaValidator));
@@ -64,7 +62,7 @@ contract BasicTest is MSATest {
 
         bytes memory callData = abi.encodeCall(
             IERC7579Account.execute,
-            (LibERC7579.encodeMode(LibERC7579.CALLTYPE_BATCH, 0, 0, 0), ExecutionLib.encodeBatch(executions))
+            (LibERC7579.encodeMode(LibERC7579.CALLTYPE_BATCH, 0, 0, 0), encodeBatch(executions))
         );
 
         PackedUserOperation[] memory userOps = new PackedUserOperation[](1);
@@ -200,7 +198,7 @@ contract BasicTest is MSATest {
         vm.deal(address(account), 0);
 
         PackedUserOperation[] memory userOps = new PackedUserOperation[](1);
-        bytes memory callData = ExecutionLib.encodeSingle(address(target), 0, abi.encodeCall(MockTarget.setValue, 1337));
+        bytes memory callData = encodeSingle(address(target), 0, abi.encodeCall(MockTarget.setValue, 1337));
         userOps[0] = makeUserOp(abi.encodeCall(IERC7579Account.execute, (simpleSingleMode(), callData)));
         userOps[0].paymasterAndData = abi.encodePacked(address(paymaster), uint128(2e6), uint128(2e6));
         signUserOp(userOps[0], owner.key, address(eoaValidator));

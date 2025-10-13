@@ -9,7 +9,6 @@ import { IExecutor, MODULE_TYPE_EXECUTOR, MODULE_TYPE_VALIDATOR } from "../inter
 import { IMSA } from "../interfaces/IMSA.sol";
 import { WebAuthnValidator } from "./WebAuthnValidator.sol";
 import { EOAKeyValidator } from "./EOAKeyValidator.sol";
-import { ExecutionLib } from "../libraries/ExecutionLib.sol";
 import { IERC7579Account } from "../interfaces/IERC7579Account.sol";
 
 /// @title GuardianExecutor
@@ -188,7 +187,7 @@ contract GuardianExecutor is IExecutor {
         bytes4 selector = recovery.recoveryType == RecoveryType.EOA
             ? EOAKeyValidator.addOwner.selector
             : WebAuthnValidator.addValidationKey.selector;
-        bytes memory execution = ExecutionLib.encodeSingle(validator, 0, abi.encodePacked(selector, recovery.data));
+        bytes memory execution = abi.encodePacked(validator, uint256(0), abi.encodePacked(selector, recovery.data));
 
         delete pendingRecovery[account];
         bytes32 mode = LibERC7579.encodeMode(LibERC7579.CALLTYPE_SINGLE, LibERC7579.EXECTYPE_DEFAULT, 0, 0);

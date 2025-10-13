@@ -6,7 +6,6 @@ import { Initializable } from "@openzeppelin/contracts/proxy/utils/Initializable
 import { ERC1271 } from "solady/accounts/ERC1271.sol";
 import { LibERC7579 } from "solady/accounts/LibERC7579.sol";
 
-import { ExecutionLib } from "./libraries/ExecutionLib.sol";
 import { ExecutionHelper } from "./core/ExecutionHelper.sol";
 import { IERC7579Account, Execution } from "./interfaces/IERC7579Account.sol";
 import { IMSA } from "./interfaces/IMSA.sol";
@@ -21,7 +20,6 @@ import "./interfaces/IERC7579Module.sol";
 /// This account implements ExecType: DEFAULT and TRY.
 /// Hook support is implemented
 contract ModularSmartAccount is IMSA, ExecutionHelper, ERC1271Handler, RegistryAdapter, Initializable {
-    using ExecutionLib for bytes;
     using LibERC7579 for bytes32;
 
     constructor() {
@@ -40,14 +38,14 @@ contract ModularSmartAccount is IMSA, ExecutionHelper, ERC1271Handler, RegistryA
         // check if calltype is batch or single
         if (callType == LibERC7579.CALLTYPE_BATCH) {
             // destructure executionCallData according to batched exec
-            Execution[] calldata executions = executionCalldata.decodeBatch();
+            bytes32[] calldata executions = LibERC7579.decodeBatch(executionCalldata);
             // check if execType is revert or try
             if (execType == LibERC7579.EXECTYPE_DEFAULT) _execute(executions);
             else if (execType == LibERC7579.EXECTYPE_TRY) _tryExecute(executions);
             else revert UnsupportedExecType(execType);
         } else if (callType == LibERC7579.CALLTYPE_SINGLE) {
             // destructure executionCallData according to single exec
-            (address target, uint256 value, bytes calldata callData) = executionCalldata.decodeSingle();
+            (address target, uint256 value, bytes calldata callData) = LibERC7579.decodeSingle(executionCalldata);
             // check if execType is revert or try
             if (execType == LibERC7579.EXECTYPE_DEFAULT) _execute(target, value, callData);
             // TODO: implement event emission for tryExecute singleCall
@@ -84,14 +82,14 @@ contract ModularSmartAccount is IMSA, ExecutionHelper, ERC1271Handler, RegistryA
         // check if calltype is batch or single
         if (callType == LibERC7579.CALLTYPE_BATCH) {
             // destructure executionCallData according to batched exec
-            Execution[] calldata executions = executionCalldata.decodeBatch();
+            bytes32[] calldata executions = LibERC7579.decodeBatch(executionCalldata);
             // check if execType is revert or try
             if (execType == LibERC7579.EXECTYPE_DEFAULT) returnData = _execute(executions);
             else if (execType == LibERC7579.EXECTYPE_TRY) returnData = _tryExecute(executions);
             else revert UnsupportedExecType(execType);
         } else if (callType == LibERC7579.CALLTYPE_SINGLE) {
             // destructure executionCallData according to single exec
-            (address target, uint256 value, bytes calldata callData) = executionCalldata.decodeSingle();
+            (address target, uint256 value, bytes calldata callData) = LibERC7579.decodeSingle(executionCalldata);
             returnData = new bytes[](1);
             bool success;
             // check if execType is revert or try
