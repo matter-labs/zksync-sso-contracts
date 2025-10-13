@@ -32,36 +32,8 @@ contract ModularSmartAccount is IMSA, ExecutionHelper, ERC1271Handler, RegistryA
     /// CallType SINGLE and BATCH and ExecType DEFAULT and TRY
     /// @dev this function demonstrates how to implement hook support (modifier)
     function execute(bytes32 mode, bytes calldata executionCalldata) external payable onlyEntryPointOrSelf {
-        bytes1 callType = mode.getCallType();
-        bytes1 execType = mode.getExecType();
-
-        // check if calltype is batch or single
-        if (callType == LibERC7579.CALLTYPE_BATCH) {
-            // destructure executionCallData according to batched exec
-            bytes32[] calldata executions = LibERC7579.decodeBatch(executionCalldata);
-            // check if execType is revert or try
-            if (execType == LibERC7579.EXECTYPE_DEFAULT) _execute(executions);
-            else if (execType == LibERC7579.EXECTYPE_TRY) _tryExecute(executions);
-            else revert UnsupportedExecType(execType);
-        } else if (callType == LibERC7579.CALLTYPE_SINGLE) {
-            // destructure executionCallData according to single exec
-            (address target, uint256 value, bytes calldata callData) = LibERC7579.decodeSingle(executionCalldata);
-            // check if execType is revert or try
-            if (execType == LibERC7579.EXECTYPE_DEFAULT) _execute(target, value, callData);
-            // TODO: implement event emission for tryExecute singleCall
-            else if (execType == LibERC7579.EXECTYPE_TRY) _tryExecute(target, value, callData);
-            else revert UnsupportedExecType(execType);
-        } else if (callType == LibERC7579.CALLTYPE_DELEGATECALL) {
-            // destructure executionCallData according to single exec
-            address delegate = address(uint160(bytes20(executionCalldata[0:20])));
-            bytes calldata callData = executionCalldata[20:];
-            // check if execType is revert or try
-            if (execType == LibERC7579.EXECTYPE_DEFAULT) _executeDelegatecall(delegate, callData);
-            else if (execType == LibERC7579.EXECTYPE_TRY) _tryExecuteDelegatecall(delegate, callData);
-            else revert UnsupportedExecType(execType);
-        } else {
-            revert UnsupportedCallType(callType);
-        }
+        // slither-disable-next-line unused-return
+        _handleExecute(mode, executionCalldata);
     }
 
     /// @inheritdoc IERC7579Account
@@ -76,44 +48,7 @@ contract ModularSmartAccount is IMSA, ExecutionHelper, ERC1271Handler, RegistryA
         withRegistry(msg.sender, MODULE_TYPE_EXECUTOR)
         returns (bytes[] memory returnData)
     {
-        bytes1 callType = mode.getCallType();
-        bytes1 execType = mode.getExecType();
-
-        // check if calltype is batch or single
-        if (callType == LibERC7579.CALLTYPE_BATCH) {
-            // destructure executionCallData according to batched exec
-            bytes32[] calldata executions = LibERC7579.decodeBatch(executionCalldata);
-            // check if execType is revert or try
-            if (execType == LibERC7579.EXECTYPE_DEFAULT) returnData = _execute(executions);
-            else if (execType == LibERC7579.EXECTYPE_TRY) returnData = _tryExecute(executions);
-            else revert UnsupportedExecType(execType);
-        } else if (callType == LibERC7579.CALLTYPE_SINGLE) {
-            // destructure executionCallData according to single exec
-            (address target, uint256 value, bytes calldata callData) = LibERC7579.decodeSingle(executionCalldata);
-            returnData = new bytes[](1);
-            bool success;
-            // check if execType is revert or try
-            if (execType == LibERC7579.EXECTYPE_DEFAULT) {
-                returnData[0] = _execute(target, value, callData);
-            }
-            // TODO: implement event emission for tryExecute singleCall
-            else if (execType == LibERC7579.EXECTYPE_TRY) {
-                (success, returnData[0]) = _tryExecute(target, value, callData);
-                if (!success) emit TryExecuteUnsuccessful(0, returnData[0]);
-            } else {
-                revert UnsupportedExecType(execType);
-            }
-        } else if (callType == LibERC7579.CALLTYPE_DELEGATECALL) {
-            // destructure executionCallData according to single exec
-            address delegate = address(uint160(bytes20(executionCalldata[0:20])));
-            bytes calldata callData = executionCalldata[20:];
-            // check if execType is revert or try
-            if (execType == LibERC7579.EXECTYPE_DEFAULT) _executeDelegatecall(delegate, callData);
-            else if (execType == LibERC7579.EXECTYPE_TRY) _tryExecuteDelegatecall(delegate, callData);
-            else revert UnsupportedExecType(execType);
-        } else {
-            revert UnsupportedCallType(callType);
-        }
+        returnData = _handleExecute(mode, executionCalldata);
     }
 
     /// @dev ERC-4337 executeUserOp according to ERC-4337 v0.7
