@@ -81,10 +81,10 @@ contract AllowedSessionsValidator is SessionKeyValidator, AccessControl {
     /// @param sessionSpec The session specification to create a session with.
     /// @dev A session is a temporary authorization for an account to perform specific actions, defined by the session
     /// specification.
-    function createSession(SessionLib.SessionSpec memory sessionSpec) public virtual override(SessionKeyValidator) {
+    function _createSession(SessionLib.SessionSpec memory sessionSpec) internal virtual override(SessionKeyValidator) {
         bytes32 sessionActionsHash = getSessionActionsHash(sessionSpec);
         require(areSessionActionsAllowed[sessionActionsHash], SessionLib.ActionsNotAllowed(sessionActionsHash));
-        SessionKeyValidator.createSession(sessionSpec);
+        SessionKeyValidator._createSession(sessionSpec);
     }
 
     /// @inheritdoc SessionKeyValidator
