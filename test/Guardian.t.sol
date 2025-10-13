@@ -8,8 +8,6 @@ import { MSAFactory } from "src/MSAFactory.sol";
 import { EOAKeyValidator } from "src/modules/EOAKeyValidator.sol";
 import { SessionKeyValidator } from "src/modules/SessionKeyValidator.sol";
 import { IMSA } from "src/interfaces/IMSA.sol";
-import { ExecutionLib } from "src/libraries/ExecutionLib.sol";
-import { ModeLib } from "src/libraries/ModeLib.sol";
 import { MODULE_TYPE_EXECUTOR } from "src/interfaces/IERC7579Module.sol";
 import { IERC7579Account } from "src/interfaces/IERC7579Account.sol";
 import { GuardianExecutor } from "src/modules/GuardianExecutor.sol";
@@ -38,14 +36,29 @@ contract GuardianTest is MSATest {
         vm.expectEmit(true, true, true, true);
         emit IERC7579Account.ModuleInstalled(MODULE_TYPE_EXECUTOR, address(guardiansExecutor));
         entryPoint.handleOps(userOps, bundler);
+
+        vm.assertTrue(guardiansExecutor.isInitialized(address(account)), "Executor not initialized");
+        vm.assertTrue(guardiansExecutor.isModuleType(MODULE_TYPE_EXECUTOR), "Wrong module type");
+    }
+
+    function test_uninstallExecutor() public {
+        test_installExecutor();
+        bytes memory data =
+            abi.encodeCall(ModularSmartAccount.uninstallModule, (MODULE_TYPE_EXECUTOR, address(guardiansExecutor), ""));
+        PackedUserOperation[] memory userOps = new PackedUserOperation[](1);
+        userOps[0] = makeSignedUserOp(data, owner.key, address(eoaValidator));
+        vm.expectEmit(true, true, true, true);
+        emit IERC7579Account.ModuleUninstalled(MODULE_TYPE_EXECUTOR, address(guardiansExecutor));
+        entryPoint.handleOps(userOps, bundler);
+        vm.assertTrue(!guardiansExecutor.isInitialized(address(account)), "Executor not uninitialized");
     }
 
     function test_proposeGuardian() public {
         test_installExecutor();
 
         bytes memory data = abi.encodeCall(GuardianExecutor.proposeGuardian, (guardian.addr));
-        bytes memory call = ExecutionLib.encodeSingle(address(guardiansExecutor), 0, data);
-        bytes memory callData = abi.encodeCall(IERC7579Account.execute, (ModeLib.encodeSimpleSingle(), call));
+        bytes memory call = encodeSingle(address(guardiansExecutor), 0, data);
+        bytes memory callData = abi.encodeCall(IERC7579Account.execute, (simpleSingleMode(), call));
         PackedUserOperation[] memory userOps = new PackedUserOperation[](1);
         userOps[0] = makeSignedUserOp(callData, owner.key, address(eoaValidator));
 
@@ -105,9 +118,7 @@ contract GuardianTest is MSATest {
         emit GuardianExecutor.RecoveryFinished(address(account));
         guardiansExecutor.finalizeRecovery(address(account));
 
-        address[] memory owners = eoaValidator.getOwners(address(account));
-        vm.assertEq(owners.length, 2, "Incorrect number of owners");
-        vm.assertTrue(owners[0] == newOwner.addr || owners[1] == newOwner.addr, "New owner was not added");
+        vm.assertTrue(eoaValidator.isOwnerOf(address(account), newOwner.addr), "New owner was not added");
 
         assertPendingRecoveryCleared();
     }

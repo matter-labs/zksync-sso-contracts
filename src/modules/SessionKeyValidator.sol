@@ -8,7 +8,7 @@ import { PackedUserOperation } from "account-abstraction/interfaces/PackedUserOp
 import { _packValidationData, SIG_VALIDATION_FAILED } from "account-abstraction/core/Helpers.sol";
 
 import { IMSA } from "../interfaces/IMSA.sol";
-import { IValidator, IModule, MODULE_TYPE_VALIDATOR } from "../interfaces/IERC7579Module.sol";
+import "../interfaces/IERC7579Module.sol";
 
 /// @title SessionKeyValidator
 /// @author Matter Labs
@@ -52,7 +52,8 @@ contract SessionKeyValidator is IValidator {
         if (data.length > 0) {
             // This always either succeeds with `true` or reverts within,
             // so we don't need to check the return value.
-            _addValidationKey(data);
+            SessionLib.SessionSpec memory sessionSpec = abi.decode(data, (SessionLib.SessionSpec));
+            _createSession(sessionSpec);
         }
     }
 
@@ -74,7 +75,7 @@ contract SessionKeyValidator is IValidator {
     /// @notice This module should not be used to validate signatures (including EIP-1271),
     /// as a signature by itself does not have enough information to validate it against a session.
     function isValidSignatureWithSender(address, bytes32, bytes calldata) external pure returns (bytes4) {
-        return 0x00000000;
+        return 0xffffffff;
     }
 
     /// @notice Checks for banned call policies.
@@ -90,19 +91,25 @@ contract SessionKeyValidator is IValidator {
     /// @dev can be extended by derived contracts.
     /// @param target The target address of the call
     /// @return true if the call is banned, false otherwise
-    function isBannedCall(address target, bytes4 /* selector */ ) internal view virtual returns (bool) {
+    function isBannedCall(address target, bytes4 selector) internal view virtual returns (bool) {
         return target == address(this) // this line is technically unnecessary
-            || target == address(msg.sender) || IMSA(msg.sender).isModuleInstalled(MODULE_TYPE_VALIDATOR, target, "");
-        // TODO: make one call to check any module type
+            || target == address(msg.sender) || IMSA(msg.sender).isModuleInstalled(MODULE_TYPE_VALIDATOR, target, "")
+            || IMSA(msg.sender).isModuleInstalled(MODULE_TYPE_EXECUTOR, target, "")
+            || IMSA(msg.sender).isModuleInstalled(MODULE_TYPE_FALLBACK, target, abi.encode(selector));
     }
 
     /// @notice Create a new session for an account
     /// @param sessionSpec The session specification to create a session with
-    /// @dev In the sessionSpec, callPolicies should not have duplicated instances of
-    /// (target, selector) pairs. Only the first one is considered when validating transactions.
+    /// @dev In the sessionSpec, callPolicies should not have duplicated instances of (target, selector) pairs.
+    /// Only the first one of the duplicates is considered when validating transactions.
     function createSession(SessionLib.SessionSpec memory sessionSpec) public virtual {
-        bytes32 sessionHash = keccak256(abi.encode(sessionSpec));
         require(isInitialized(msg.sender), NotInitialized(msg.sender));
+        _createSession(sessionSpec);
+    }
+
+    /// @notice Same as `createSession`, but does not check if the validator is initialized for the account.
+    function _createSession(SessionLib.SessionSpec memory sessionSpec) internal virtual {
+        bytes32 sessionHash = keccak256(abi.encode(sessionSpec));
 
         uint256 totalCallPolicies = sessionSpec.callPolicies.length;
         for (uint256 i = 0; i < totalCallPolicies; i++) {
@@ -126,14 +133,6 @@ contract SessionKeyValidator is IValidator {
         sessions[sessionHash].status[msg.sender] = SessionLib.Status.Active;
         sessionSigner[sessionSpec.signer] = sessionHash;
         emit SessionCreated(msg.sender, sessionHash, sessionSpec);
-    }
-
-    /// @notice creates a new session for an account, called by onInstall
-    /// @param sessionData ABI-encoded session specification
-    function _addValidationKey(bytes calldata sessionData) internal virtual returns (bool) {
-        SessionLib.SessionSpec memory sessionSpec = abi.decode(sessionData, (SessionLib.SessionSpec));
-        createSession(sessionSpec);
-        return true;
     }
 
     function supportsInterface(bytes4 interfaceId) external pure virtual returns (bool) {
@@ -182,12 +181,8 @@ contract SessionKeyValidator is IValidator {
         (uint48 validAfter, uint48 validUntil) = sessions[sessionHash].validate(userOp, spec, periodIds);
 
         // slither-disable-next-line unused-return
-        (address recoveredAddress, ECDSA.RecoverError recoverError,) =
-            ECDSA.tryRecover(userOpHash, transactionSignature);
-        if (
-            recoverError != ECDSA.RecoverError.NoError || recoveredAddress == address(0)
-                || recoveredAddress != spec.signer
-        ) {
+        (address signer, ECDSA.RecoverError err,) = ECDSA.tryRecover(userOpHash, transactionSignature);
+        if (err != ECDSA.RecoverError.NoError || signer == address(0) || signer != spec.signer) {
             return SIG_VALIDATION_FAILED;
         }
         // This check is separate and performed last to prevent gas estimation failures

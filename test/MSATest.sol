@@ -6,11 +6,13 @@ import { EntryPoint } from "account-abstraction/core/EntryPoint.sol";
 import { PackedUserOperation } from "account-abstraction/interfaces/PackedUserOperation.sol";
 import { UpgradeableBeacon } from "@openzeppelin/contracts/proxy/beacon/UpgradeableBeacon.sol";
 import { Test } from "forge-std/Test.sol";
+import { LibERC7579 } from "solady/accounts/LibERC7579.sol";
 
 import { ModularSmartAccount } from "src/ModularSmartAccount.sol";
 import { MSAFactory } from "src/MSAFactory.sol";
 import { EOAKeyValidator } from "src/modules/EOAKeyValidator.sol";
 import { IMSA } from "src/interfaces/IMSA.sol";
+import { Execution } from "src/interfaces/IERC7579Account.sol";
 
 contract MSATest is Test {
     EntryPoint public entryPoint;
@@ -75,5 +77,17 @@ contract MSATest is Test {
         bytes32 userOpHash = entryPoint.getUserOpHash(userOp);
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(key, userOpHash);
         userOp.signature = abi.encodePacked(validator, r, s, v);
+    }
+
+    function simpleSingleMode() public pure returns (bytes32) {
+        return LibERC7579.encodeMode(LibERC7579.CALLTYPE_SINGLE, LibERC7579.EXECTYPE_DEFAULT, 0, 0);
+    }
+
+    function encodeSingle(address target, uint256 value, bytes memory data) public pure returns (bytes memory) {
+        return abi.encodePacked(target, value, data);
+    }
+
+    function encodeBatch(Execution[] memory executions) public pure returns (bytes memory) {
+        return abi.encode(executions);
     }
 }

@@ -24,11 +24,11 @@ abstract contract ERC1271Handler is ERC1271, ModuleManager {
         return true;
     }
 
-    // @notice Returns whether the signature provided is valid for the provided hash.
-    // @dev Does not run validation hooks. Is used internally after ERC7739 unwrapping.
-    // @param hash bytes32 - Hash of the data that is signed
-    // @param signature bytes calldata - K1 owner signature OR validator address concatenated to signature
-    // @return bool - Whether the signature is valid
+    /// @notice Returns whether the signature provided is valid for the provided hash.
+    /// @dev Does not run validation hooks. Is used internally after ERC7739 unwrapping.
+    /// @param hash bytes32 - Hash of the data that is signed
+    /// @param data bytes calldata - validator address concatenated to signature
+    /// @return bool - Whether the signature is valid
     function _erc1271IsValidSignatureNowCalldata(bytes32 hash, bytes calldata data)
         internal
         view

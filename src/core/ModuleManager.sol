@@ -2,15 +2,12 @@
 pragma solidity ^0.8.21;
 
 import { EnumerableSet } from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
-import { CallType, CALLTYPE_SINGLE, CALLTYPE_DELEGATECALL, CALLTYPE_STATIC } from "../libraries/ModeLib.sol";
 import "../interfaces/IERC7579Module.sol";
 
-/**
- * @title ModuleManager
- * @author zeroknots.eth | rhinestone.wtf
- * @dev This contract manages Validator, Executor and Fallback modules for the MSA
- * NOTE: the linked list is just an example. accounts may implement this differently
- */
+/// @title ModuleManager
+/// @author zeroknots.eth | rhinestone.wtf
+/// @dev This contract manages Validator, Executor and Fallback modules for the MSA
+/// NOTE: the linked list is just an example. accounts may implement this differently
 abstract contract ModuleManager {
     using EnumerableSet for EnumerableSet.AddressSet;
 
@@ -21,8 +18,19 @@ abstract contract ModuleManager {
     error AlreadyInstalled(address module);
     error NotInstalled(address module);
 
-    event ValidatorUninstallFailed(address validator, bytes data);
-    event ExecutorUninstallFailed(address executor, bytes data);
+    event ValidatorInstalled(address indexed validator);
+    event ExecutorInstalled(address indexed executor);
+    event FallbackHandlerInstalled(address indexed handler, bytes4 indexed selector, bytes1 indexed calltype);
+
+    event ValidatorUninstalled(address indexed validator);
+    event ExecutorUninstalled(address indexed executor);
+    event FallbackHandlerUninstalled(address indexed handler, bytes4 indexed selector, bytes1 indexed calltype);
+
+    event ValidatorUnlinked(address indexed validator, bytes data);
+    event ExecutorUnlinked(address indexed executor, bytes data);
+    event FallbackHandlerUnlinked(
+        address indexed handler, bytes4 indexed selector, bytes1 indexed calltype, bytes data
+    );
 
     // forgefmt: disable-next-line
     // keccak256(abi.encode(uint256(keccak256("modulemanager.storage.msa")) - 1)) & ~bytes32(uint256(0xff));
@@ -31,17 +39,13 @@ abstract contract ModuleManager {
 
     struct FallbackHandler {
         address handler;
-        CallType calltype;
+        bytes1 calltype;
     }
 
     /// @custom:storage-location erc7201:modulemanager.storage.msa
     struct ModuleManagerStorage {
-        // linked list of validators. List is initialized by initializeAccount()
         EnumerableSet.AddressSet $valdiators;
-        // linked list of executors. List is initialized by initializeAccount()
         EnumerableSet.AddressSet $executors;
-        // single fallback handler for all fallbacks
-        // account vendors may implement this differently. This is just a reference implementation
         mapping(bytes4 selector => FallbackHandler fallbackHandler) $fallbacks;
     }
 
@@ -65,20 +69,28 @@ abstract contract ModuleManager {
     /////////////////////////////////////////////////////
     //  Manage Validators
     ////////////////////////////////////////////////////
+
     function _installValidator(address validator, bytes calldata data) internal virtual {
         require($moduleManager().$valdiators.add(validator), AlreadyInstalled(validator));
         IValidator(validator).onInstall(data);
+        emit ValidatorInstalled(validator);
     }
 
     function _uninstallValidator(address validator, bytes calldata data) internal {
         require($moduleManager().$valdiators.remove(validator), NotInstalled(validator));
         require($moduleManager().$valdiators.length() > 0, CannotRemoveLastValidator());
         IValidator(validator).onUninstall(data);
+        emit ValidatorUninstalled(validator);
     }
-    // TODO: unlink validator
 
-    function _tryUninstallValidators() internal {
-        $moduleManager().$valdiators.clear();
+    function _unlinkValidator(address validator, bytes calldata data) internal {
+        require($moduleManager().$valdiators.remove(validator), NotInstalled(validator));
+        require($moduleManager().$valdiators.length() > 0, CannotRemoveLastValidator());
+        try IValidator(validator).onUninstall(data) {
+            emit ValidatorUninstalled(validator);
+        } catch (bytes memory err) {
+            emit ValidatorUnlinked(validator, err);
+        }
     }
 
     function _isValidatorInstalled(address validator) internal view virtual returns (bool) {
@@ -92,15 +104,22 @@ abstract contract ModuleManager {
     function _installExecutor(address executor, bytes calldata data) internal {
         require($moduleManager().$executors.add(executor), AlreadyInstalled(executor));
         IExecutor(executor).onInstall(data);
+        emit ExecutorInstalled(executor);
     }
 
     function _uninstallExecutor(address executor, bytes calldata data) internal {
         require($moduleManager().$executors.remove(executor), NotInstalled(executor));
         IExecutor(executor).onUninstall(data);
+        emit ExecutorUninstalled(executor);
     }
 
-    function _tryUninstallExecutors() internal {
-        $moduleManager().$executors.clear();
+    function _unlinkExecutor(address executor, bytes calldata data) internal {
+        require($moduleManager().$executors.remove(executor), NotInstalled(executor));
+        try IExecutor(executor).onUninstall(data) {
+            emit ExecutorUninstalled(executor);
+        } catch (bytes memory err) {
+            emit ExecutorUnlinked(executor, err);
+        }
     }
 
     function _isExecutorInstalled(address executor) internal view virtual returns (bool) {
@@ -113,25 +132,37 @@ abstract contract ModuleManager {
 
     function _installFallbackHandler(address handler, bytes calldata params) internal virtual {
         bytes4 selector = bytes4(params[0:4]);
-        CallType calltype = CallType.wrap(bytes1(params[4]));
-        bytes memory initData = params[5:];
-
+        bytes1 calltype = params[4];
+        bytes calldata initData = params[5:];
         require(!_isFallbackHandlerInstalled(selector), SelectorAlreadyUsed(selector));
         $moduleManager().$fallbacks[selector] = FallbackHandler(handler, calltype);
         IFallback(handler).onInstall(initData);
+        emit FallbackHandlerInstalled(handler, selector, calltype);
     }
 
     function _uninstallFallbackHandler(address handler, bytes calldata deInitData) internal virtual {
         bytes4 selector = bytes4(deInitData[0:4]);
-        bytes memory _deInitData = deInitData[4:];
-
+        bytes calldata _deInitData = deInitData[4:];
         require(_isFallbackHandlerInstalled(selector), NoFallbackHandler(selector));
-
         FallbackHandler memory activeFallback = $moduleManager().$fallbacks[selector];
-
         require(activeFallback.handler == handler, NotInstalled(handler));
-        $moduleManager().$fallbacks[selector] = FallbackHandler(address(0), CallType.wrap(0x00));
+        $moduleManager().$fallbacks[selector] = FallbackHandler(address(0), 0);
         IFallback(handler).onUninstall(_deInitData);
+        emit FallbackHandlerUninstalled(handler, selector, activeFallback.calltype);
+    }
+
+    function _unlinkFallbackHandler(address handler, bytes calldata deInitData) internal virtual {
+        bytes4 selector = bytes4(deInitData[0:4]);
+        bytes calldata _deInitData = deInitData[4:];
+        require(_isFallbackHandlerInstalled(selector), NoFallbackHandler(selector));
+        FallbackHandler memory activeFallback = $moduleManager().$fallbacks[selector];
+        require(activeFallback.handler == handler, NotInstalled(handler));
+        $moduleManager().$fallbacks[selector] = FallbackHandler(address(0), 0);
+        try IFallback(handler).onUninstall(_deInitData) {
+            emit FallbackHandlerUninstalled(handler, selector, activeFallback.calltype);
+        } catch (bytes memory err) {
+            emit FallbackHandlerUnlinked(handler, selector, activeFallback.calltype, err);
+        }
     }
 
     function _isFallbackHandlerInstalled(bytes4 functionSig) internal view virtual returns (bool) {
@@ -155,7 +186,7 @@ abstract contract ModuleManager {
     fallback() external payable {
         FallbackHandler storage $fallbackHandler = $moduleManager().$fallbacks[msg.sig];
         address handler = $fallbackHandler.handler;
-        CallType calltype = $fallbackHandler.calltype;
+        bytes1 calltype = $fallbackHandler.calltype;
 
         if (handler == address(0)) {
             // 0x150b7a02: `onERC721Received(address,address,uint256,bytes)`.
