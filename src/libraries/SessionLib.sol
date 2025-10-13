@@ -288,10 +288,16 @@ library SessionLib {
             InvalidTopLevelSelector(topLevelSelector, IERC7579Account.execute.selector)
         );
 
-        // TODO: put a comment about why this exact slice
-        uint256 length = uint256(bytes32(userOp.callData[68:100]));
+        // Function called: execute(bytes32 mode, bytes calldata data)
+        // - first 4 bytes: selector
+        // - next 32 bytes: mode
+        // - next 32 bytes: data offset
+        // - at offset: data length
+        // - next 32 bytes: data
+        uint256 offset = uint256(bytes32(userOp.callData[36:68])) + 4; // offset does not include the selector
+        uint256 length = uint256(bytes32(userOp.callData[offset:offset + 32]));
         (address target, uint256 value, bytes calldata callData) =
-            LibERC7579.decodeSingle(userOp.callData[100:100 + length]);
+            LibERC7579.decodeSingle(userOp.callData[offset + 32:offset + 32 + length]);
 
         // Time range whithin which the transaction is valid.
         uint48[2] memory timeRange = [0, spec.expiresAt];
