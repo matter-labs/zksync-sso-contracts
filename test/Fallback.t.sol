@@ -72,9 +72,7 @@ contract FallbackTest is MSATest {
         bytes4 result721 = IERC721Receiver(address(account)).onERC721Received(address(this), address(this), 1, "");
         vm.assertEq(result721, IERC721Receiver.onERC721Received.selector, "ERC721 fallback failed");
 
-        bytes4 result1155 = IERC1155Receiver(address(account)).onERC1155Received(
-            address(this), address(this), 1, 1, ""
-        );
+        bytes4 result1155 = IERC1155Receiver(address(account)).onERC1155Received(address(this), address(this), 1, 1, "");
         vm.assertEq(result1155, IERC1155Receiver.onERC1155Received.selector, "ERC1155 fallback failed");
     }
 }

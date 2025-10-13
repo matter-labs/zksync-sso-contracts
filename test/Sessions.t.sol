@@ -116,7 +116,8 @@ contract SessionsTest is MSATest {
         SessionLib.Status statusBefore = sessionKeyValidator.sessionStatus(address(account), sessionHash);
         vm.assertEq(uint256(statusBefore), uint256(SessionLib.Status.Active), "Session inactive before close");
 
-        bytes memory data = encodeSingle(address(sessionKeyValidator), 0, abi.encodeCall(SessionKeyValidator.revokeKey, (sessionHash)));
+        bytes memory data =
+            encodeSingle(address(sessionKeyValidator), 0, abi.encodeCall(SessionKeyValidator.revokeKey, (sessionHash)));
         bytes memory callData = abi.encodeCall(IERC7579Account.execute, (simpleSingleMode(), data));
         PackedUserOperation[] memory userOps = new PackedUserOperation[](1);
         userOps[0] = makeSignedUserOp(callData, owner.key, address(eoaValidator));

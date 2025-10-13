@@ -8,4 +8,8 @@ contract MockTarget {
         value = _value;
         return _value;
     }
+
+    function justRevert() public pure {
+        revert("MockTarget: reverted");
+    }
 }
