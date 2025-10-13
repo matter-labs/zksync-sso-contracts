@@ -3,6 +3,8 @@ pragma solidity ^0.8.24;
 
 import { PackedUserOperation } from "account-abstraction/interfaces/PackedUserOperation.sol";
 import { LibERC7579 } from "solady/accounts/LibERC7579.sol";
+import { IERC721Receiver } from "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
+import { IERC1155Receiver } from "@openzeppelin/contracts/token/ERC1155/IERC1155Receiver.sol";
 
 import { IERC7579Account } from "src/interfaces/IERC7579Account.sol";
 import { MODULE_TYPE_FALLBACK } from "src/interfaces/IERC7579Module.sol";
@@ -64,5 +66,15 @@ contract FallbackTest is MSATest {
             address(0),
             "Fallback not removed correctly"
         );
+    }
+
+    function test_tokenFallbacks() public {
+        bytes4 result721 = IERC721Receiver(address(account)).onERC721Received(address(this), address(this), 1, "");
+        vm.assertEq(result721, IERC721Receiver.onERC721Received.selector, "ERC721 fallback failed");
+
+        bytes4 result1155 = IERC1155Receiver(address(account)).onERC1155Received(
+            address(this), address(this), 1, 1, ""
+        );
+        vm.assertEq(result1155, IERC1155Receiver.onERC1155Received.selector, "ERC1155 fallback failed");
     }
 }

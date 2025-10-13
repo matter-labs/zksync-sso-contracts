@@ -108,6 +108,27 @@ contract SessionsTest is MSATest {
         entryPoint.handleOps(userOps, bundler);
     }
 
+    function test_closeSession() public {
+        test_createSession();
+        bytes32 sessionHash = keccak256(abi.encode(spec));
+        vm.assertEq(sessionKeyValidator.sessionSigner(sessionOwner.addr), sessionHash, "stored session hash mismatch");
+
+        SessionLib.Status statusBefore = sessionKeyValidator.sessionStatus(address(account), sessionHash);
+        vm.assertEq(uint256(statusBefore), uint256(SessionLib.Status.Active), "Session inactive before close");
+
+        bytes memory data = encodeSingle(address(sessionKeyValidator), 0, abi.encodeCall(SessionKeyValidator.revokeKey, (sessionHash)));
+        bytes memory callData = abi.encodeCall(IERC7579Account.execute, (simpleSingleMode(), data));
+        PackedUserOperation[] memory userOps = new PackedUserOperation[](1);
+        userOps[0] = makeSignedUserOp(callData, owner.key, address(eoaValidator));
+
+        vm.expectEmit(true, true, true, true);
+        emit SessionKeyValidator.SessionRevoked(address(account), sessionHash);
+        entryPoint.handleOps(userOps, bundler);
+
+        SessionLib.Status status = sessionKeyValidator.sessionStatus(address(account), sessionHash);
+        vm.assertEq(uint256(status), uint256(SessionLib.Status.Closed), "Session not closed");
+    }
+
     function test_uninstallModule() public {
         test_createSession();
 
@@ -135,6 +156,16 @@ contract SessionsTest is MSATest {
             "Validator still installed"
         );
         vm.assertEq(uint256(status), uint256(SessionLib.Status.Closed), "Session not revoked on uninstall");
+    }
+
+    function test_sessionState() public {
+        test_createSessionERC20();
+        _sendSessionTransfer(recipient, 0.15 ether, false);
+
+        SessionLib.SessionState memory state = sessionKeyValidator.sessionState(address(account), spec);
+        vm.assertEq(uint256(state.status), uint256(SessionLib.Status.Active));
+        vm.assertTrue(state.feesRemaining < 0.15 ether);
+        vm.assertEq(state.callParams[0].remaining, 0.1 ether);
     }
 
     function test_sessionTransferERC20() public {
@@ -209,7 +240,6 @@ contract SessionsTest is MSATest {
 
         vm.expectEmit(true, true, true, true);
         emit SessionKeyValidator.SessionCreated(address(account), sessionHash, spec);
-
         entryPoint.handleOps(userOps, bundler);
 
         vm.assertEq(
