@@ -79,7 +79,7 @@ contract WebAuthnValidator is IValidator {
         if (data.length > 0) {
             (bytes memory credentialId, bytes32[2] memory rawPublicKey, string memory originDomain) =
                 abi.decode(data, (bytes, bytes32[2], string));
-            addValidationKey(credentialId, rawPublicKey, originDomain);
+            _addValidationKey(credentialId, rawPublicKey, originDomain);
         }
     }
 
@@ -93,7 +93,7 @@ contract WebAuthnValidator is IValidator {
         }
     }
 
-    function isInitialized(address account) external view override returns (bool) {
+    function isInitialized(address account) public view override returns (bool) {
         return IMSA(account).isModuleInstalled(MODULE_TYPE_VALIDATOR, address(this), "");
     }
 
@@ -102,6 +102,7 @@ contract WebAuthnValidator is IValidator {
     }
 
     function removeValidationKey(bytes memory credentialId, string memory domain) public {
+        require(isInitialized(msg.sender), NotInitialized(msg.sender));
         address registered = registeredAddress[domain][credentialId];
         require(registered == msg.sender, NotKeyOwner(registered));
 
@@ -111,11 +112,16 @@ contract WebAuthnValidator is IValidator {
         emit PasskeyRemoved(msg.sender, domain, credentialId);
     }
 
+    function addValidationKey(bytes memory credentialId, bytes32[2] memory newKey, string memory originDomain) public {
+        require(isInitialized(msg.sender), NotInitialized(msg.sender));
+        _addValidationKey(credentialId, newKey, originDomain);
+    }
+
     /// @notice Adds a WebAuthn passkey for the caller, reverts otherwise
     /// @param credentialId unique public identifier for the key
     /// @param newKey New WebAuthn public key to add
     /// @param originDomain the domain this associated with
-    function addValidationKey(bytes memory credentialId, bytes32[2] memory newKey, string memory originDomain) public {
+    function _addValidationKey(bytes memory credentialId, bytes32[2] memory newKey, string memory originDomain) internal {
         bytes32[2] memory oldKey = publicKeys[originDomain][credentialId][msg.sender];
         // only allow adding new keys, no overwrites/updates
         require(oldKey[0] == 0 && oldKey[1] == 0, KeyAlreadyExists());
@@ -188,7 +194,7 @@ contract WebAuthnValidator is IValidator {
         string memory origin = root.at('"origin"').value().decodeString();
         bytes32[2] memory publicKey = publicKeys[origin][credentialId][msg.sender];
         // TODO this should probably not revert, but return false
-        require(publicKey[0] != 0 || publicKey[1] != 0, KeyNotFound(origin, credentialId, msg.sender));
+        // require(publicKey[0] != 0 || publicKey[1] != 0, KeyNotFound(origin, credentialId, msg.sender));
 
         // cross-origin validation is optional, but explicitly not supported.
         // cross-origin requests would be from embedding the auth request

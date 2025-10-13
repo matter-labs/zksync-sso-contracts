@@ -3,19 +3,15 @@ pragma solidity ^0.8.23;
 
 import { Execution } from "../interfaces/IERC7579Account.sol";
 
-/**
- * Helper Library for decoding Execution calldata
- * malloc for memory allocation is bad for gas. use this assembly instead
- */
+/// Helper Library for decoding Execution calldata
+/// malloc for memory allocation is bad for gas. use this assembly instead
 library ExecutionLib {
     error ERC7579DecodingError();
 
-    /**
-     * @notice Decode a batch of `Execution` executionBatch from a `bytes` calldata.
-     * @dev code is copied from solady's LibERC7579.sol
-     * https://github.com/Vectorized/solady/blob/740812cedc9a1fc11e17cb3d4569744367dedf19/src/accounts/LibERC7579.sol#L146
-     *      Credits to Vectorized and the Solady Team
-     */
+    /// @notice Decode a batch of `Execution` executionBatch from a `bytes` calldata.
+    /// @dev code is copied from solady's LibERC7579.sol
+    /// https://github.com/Vectorized/solady/blob/740812cedc9a1fc11e17cb3d4569744367dedf19/src/accounts/LibERC7579.sol#L146
+    /// Credits to Vectorized and the Solady Team
     function decodeBatch(bytes calldata executionCalldata)
         internal
         pure

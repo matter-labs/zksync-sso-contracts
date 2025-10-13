@@ -2,6 +2,7 @@
 pragma solidity ^0.8.24;
 
 import { PackedUserOperation } from "account-abstraction/interfaces/PackedUserOperation.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 import { ModularSmartAccount } from "src/ModularSmartAccount.sol";
 import { MSAFactory } from "src/MSAFactory.sol";
@@ -16,7 +17,6 @@ import { SessionLib } from "src/libraries/SessionLib.sol";
 
 import { MSATest } from "./MSATest.sol";
 import { MockERC20 } from "./mocks/MockERC20.sol";
-import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 contract SessionsTest is MSATest {
     SessionKeyValidator public sessionKeyValidator;
@@ -223,6 +223,25 @@ contract SessionsTest is MSATest {
         vm.assertEq(uint256(status), uint256(SessionLib.Status.Active), "ERC20 session not active after creation");
         vm.assertEq(spec.callPolicies.length, 1, "Unexpected call policies configured");
         vm.assertEq(spec.callPolicies[0].constraints.length, 2, "Constraints not set");
+    }
+
+    function test_deployAccountWithSession() public {
+        address[] memory modules = new address[](1);
+        modules[0] = address(sessionKeyValidator);
+
+        spec = SessionLib.SessionSpec({
+            signer: sessionOwner.addr,
+            expiresAt: uint48(block.timestamp + 1000),
+            transferPolicies: new SessionLib.TransferSpec[](0),
+            callPolicies: new SessionLib.CallSpec[](0),
+            feeLimit: SessionLib.UsageLimit({ limitType: SessionLib.LimitType.Lifetime, limit: 0.1 ether, period: 0 })
+        });
+
+        bytes[] memory initData = new bytes[](1);
+        initData[0] = abi.encode(spec);
+
+        bytes memory data = abi.encodeCall(IMSA.initializeAccount, (modules, initData));
+        factory.deployAccount(keccak256("my-other-account-id"), data);
     }
 
     function _sendSessionTransfer(address to, uint256 amount, bool expectRevert) internal {

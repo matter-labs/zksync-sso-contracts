@@ -12,33 +12,14 @@ import { IMSA } from "./interfaces/IMSA.sol";
 import { ERC1271Handler } from "./core/ERC1271Handler.sol";
 import { RegistryAdapter } from "./core/RegistryAdapter.sol";
 
-import {
-    IModule,
-    IValidator,
-    MODULE_TYPE_EXECUTOR,
-    MODULE_TYPE_VALIDATOR,
-    MODULE_TYPE_FALLBACK,
-    VALIDATION_FAILED
-} from "./interfaces/IERC7579Module.sol";
-import {
-    CallType,
-    ModeCode,
-    ExecType,
-    EXECTYPE_DEFAULT,
-    EXECTYPE_TRY,
-    CALLTYPE_SINGLE,
-    CALLTYPE_BATCH,
-    CALLTYPE_DELEGATECALL,
-    ModeLib
-} from "./libraries/ModeLib.sol";
+import "./interfaces/IERC7579Module.sol";
+import "./libraries/ModeLib.sol";
 
-/**
- * @author zeroknots.eth | rhinestone.wtf
- * Reference implementation of a very simple ERC7579 Account.
- * This account implements CallType: SINGLE, BATCH and DELEGATECALL.
- * This account implements ExecType: DEFAULT and TRY.
- * Hook support is implemented
- */
+/// @author zeroknots.eth | rhinestone.wtf
+/// Reference implementation of a very simple ERC7579 Account.
+/// This account implements CallType: SINGLE, BATCH and DELEGATECALL.
+/// This account implements ExecType: DEFAULT and TRY.
+/// Hook support is implemented
 contract ModularSmartAccount is IMSA, ExecutionHelper, ERC1271Handler, RegistryAdapter, Initializable {
     using ExecutionLib for bytes;
     using ModeLib for ModeCode;
@@ -47,18 +28,12 @@ contract ModularSmartAccount is IMSA, ExecutionHelper, ERC1271Handler, RegistryA
         _disableInitializers();
     }
 
-    /**
-     * @inheritdoc IERC7579Account
-     * @dev this function is only callable by the entry point or the account itself
-     * @dev this function demonstrates how to implement
-     * CallType SINGLE and BATCH and ExecType DEFAULT and TRY
-     * @dev this function demonstrates how to implement hook support (modifier)
-     */
-    function execute(ModeCode mode, bytes calldata executionCalldata)
-        external
-        payable
-        onlyEntryPointOrSelf /*withHook*/
-    {
+    /// @inheritdoc IERC7579Account
+    /// @dev this function is only callable by the entry point or the account itself
+    /// @dev this function demonstrates how to implement
+    /// CallType SINGLE and BATCH and ExecType DEFAULT and TRY
+    /// @dev this function demonstrates how to implement hook support (modifier)
+    function execute(ModeCode mode, bytes calldata executionCalldata) external payable onlyEntryPointOrSelf {
         // slither-disable-next-line unused-return
         (CallType callType, ExecType execType,,) = mode.decode();
 
@@ -91,13 +66,11 @@ contract ModularSmartAccount is IMSA, ExecutionHelper, ERC1271Handler, RegistryA
         }
     }
 
-    /**
-     * @inheritdoc IERC7579Account
-     * @dev this function is only callable by an installed executor module
-     * @dev this function demonstrates how to implement
-     * CallType SINGLE and BATCH and ExecType DEFAULT and TRY
-     * @dev this function demonstrates how to implement hook support (modifier)
-     */
+    /// @inheritdoc IERC7579Account
+    /// @dev this function is only callable by an installed executor module
+    /// @dev this function demonstrates how to implement
+    /// CallType SINGLE and BATCH and ExecType DEFAULT and TRY
+    /// @dev this function demonstrates how to implement hook support (modifier)
     function executeFromExecutor(ModeCode mode, bytes calldata executionCalldata)
         external
         payable
@@ -148,14 +121,12 @@ contract ModularSmartAccount is IMSA, ExecutionHelper, ERC1271Handler, RegistryA
         }
     }
 
-    /**
-     * @dev ERC-4337 executeUserOp according to ERC-4337 v0.7
-     *         This function is intended to be called by ERC-4337 EntryPoint.sol
-     * @dev Ensure adequate authorization control: i.e. onlyEntryPointOrSelf
-     *      The implementation of the function is OPTIONAL
-     *
-     * @param userOp PackedUserOperation struct (see ERC-4337 v0.7+)
-     */
+    /// @dev ERC-4337 executeUserOp according to ERC-4337 v0.7
+    ///         This function is intended to be called by ERC-4337 EntryPoint.sol
+    /// @dev Ensure adequate authorization control: i.e. onlyEntryPointOrSelf
+    ///      The implementation of the function is OPTIONAL
+    ///
+    /// @param userOp PackedUserOperation struct (see ERC-4337 v0.7+)
     function executeUserOp(
         PackedUserOperation calldata userOp,
         bytes32 // userOpHash
@@ -165,9 +136,7 @@ contract ModularSmartAccount is IMSA, ExecutionHelper, ERC1271Handler, RegistryA
         if (!success) revert ExecutionFailed();
     }
 
-    /**
-     * @inheritdoc IERC7579Account
-     */
+    /// @inheritdoc IERC7579Account
     function installModule(uint256 moduleTypeId, address module, bytes calldata initData)
         external
         payable
@@ -188,9 +157,7 @@ contract ModularSmartAccount is IMSA, ExecutionHelper, ERC1271Handler, RegistryA
         emit ModuleInstalled(moduleTypeId, module);
     }
 
-    /**
-     * @inheritdoc IERC7579Account
-     */
+    /// @inheritdoc IERC7579Account
     function uninstallModule(uint256 moduleTypeId, address module, bytes calldata deInitData)
         external
         payable
@@ -208,15 +175,11 @@ contract ModularSmartAccount is IMSA, ExecutionHelper, ERC1271Handler, RegistryA
         emit ModuleUninstalled(moduleTypeId, module);
     }
 
-    /**
-     * @dev ERC-4337 validateUserOp according to ERC-4337 v0.7
-     *         This function is intended to be called by ERC-4337 EntryPoint.sol
-     * this validation function should decode / sload the validator module to validate the userOp
-     * and call it.
-     *
-     * @dev MSA MUST implement this function signature.
-     * @param userOp PackedUserOperation struct (see ERC-4337 v0.7+)
-     */
+    /// @dev ERC-4337 validateUserOp according to ERC-4337 v0.7
+    ///         This function is intended to be called by ERC-4337 EntryPoint.sol
+    /// this validation function should decode / sload the validator module to validate the userOp
+    /// and call it.
+    /// @param userOp PackedUserOperation struct (see ERC-4337 v0.7+)
     function validateUserOp(PackedUserOperation calldata userOp, bytes32 userOpHash, uint256 missingAccountFunds)
         external
         payable
@@ -245,9 +208,7 @@ contract ModularSmartAccount is IMSA, ExecutionHelper, ERC1271Handler, RegistryA
         return super.isValidSignature(hash, data);
     }
 
-    /**
-     * @inheritdoc IERC7579Account
-     */
+    /// @inheritdoc IERC7579Account
     function isModuleInstalled(uint256 moduleTypeId, address module, bytes calldata additionalContext)
         external
         view
@@ -265,17 +226,13 @@ contract ModularSmartAccount is IMSA, ExecutionHelper, ERC1271Handler, RegistryA
         }
     }
 
-    /**
-     * @inheritdoc IERC7579Account
-     */
+    /// @inheritdoc IERC7579Account
     function accountId() external view virtual override returns (string memory) {
         // vendor.flavour.SemVer
         return "ZKsyncSSO.mvp.v0.0.1";
     }
 
-    /**
-     * @inheritdoc IERC7579Account
-     */
+    /// @inheritdoc IERC7579Account
     function supportsExecutionMode(ModeCode mode) external view virtual override returns (bool isSupported) {
         // slither-disable-next-line unused-return
         (CallType callType, ExecType execType,,) = mode.decode();
@@ -291,9 +248,7 @@ contract ModularSmartAccount is IMSA, ExecutionHelper, ERC1271Handler, RegistryA
         else return false;
     }
 
-    /**
-     * @inheritdoc IERC7579Account
-     */
+    /// @inheritdoc IERC7579Account
     function supportsModule(uint256 modulTypeId) external view virtual override returns (bool) {
         if (modulTypeId == MODULE_TYPE_VALIDATOR) return true;
         else if (modulTypeId == MODULE_TYPE_EXECUTOR) return true;

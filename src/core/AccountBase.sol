@@ -1,10 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.21;
 
-/**
- * @title reference implementation of the minimal modular smart account with Hook Extension
- * @author zeroknots.eth | rhinestone.wtf
- */
+/// @title reference implementation of the minimal modular smart account with Hook Extension
+/// @author zeroknots.eth | rhinestone.wtf
 contract AccountBase {
     error AccountAccessUnauthorized();
 

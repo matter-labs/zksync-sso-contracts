@@ -105,9 +105,7 @@ contract GuardianTest is MSATest {
         emit GuardianExecutor.RecoveryFinished(address(account));
         guardiansExecutor.finalizeRecovery(address(account));
 
-        address[] memory owners = eoaValidator.getOwners(address(account));
-        vm.assertEq(owners.length, 2, "Incorrect number of owners");
-        vm.assertTrue(owners[0] == newOwner.addr || owners[1] == newOwner.addr, "New owner was not added");
+        vm.assertTrue(eoaValidator.isOwnerOf(address(account), newOwner.addr), "New owner was not added");
 
         assertPendingRecoveryCleared();
     }

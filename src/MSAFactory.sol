@@ -15,11 +15,7 @@ contract MSAFactory is ReentrancyGuard {
     address public immutable beacon;
 
     /// @notice A mapping from unique account IDs to their corresponding deployed account addresses.
-    /// TODO: add versioning for upgradeability
     mapping(bytes32 accountId => address deployedAccount) public accountRegistry;
-
-    /// TODO: have this contract be a module registry too?
-    // address[] public moduleRegistry;
 
     /// @notice Emitted when a new account is successfully created.
     /// @param accountAddress The address of the newly created account.

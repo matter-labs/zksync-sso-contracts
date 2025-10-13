@@ -49,7 +49,6 @@ contract GuardianExecutor is IExecutor {
     error RecoveryTimestampInvalid(uint48 timestamp);
     error UnsupportedRecoveryType(RecoveryType recoveryType);
 
-    // TODO make configurable?
     uint256 public constant REQUEST_VALIDITY_TIME = 72 hours;
     uint256 public constant REQUEST_DELAY_TIME = 24 hours;
 
@@ -79,10 +78,10 @@ contract GuardianExecutor is IExecutor {
     /// @notice Validator initiator for given sso account.
     /// @dev This module does not support initialization on creation,
     /// but ensures that the WebAuthValidator is enabled for calling SsoAccount.
-    function onInstall(bytes calldata) external view { }
+    function onInstall(bytes calldata) external view virtual { }
 
     /// @notice Removes all past guardians when this module is disabled in a account
-    function onUninstall(bytes calldata) external {
+    function onUninstall(bytes calldata) external virtual {
         accountGuardians[msg.sender].clear();
         discardRecovery();
     }
@@ -91,7 +90,8 @@ contract GuardianExecutor is IExecutor {
         require(newGuardian != address(0) && newGuardian != msg.sender, GuardianInvalidAddress(newGuardian));
         require(!accountGuardians[msg.sender].contains(newGuardian), GuardianAlreadyPresent(msg.sender, newGuardian));
 
-        bool _added = accountGuardians[msg.sender].set(newGuardian, _packGuardianData(false, uint48(block.timestamp)));
+        // slither-disable-next-line unused-return
+        accountGuardians[msg.sender].set(newGuardian, _packGuardianData(false, uint48(block.timestamp)));
 
         emit GuardianProposed(msg.sender, newGuardian);
     }
@@ -100,7 +100,8 @@ contract GuardianExecutor is IExecutor {
         require(accountGuardians[msg.sender].contains(guardianToRemove), GuardianNotFound(msg.sender, guardianToRemove));
 
         (bool wasActive,) = _unpackGuardianData(accountGuardians[msg.sender].get(guardianToRemove));
-        bool _removed = accountGuardians[msg.sender].remove(guardianToRemove);
+        // slither-disable-next-line unused-return
+        accountGuardians[msg.sender].remove(guardianToRemove);
 
         if (wasActive) {
             // In case an ongoing recovery was started by this guardian, discard it to prevent a potential
@@ -124,7 +125,8 @@ contract GuardianExecutor is IExecutor {
         }
 
         // TODO: why do we need this addedAt timestamp at all?
-        bool _added = accountGuardians[accountToGuard].set(msg.sender, _packGuardianData(true, addedAt));
+        // slither-disable-next-line unused-return
+        accountGuardians[accountToGuard].set(msg.sender, _packGuardianData(true, addedAt));
 
         emit GuardianAdded(accountToGuard, msg.sender);
         return true;
@@ -204,7 +206,7 @@ contract GuardianExecutor is IExecutor {
         }
     }
 
-    function discardRecovery() public {
+    function discardRecovery() public virtual {
         RecoveryRequest memory recovery = pendingRecovery[msg.sender];
         delete pendingRecovery[msg.sender];
         if (recovery.timestamp != 0 && recovery.data.length != 0) {
