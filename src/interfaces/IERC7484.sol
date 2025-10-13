@@ -2,7 +2,6 @@
 pragma solidity ^0.8.0;
 
 interface IERC7484 {
-
     // Check with Registry internal attesters
 
     function check(address module) external view;

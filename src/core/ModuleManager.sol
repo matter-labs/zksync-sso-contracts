@@ -2,7 +2,6 @@
 pragma solidity ^0.8.21;
 
 import { EnumerableSet } from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
-import { CallType, CALLTYPE_SINGLE, CALLTYPE_DELEGATECALL, CALLTYPE_STATIC } from "../libraries/ModeLib.sol";
 import "../interfaces/IERC7579Module.sol";
 
 /// @title ModuleManager
@@ -21,16 +20,16 @@ abstract contract ModuleManager {
 
     event ValidatorInstalled(address indexed validator);
     event ExecutorInstalled(address indexed executor);
-    event FallbackHandlerInstalled(address indexed handler, bytes4 indexed selector, CallType indexed calltype);
+    event FallbackHandlerInstalled(address indexed handler, bytes4 indexed selector, bytes1 indexed calltype);
 
     event ValidatorUninstalled(address indexed validator);
     event ExecutorUninstalled(address indexed executor);
-    event FallbackHandlerUninstalled(address indexed handler, bytes4 indexed selector, CallType indexed calltype);
+    event FallbackHandlerUninstalled(address indexed handler, bytes4 indexed selector, bytes1 indexed calltype);
 
     event ValidatorUnlinked(address indexed validator, bytes data);
     event ExecutorUnlinked(address indexed executor, bytes data);
     event FallbackHandlerUnlinked(
-        address indexed handler, bytes4 indexed selector, CallType indexed calltype, bytes data
+        address indexed handler, bytes4 indexed selector, bytes1 indexed calltype, bytes data
     );
 
     // forgefmt: disable-next-line
@@ -40,7 +39,7 @@ abstract contract ModuleManager {
 
     struct FallbackHandler {
         address handler;
-        CallType calltype;
+        bytes1 calltype;
     }
 
     /// @custom:storage-location erc7201:modulemanager.storage.msa
@@ -133,7 +132,7 @@ abstract contract ModuleManager {
 
     function _installFallbackHandler(address handler, bytes calldata params) internal virtual {
         bytes4 selector = bytes4(params[0:4]);
-        CallType calltype = CallType.wrap(bytes1(params[4]));
+        bytes1 calltype = params[4];
         bytes calldata initData = params[5:];
         require(!_isFallbackHandlerInstalled(selector), SelectorAlreadyUsed(selector));
         $moduleManager().$fallbacks[selector] = FallbackHandler(handler, calltype);
@@ -147,7 +146,7 @@ abstract contract ModuleManager {
         require(_isFallbackHandlerInstalled(selector), NoFallbackHandler(selector));
         FallbackHandler memory activeFallback = $moduleManager().$fallbacks[selector];
         require(activeFallback.handler == handler, NotInstalled(handler));
-        $moduleManager().$fallbacks[selector] = FallbackHandler(address(0), CallType.wrap(0x00));
+        $moduleManager().$fallbacks[selector] = FallbackHandler(address(0), 0);
         IFallback(handler).onUninstall(_deInitData);
         emit FallbackHandlerUninstalled(handler, selector, activeFallback.calltype);
     }
@@ -158,7 +157,7 @@ abstract contract ModuleManager {
         require(_isFallbackHandlerInstalled(selector), NoFallbackHandler(selector));
         FallbackHandler memory activeFallback = $moduleManager().$fallbacks[selector];
         require(activeFallback.handler == handler, NotInstalled(handler));
-        $moduleManager().$fallbacks[selector] = FallbackHandler(address(0), CallType.wrap(0x00));
+        $moduleManager().$fallbacks[selector] = FallbackHandler(address(0), 0);
         try IFallback(handler).onUninstall(_deInitData) {
             emit FallbackHandlerUninstalled(handler, selector, activeFallback.calltype);
         } catch (bytes memory err) {
@@ -187,7 +186,7 @@ abstract contract ModuleManager {
     fallback() external payable {
         FallbackHandler storage $fallbackHandler = $moduleManager().$fallbacks[msg.sig];
         address handler = $fallbackHandler.handler;
-        CallType calltype = $fallbackHandler.calltype;
+        bytes1 calltype = $fallbackHandler.calltype;
 
         if (handler == address(0)) {
             // 0x150b7a02: `onERC721Received(address,address,uint256,bytes)`.

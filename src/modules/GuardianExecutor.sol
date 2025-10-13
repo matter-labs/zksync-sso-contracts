@@ -3,12 +3,12 @@ pragma solidity ^0.8.24;
 
 import { PackedUserOperation } from "account-abstraction/interfaces/PackedUserOperation.sol";
 import { EnumerableMap } from "@openzeppelin/contracts/utils/structs/EnumerableMap.sol";
+import { LibERC7579 } from "solady/accounts/LibERC7579.sol";
 
 import { IExecutor, MODULE_TYPE_EXECUTOR, MODULE_TYPE_VALIDATOR } from "../interfaces/IERC7579Module.sol";
 import { IMSA } from "../interfaces/IMSA.sol";
 import { WebAuthnValidator } from "./WebAuthnValidator.sol";
 import { EOAKeyValidator } from "./EOAKeyValidator.sol";
-import { CallType, ModeCode, ExecType, CALLTYPE_SINGLE, ModeLib } from "../libraries/ModeLib.sol";
 import { ExecutionLib } from "../libraries/ExecutionLib.sol";
 import { IERC7579Account } from "../interfaces/IERC7579Account.sol";
 
@@ -82,11 +82,13 @@ contract GuardianExecutor is IExecutor {
 
     /// @notice Removes all past guardians when this module is disabled in a account
     function onUninstall(bytes calldata) external virtual {
+        require(isInitialized(msg.sender), NotInitialized(msg.sender));
         accountGuardians[msg.sender].clear();
         discardRecovery();
     }
 
     function proposeGuardian(address newGuardian) external virtual {
+        require(isInitialized(msg.sender), NotInitialized(msg.sender));
         require(newGuardian != address(0) && newGuardian != msg.sender, GuardianInvalidAddress(newGuardian));
         require(!accountGuardians[msg.sender].contains(newGuardian), GuardianAlreadyPresent(msg.sender, newGuardian));
 
@@ -97,6 +99,7 @@ contract GuardianExecutor is IExecutor {
     }
 
     function removeGuardian(address guardianToRemove) external virtual {
+        require(isInitialized(msg.sender), NotInitialized(msg.sender));
         require(accountGuardians[msg.sender].contains(guardianToRemove), GuardianNotFound(msg.sender, guardianToRemove));
 
         (bool wasActive,) = _unpackGuardianData(accountGuardians[msg.sender].get(guardianToRemove));
@@ -113,6 +116,7 @@ contract GuardianExecutor is IExecutor {
     }
 
     function acceptGuardian(address accountToGuard) external virtual returns (bool) {
+        require(isInitialized(accountToGuard), NotInitialized(accountToGuard));
         (bool exists, uint256 data) = accountGuardians[accountToGuard].tryGet(msg.sender);
         require(exists, GuardianNotFound(accountToGuard, msg.sender));
 
@@ -137,6 +141,7 @@ contract GuardianExecutor is IExecutor {
         virtual
         onlyGuardianOf(accountToRecover)
     {
+        require(isInitialized(accountToRecover), NotInitialized(accountToRecover));
         checkInstalledValidator(accountToRecover, recoveryType);
         uint256 pendingRecoveryTimestamp = pendingRecovery[accountToRecover].timestamp;
         require(
@@ -186,7 +191,8 @@ contract GuardianExecutor is IExecutor {
         bytes memory execution = ExecutionLib.encodeSingle(validator, 0, abi.encodePacked(selector, recovery.data));
 
         delete pendingRecovery[account];
-        returnData = IERC7579Account(account).executeFromExecutor(ModeLib.encodeSimpleSingle(), execution)[0];
+        bytes32 mode = LibERC7579.encodeMode(LibERC7579.CALLTYPE_SINGLE, LibERC7579.EXECTYPE_DEFAULT, 0, 0);
+        returnData = IERC7579Account(account).executeFromExecutor(mode, execution)[0];
         emit RecoveryFinished(account);
     }
 
@@ -227,7 +233,7 @@ contract GuardianExecutor is IExecutor {
         return moduleType == MODULE_TYPE_EXECUTOR;
     }
 
-    function isInitialized(address account) external view returns (bool) {
+    function isInitialized(address account) public view returns (bool) {
         return IMSA(account).isModuleInstalled(MODULE_TYPE_EXECUTOR, address(this), "");
     }
 }

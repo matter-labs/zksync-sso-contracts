@@ -4,11 +4,11 @@ pragma solidity ^0.8.24;
 
 import { PackedUserOperation } from "account-abstraction/interfaces/PackedUserOperation.sol";
 import { LibString } from "solady/utils/LibString.sol";
+import { LibERC7579 } from "solady/accounts/LibERC7579.sol";
 
 import { IERC7579Account } from "src/interfaces/IERC7579Account.sol";
 import { ExecutionLib } from "src/libraries/ExecutionLib.sol";
 import { Execution } from "src/interfaces/IERC7579Account.sol";
-import "src/libraries/ModeLib.sol";
 
 import { MockTarget } from "./mocks/MockTarget.sol";
 import { MockDelegateTarget } from "./mocks/MockDelegateTarget.sol";
@@ -34,7 +34,7 @@ contract BasicTest is MSATest {
     function test_transfer() public {
         address recipient = makeAddr("recipient");
         bytes memory execution = ExecutionLib.encodeSingle(recipient, 1 ether, "");
-        bytes memory callData = abi.encodeCall(IERC7579Account.execute, (ModeLib.encodeSimpleSingle(), execution));
+        bytes memory callData = abi.encodeCall(IERC7579Account.execute, (simpleSingleMode(), execution));
         PackedUserOperation[] memory userOps = new PackedUserOperation[](1);
         userOps[0] = makeSignedUserOp(callData, owner.key, address(eoaValidator));
 
@@ -45,7 +45,7 @@ contract BasicTest is MSATest {
     function test_execSingle() public {
         bytes memory execution =
             ExecutionLib.encodeSingle(address(target), 0, abi.encodeCall(MockTarget.setValue, 1337));
-        bytes memory callData = abi.encodeCall(IERC7579Account.execute, (ModeLib.encodeSimpleSingle(), execution));
+        bytes memory callData = abi.encodeCall(IERC7579Account.execute, (simpleSingleMode(), execution));
         PackedUserOperation[] memory userOps = new PackedUserOperation[](1);
         userOps[0] = makeSignedUserOp(callData, owner.key, address(eoaValidator));
 
@@ -62,8 +62,10 @@ contract BasicTest is MSATest {
         executions[0] = Execution({ target: address(target), value: 0, callData: setValueOnTarget });
         executions[1] = Execution({ target: target2, value: target2Amount, callData: "" });
 
-        bytes memory callData =
-            abi.encodeCall(IERC7579Account.execute, (ModeLib.encodeSimpleBatch(), ExecutionLib.encodeBatch(executions)));
+        bytes memory callData = abi.encodeCall(
+            IERC7579Account.execute,
+            (LibERC7579.encodeMode(LibERC7579.CALLTYPE_BATCH, 0, 0, 0), ExecutionLib.encodeBatch(executions))
+        );
 
         PackedUserOperation[] memory userOps = new PackedUserOperation[](1);
         userOps[0] = makeSignedUserOp(callData, owner.key, address(eoaValidator));
@@ -81,7 +83,7 @@ contract BasicTest is MSATest {
         bytes memory callData = abi.encodeCall(
             IERC7579Account.execute,
             (
-                ModeLib.encode(CALLTYPE_DELEGATECALL, EXECTYPE_DEFAULT, MODE_DEFAULT, ModePayload.wrap(0x00)),
+                LibERC7579.encodeMode(LibERC7579.CALLTYPE_DELEGATECALL, 0, 0, 0),
                 abi.encodePacked(address(delegateTarget), sendValue)
             )
         );
@@ -199,7 +201,7 @@ contract BasicTest is MSATest {
 
         PackedUserOperation[] memory userOps = new PackedUserOperation[](1);
         bytes memory callData = ExecutionLib.encodeSingle(address(target), 0, abi.encodeCall(MockTarget.setValue, 1337));
-        userOps[0] = makeUserOp(abi.encodeCall(IERC7579Account.execute, (ModeLib.encodeSimpleSingle(), callData)));
+        userOps[0] = makeUserOp(abi.encodeCall(IERC7579Account.execute, (simpleSingleMode(), callData)));
         userOps[0].paymasterAndData = abi.encodePacked(address(paymaster), uint128(2e6), uint128(2e6));
         signUserOp(userOps[0], owner.key, address(eoaValidator));
 

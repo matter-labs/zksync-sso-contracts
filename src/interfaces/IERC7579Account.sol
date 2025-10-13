@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.21;
 
-import { CallType, ExecType, ModeCode } from "../libraries/ModeLib.sol";
-
 struct Execution {
     address target;
     uint256 value;
@@ -21,7 +19,7 @@ interface IERC7579Account {
     /// If a mode is requested that is not supported by the Account, it MUST revert
     /// @param mode The encoded execution mode of the transaction. See ModeLib.sol for details
     /// @param executionCalldata The encoded execution call data
-    function execute(ModeCode mode, bytes calldata executionCalldata) external payable;
+    function execute(bytes32 mode, bytes calldata executionCalldata) external payable;
 
     /// @dev Executes a transaction on behalf of the account.
     ///         This function is intended to be called by Executor Modules
@@ -31,7 +29,7 @@ interface IERC7579Account {
     /// If a mode is requested that is not supported by the Account, it MUST revert
     /// @param mode The encoded execution mode of the transaction. See ModeLib.sol for details
     /// @param executionCalldata The encoded execution call data
-    function executeFromExecutor(ModeCode mode, bytes calldata executionCalldata)
+    function executeFromExecutor(bytes32 mode, bytes calldata executionCalldata)
         external
         payable
         returns (bytes[] memory returnData);
@@ -62,7 +60,7 @@ interface IERC7579Account {
 
     /// Function to check if the account supports a certain CallType or ExecType (see ModeLib.sol)
     /// @param encodedMode the encoded mode
-    function supportsExecutionMode(ModeCode encodedMode) external view returns (bool);
+    function supportsExecutionMode(bytes32 encodedMode) external view returns (bool);
 
     /// Function to check if the account supports installation of a certain module type Id
     /// @param moduleTypeId the module type ID according the ERC-7579 spec

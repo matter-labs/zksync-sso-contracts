@@ -121,7 +121,9 @@ contract WebAuthnValidator is IValidator {
     /// @param credentialId unique public identifier for the key
     /// @param newKey New WebAuthn public key to add
     /// @param originDomain the domain this associated with
-    function _addValidationKey(bytes memory credentialId, bytes32[2] memory newKey, string memory originDomain) internal {
+    function _addValidationKey(bytes memory credentialId, bytes32[2] memory newKey, string memory originDomain)
+        internal
+    {
         bytes32[2] memory oldKey = publicKeys[originDomain][credentialId][msg.sender];
         // only allow adding new keys, no overwrites/updates
         require(oldKey[0] == 0 && oldKey[1] == 0, KeyAlreadyExists());

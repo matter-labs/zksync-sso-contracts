@@ -30,7 +30,8 @@ interface IERC4337Account {
     ///                              <6-byte> validAfter - First timestamp this operation is valid
     ///                                                    If an account doesn't use time-range, it is enough to
     ///                                                    return SIG_VALIDATION_FAILED value (1) for signature failure.
-    ///                              Note that the validation code cannot use block.timestamp (or block.number) directly.
+    ///                              Note that the validation code cannot use block.timestamp (or block.number)
+    /// directly.
     function validateUserOp(PackedUserOperation calldata userOp, bytes32 userOpHash, uint256 missingAccountFunds)
         external
         payable

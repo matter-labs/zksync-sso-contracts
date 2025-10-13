@@ -5,10 +5,10 @@ import { PackedUserOperation } from "account-abstraction/interfaces/PackedUserOp
 import { UserOperationLib } from "account-abstraction/core/UserOperationLib.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { LibBytes } from "solady/utils/LibBytes.sol";
+import { LibERC7579 } from "solady/accounts/LibERC7579.sol";
 
 import { IERC7579Account } from "../interfaces/IERC7579Account.sol";
 import { ExecutionLib } from "../libraries/ExecutionLib.sol";
-import { CallType, ModeCode, ExecType, CALLTYPE_SINGLE, ModeLib } from "../libraries/ModeLib.sol";
 
 /// @title Session Library
 /// @author Matter Labs
@@ -19,11 +19,10 @@ library SessionLib {
     using SessionLib for SessionLib.UsageLimit;
     using LibBytes for bytes;
     using UserOperationLib for PackedUserOperation;
-    using ModeLib for ModeCode;
 
     error ZeroSigner();
     error InvalidSigner(address recovered, address expected);
-    error InvalidCallType(CallType callType, CallType expected);
+    error InvalidCallType(bytes1 callType, bytes1 expected);
     error InvalidTopLevelSelector(bytes4 selector, bytes4 expected);
     error SessionAlreadyExists(bytes32 sessionHash);
     error UnlimitedFees();
@@ -282,9 +281,9 @@ library SessionLib {
         require(state.status[msg.sender] == Status.Active, SessionNotActive());
 
         bytes4 topLevelSelector = bytes4(userOp.callData[:4]);
-        CallType callType = CallType.wrap(userOp.callData[4]);
+        bytes1 callType = userOp.callData[4];
 
-        require(callType == CALLTYPE_SINGLE, InvalidCallType(callType, CALLTYPE_SINGLE));
+        require(callType == LibERC7579.CALLTYPE_SINGLE, InvalidCallType(callType, LibERC7579.CALLTYPE_SINGLE));
         require(
             topLevelSelector == IERC7579Account.execute.selector,
             InvalidTopLevelSelector(topLevelSelector, IERC7579Account.execute.selector)

@@ -9,7 +9,6 @@ import { EOAKeyValidator } from "src/modules/EOAKeyValidator.sol";
 import { SessionKeyValidator } from "src/modules/SessionKeyValidator.sol";
 import { IMSA } from "src/interfaces/IMSA.sol";
 import { ExecutionLib } from "src/libraries/ExecutionLib.sol";
-import { ModeLib } from "src/libraries/ModeLib.sol";
 import { MODULE_TYPE_EXECUTOR } from "src/interfaces/IERC7579Module.sol";
 import { IERC7579Account } from "src/interfaces/IERC7579Account.sol";
 import { GuardianExecutor } from "src/modules/GuardianExecutor.sol";
@@ -45,7 +44,7 @@ contract GuardianTest is MSATest {
 
         bytes memory data = abi.encodeCall(GuardianExecutor.proposeGuardian, (guardian.addr));
         bytes memory call = ExecutionLib.encodeSingle(address(guardiansExecutor), 0, data);
-        bytes memory callData = abi.encodeCall(IERC7579Account.execute, (ModeLib.encodeSimpleSingle(), call));
+        bytes memory callData = abi.encodeCall(IERC7579Account.execute, (simpleSingleMode(), call));
         PackedUserOperation[] memory userOps = new PackedUserOperation[](1);
         userOps[0] = makeSignedUserOp(callData, owner.key, address(eoaValidator));
 
