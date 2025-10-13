@@ -44,7 +44,7 @@ abstract contract ModuleManager {
 
     /// @custom:storage-location erc7201:modulemanager.storage.msa
     struct ModuleManagerStorage {
-        EnumerableSet.AddressSet $valdiators;
+        EnumerableSet.AddressSet $validators;
         EnumerableSet.AddressSet $executors;
         mapping(bytes4 selector => FallbackHandler fallbackHandler) $fallbacks;
     }
@@ -62,7 +62,7 @@ abstract contract ModuleManager {
     }
 
     modifier onlyValidatorModule(address validator) {
-        if (!$moduleManager().$valdiators.contains(validator)) revert InvalidModule(validator);
+        if (!$moduleManager().$validators.contains(validator)) revert InvalidModule(validator);
         _;
     }
 
@@ -71,21 +71,21 @@ abstract contract ModuleManager {
     ////////////////////////////////////////////////////
 
     function _installValidator(address validator, bytes calldata data) internal virtual {
-        require($moduleManager().$valdiators.add(validator), AlreadyInstalled(validator));
+        require($moduleManager().$validators.add(validator), AlreadyInstalled(validator));
         IValidator(validator).onInstall(data);
         emit ValidatorInstalled(validator);
     }
 
     function _uninstallValidator(address validator, bytes calldata data) internal {
-        require($moduleManager().$valdiators.remove(validator), NotInstalled(validator));
-        require($moduleManager().$valdiators.length() > 0, CannotRemoveLastValidator());
+        require($moduleManager().$validators.remove(validator), NotInstalled(validator));
+        require($moduleManager().$validators.length() > 0, CannotRemoveLastValidator());
         IValidator(validator).onUninstall(data);
         emit ValidatorUninstalled(validator);
     }
 
     function _unlinkValidator(address validator, bytes calldata data) internal {
-        require($moduleManager().$valdiators.remove(validator), NotInstalled(validator));
-        require($moduleManager().$valdiators.length() > 0, CannotRemoveLastValidator());
+        require($moduleManager().$validators.remove(validator), NotInstalled(validator));
+        require($moduleManager().$validators.length() > 0, CannotRemoveLastValidator());
         try IValidator(validator).onUninstall(data) {
             emit ValidatorUninstalled(validator);
         } catch (bytes memory err) {
@@ -94,7 +94,7 @@ abstract contract ModuleManager {
     }
 
     function _isValidatorInstalled(address validator) internal view virtual returns (bool) {
-        return $moduleManager().$valdiators.contains(validator);
+        return $moduleManager().$validators.contains(validator);
     }
 
     /////////////////////////////////////////////////////
