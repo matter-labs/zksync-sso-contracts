@@ -65,7 +65,6 @@ contract EOAKeyValidator is IValidator {
     }
 
     function removeOwner(address owner) public {
-        require(isInitialized(msg.sender), NotInitialized(msg.sender));
         require(owners[owner][msg.sender], OwnerDoesNotExist(msg.sender, owner));
         owners[owner][msg.sender] = false;
         emit OwnerRemoved(msg.sender, owner);

@@ -102,7 +102,6 @@ contract WebAuthnValidator is IValidator {
     }
 
     function removeValidationKey(bytes memory credentialId, string memory domain) public {
-        require(isInitialized(msg.sender), NotInitialized(msg.sender));
         address registered = registeredAddress[domain][credentialId];
         require(registered == msg.sender, NotKeyOwner(registered));
 

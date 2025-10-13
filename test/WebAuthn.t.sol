@@ -2,16 +2,21 @@
 pragma solidity ^0.8.24;
 
 import { IERC1271 } from "@openzeppelin/contracts/interfaces/IERC1271.sol";
+import { PackedUserOperation } from "account-abstraction/interfaces/PackedUserOperation.sol";
 import { Base64 } from "solady/utils/Base64.sol";
 
 import { WebAuthnValidator } from "src/modules/WebAuthnValidator.sol";
 import { IMSA } from "src/interfaces/IMSA.sol";
 import { ModularSmartAccount } from "src/ModularSmartAccount.sol";
+import { MODULE_TYPE_VALIDATOR } from "src/interfaces/IERC7579Module.sol";
+import { IERC7579Account } from "src/interfaces/IERC7579Account.sol";
 
 import { MSATest } from "./MSATest.sol";
 
 contract WebAuthnValidatorTest is MSATest {
     WebAuthnValidator internal validator;
+
+    string internal constant ORIGIN_DOMAIN = "http://localhost:3005";
 
     /// See: https://gist.github.com/Vectorized/599b0d8a94d21bc74700eb1354e2f55c
     bytes internal constant VERIFIER_BYTECODE =
@@ -38,7 +43,7 @@ contract WebAuthnValidatorTest is MSATest {
             abi.encodePacked(
                 '{"type":"webauthn.get","challenge":"',
                 Base64.encode(challenge, true, true),
-                '","origin":"http://localhost:3005"}'
+                '","origin":"', ORIGIN_DOMAIN, '"}'
             )
         );
         uint256 r = 0x60946081650523acad13c8eff94996a409b1ed60e923c90f9e366aad619adffa;
@@ -58,13 +63,47 @@ contract WebAuthnValidatorTest is MSATest {
             bytes32(0x57095a365acc2590ade3583fabfe8fbd64a9ed3ec07520da00636fb21f0176c1)
         ];
 
-        address[] memory modules = new address[](1);
+        address[] memory modules = new address[](2);
         modules[0] = address(validator);
+        modules[1] = address(eoaValidator);
 
-        bytes[] memory initData = new bytes[](1);
-        initData[0] = abi.encode(CREDENTIAL_ID, publicKey, "http://localhost:3005");
+        address[] memory owners = new address[](1);
+        owners[0] = owner.addr;
+
+        bytes[] memory initData = new bytes[](2);
+        initData[0] = abi.encode(CREDENTIAL_ID, publicKey, ORIGIN_DOMAIN);
+        initData[1] = abi.encode(owners);
 
         bytes memory data = abi.encodeCall(IMSA.initializeAccount, (modules, initData));
         account = ModularSmartAccount(payable(factory.deployAccount(keccak256("my-other-account-id"), data)));
+        vm.deal(address(account), 1 ether);
+
+        vm.assertTrue(validator.isInitialized(address(account)), "Validator not initialized");
+        vm.assertTrue(validator.isModuleType(MODULE_TYPE_VALIDATOR), "Wrong module type");
+
+        bytes32[2] memory accountKey = validator.getAccountKey(ORIGIN_DOMAIN, CREDENTIAL_ID, address(account));
+        vm.assertEq(accountKey[0], publicKey[0], "Public key X mismatch");
+        vm.assertEq(accountKey[1], publicKey[1], "Public key Y mismatch");
+    }
+
+    function test_uninstallValidator() public {
+        test_deployAccountWithPasskey();
+
+        WebAuthnValidator.PasskeyId[] memory passkeys = new WebAuthnValidator.PasskeyId[](1);
+        passkeys[0] = WebAuthnValidator.PasskeyId({ credentialId: CREDENTIAL_ID, domain: ORIGIN_DOMAIN });
+
+        bytes memory data =
+            abi.encodeCall(ModularSmartAccount.uninstallModule, (MODULE_TYPE_VALIDATOR, address(validator), abi.encode(passkeys)));
+        PackedUserOperation[] memory userOps = new PackedUserOperation[](1);
+        userOps[0] = makeSignedUserOp(data, owner.key, address(eoaValidator));
+        vm.expectEmit(true, true, true, true);
+        emit IERC7579Account.ModuleUninstalled(MODULE_TYPE_VALIDATOR, address(validator));
+        entryPoint.handleOps(userOps, bundler);
+
+        vm.assertTrue(!validator.isInitialized(address(account)), "Validator not uninitialized");
+
+        bytes32[2] memory accountKey = validator.getAccountKey(ORIGIN_DOMAIN, CREDENTIAL_ID, address(account));
+        vm.assertEq(accountKey[0], 0, "Public key X not cleared");
+        vm.assertEq(accountKey[1], 0, "Public key Y not cleared");
     }
 }

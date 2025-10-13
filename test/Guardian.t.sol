@@ -36,6 +36,21 @@ contract GuardianTest is MSATest {
         vm.expectEmit(true, true, true, true);
         emit IERC7579Account.ModuleInstalled(MODULE_TYPE_EXECUTOR, address(guardiansExecutor));
         entryPoint.handleOps(userOps, bundler);
+
+        vm.assertTrue(guardiansExecutor.isInitialized(address(account)), "Executor not initialized");
+        vm.assertTrue(guardiansExecutor.isModuleType(MODULE_TYPE_EXECUTOR), "Wrong module type");
+    }
+
+    function test_uninstallExecutor() public {
+        test_installExecutor();
+        bytes memory data =
+            abi.encodeCall(ModularSmartAccount.uninstallModule, (MODULE_TYPE_EXECUTOR, address(guardiansExecutor), ""));
+        PackedUserOperation[] memory userOps = new PackedUserOperation[](1);
+        userOps[0] = makeSignedUserOp(data, owner.key, address(eoaValidator));
+        vm.expectEmit(true, true, true, true);
+        emit IERC7579Account.ModuleUninstalled(MODULE_TYPE_EXECUTOR, address(guardiansExecutor));
+        entryPoint.handleOps(userOps, bundler);
+        vm.assertTrue(!guardiansExecutor.isInitialized(address(account)), "Executor not uninitialized");
     }
 
     function test_proposeGuardian() public {

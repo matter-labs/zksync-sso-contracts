@@ -81,7 +81,6 @@ contract GuardianExecutor is IExecutor {
 
     /// @notice Removes all past guardians when this module is disabled in a account
     function onUninstall(bytes calldata) external virtual {
-        require(isInitialized(msg.sender), NotInitialized(msg.sender));
         accountGuardians[msg.sender].clear();
         discardRecovery();
     }
