@@ -11,17 +11,64 @@ import { IERC7579Account } from "src/interfaces/IERC7579Account.sol";
 import { MODULE_TYPE_FALLBACK } from "src/interfaces/IERC7579Module.sol";
 import { ModularSmartAccount } from "src/ModularSmartAccount.sol";
 import { ModuleManager } from "src/core/ModuleManager.sol";
+import { IERC7484 } from "src/interfaces/IERC7484.sol";
+import { RegistryAdapter } from "src/core/RegistryAdapter.sol";
 
 import { MockFallback } from "./mocks/MockFallback.sol";
+import { MockRegistry } from "./mocks/MockRegistry.sol";
 import { MSATest } from "./MSATest.sol";
 
 contract FallbackTest is MSATest {
     MockFallback public mockFallback;
+    MockRegistry public mockRegistry;
+
+    address public attester = makeAddr("attester");
 
     function setUp() public override {
         super.setUp();
 
         mockFallback = new MockFallback();
+        mockRegistry = new MockRegistry();
+    }
+
+    function test_setRegistry() public {
+        address[] memory attesters = new address[](1);
+        attesters[0] = attester;
+
+        bytes memory data = abi.encodeCall(RegistryAdapter.setRegistry, (IERC7484(mockRegistry), attesters, 1));
+
+        PackedUserOperation[] memory userOps = new PackedUserOperation[](1);
+        userOps[0] = makeSignedUserOp(data, owner.key, address(eoaValidator));
+
+        vm.expectEmit(true, true, true, true);
+        emit RegistryAdapter.ERC7484RegistryConfigured(address(mockRegistry));
+        entryPoint.handleOps(userOps, bundler);
+
+        vm.assertEq(mockRegistry._threshold(address(account)), 1, "Registry not set correctly");
+    }
+
+    function testRevert_installNonAttestedModule() public {
+        test_setRegistry();
+
+        bytes memory initData = abi.encodePacked(MockFallback.fallbackMethod.selector, LibERC7579.CALLTYPE_SINGLE);
+        bytes memory data =
+            abi.encodeCall(IERC7579Account.installModule, (MODULE_TYPE_FALLBACK, address(mockFallback), initData));
+        PackedUserOperation[] memory userOps = new PackedUserOperation[](1);
+        userOps[0] = makeSignedUserOp(data, owner.key, address(eoaValidator));
+
+        vm.expectEmit(true, true, true, true);
+        bytes memory reason = abi.encodeWithSignature("Error(string)", "Threshold not met");
+        emit IEntryPoint.UserOperationRevertReason(entryPoint.getUserOpHash(userOps[0]), address(account), 1, reason);
+        entryPoint.handleOps(userOps, bundler);
+    }
+
+    function test_installAttestedModule() public {
+        test_setRegistry();
+
+        vm.prank(attester);
+        mockRegistry.attest(address(mockFallback), MODULE_TYPE_FALLBACK, 1 days);
+
+        test_installFallback();
     }
 
     function test_installFallback() public {

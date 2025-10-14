@@ -8,7 +8,7 @@ import { AccountBase } from "./AccountBase.sol";
 /// @author kopy-kat | rhinestone.wtf
 /// @dev This contract uses ERC-7484 to check if a module is attested to and exposes a modifier to use it.
 abstract contract RegistryAdapter is AccountBase {
-    event ERC7484RegistryConfigured(address indexed smartAccount, address indexed registry);
+    event ERC7484RegistryConfigured(address indexed registry);
 
     IERC7484 internal $registry;
 
@@ -28,5 +28,6 @@ abstract contract RegistryAdapter is AccountBase {
         if (attesters.length > 0) {
             registry.trustAttesters(threshold, attesters);
         }
+        emit ERC7484RegistryConfigured(address(registry));
     }
 }
