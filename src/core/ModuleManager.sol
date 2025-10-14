@@ -18,11 +18,7 @@ abstract contract ModuleManager {
     error AlreadyInstalled(address module);
     error NotInstalled(address module);
 
-    event ValidatorUnlinked(address indexed validator, bytes error);
-    event ExecutorUnlinked(address indexed executor, bytes error);
-    event FallbackHandlerUnlinked(
-        address indexed handler, bytes4 indexed selector, bytes data
-    );
+    event ModuleUnlinked(uint256 indexed moduleTypeId, address indexed module, bytes error);
 
     // forgefmt: disable-next-line
     // keccak256(abi.encode(uint256(keccak256("modulemanager.storage.msa")) - 1)) & ~bytes32(uint256(0xff));
@@ -58,6 +54,17 @@ abstract contract ModuleManager {
         _;
     }
 
+    function _onUninstallFail(bytes memory reason, bool force, uint256 moduleTypeId, address module) internal {
+        if (!force) {
+            assembly {
+                // forward revert data
+                revert(add(reason, 32), mload(reason))
+            }
+        } else {
+            emit ModuleUnlinked(moduleTypeId, module, reason);
+        }
+    }
+
     /////////////////////////////////////////////////////
     //  Manage Validators
     ////////////////////////////////////////////////////
@@ -67,18 +74,12 @@ abstract contract ModuleManager {
         IValidator(validator).onInstall(data);
     }
 
-    function _uninstallValidator(address validator, bytes calldata data) internal {
-        require($moduleManager().$validators.remove(validator), NotInstalled(validator));
-        require($moduleManager().$validators.length() > 0, CannotRemoveLastValidator());
-        IValidator(validator).onUninstall(data);
-    }
-
-    function _unlinkValidator(address validator, bytes calldata data) internal {
+    function _uninstallValidator(address validator, bytes calldata data, bool force) internal {
         require($moduleManager().$validators.remove(validator), NotInstalled(validator));
         require($moduleManager().$validators.length() > 0, CannotRemoveLastValidator());
         try IValidator(validator).onUninstall(data) { }
-        catch (bytes memory err) {
-            emit ValidatorUnlinked(validator, err);
+        catch (bytes memory reason) {
+            _onUninstallFail(reason, force, MODULE_TYPE_VALIDATOR, validator);
         }
     }
 
@@ -95,16 +96,11 @@ abstract contract ModuleManager {
         IExecutor(executor).onInstall(data);
     }
 
-    function _uninstallExecutor(address executor, bytes calldata data) internal {
-        require($moduleManager().$executors.remove(executor), NotInstalled(executor));
-        IExecutor(executor).onUninstall(data);
-    }
-
-    function _unlinkExecutor(address executor, bytes calldata data) internal {
+    function _uninstallExecutor(address executor, bytes calldata data, bool force) internal {
         require($moduleManager().$executors.remove(executor), NotInstalled(executor));
         try IExecutor(executor).onUninstall(data) { }
-        catch (bytes memory err) {
-            emit ExecutorUnlinked(executor, err);
+        catch (bytes memory reason) {
+            _onUninstallFail(reason, force, MODULE_TYPE_EXECUTOR, executor);
         }
     }
 
@@ -125,17 +121,7 @@ abstract contract ModuleManager {
         IFallback(handler).onInstall(initData);
     }
 
-    function _uninstallFallbackHandler(address handler, bytes calldata deInitData) internal virtual {
-        bytes4 selector = bytes4(deInitData[0:4]);
-        bytes calldata _deInitData = deInitData[4:];
-        require(_isFallbackHandlerInstalled(selector), NoFallbackHandler(selector));
-        FallbackHandler memory activeFallback = $moduleManager().$fallbacks[selector];
-        require(activeFallback.handler == handler, NotInstalled(handler));
-        $moduleManager().$fallbacks[selector] = FallbackHandler(address(0), 0);
-        IFallback(handler).onUninstall(_deInitData);
-    }
-
-    function _unlinkFallbackHandler(address handler, bytes calldata deInitData) internal virtual {
+    function _uninstallFallbackHandler(address handler, bytes calldata deInitData, bool force) internal virtual {
         bytes4 selector = bytes4(deInitData[0:4]);
         bytes calldata _deInitData = deInitData[4:];
         require(_isFallbackHandlerInstalled(selector), NoFallbackHandler(selector));
@@ -143,8 +129,8 @@ abstract contract ModuleManager {
         require(activeFallback.handler == handler, NotInstalled(handler));
         $moduleManager().$fallbacks[selector] = FallbackHandler(address(0), 0);
         try IFallback(handler).onUninstall(_deInitData) { }
-        catch (bytes memory err) {
-            emit FallbackHandlerUnlinked(handler, selector, err);
+        catch (bytes memory reason) {
+            _onUninstallFail(reason, force, MODULE_TYPE_FALLBACK, handler);
         }
     }
 

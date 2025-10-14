@@ -103,8 +103,9 @@ contract FallbackTest is MSATest {
         PackedUserOperation[] memory userOps = new PackedUserOperation[](1);
         userOps[0] = makeSignedUserOp(data, owner.key, address(eoaValidator));
 
-        vm.expectEmit(true, true, true, false);
-        emit ModuleManager.FallbackHandlerUnlinked(address(mockFallback), MockFallback.fallbackMethod.selector, bytes(""));
+        vm.expectEmit(true, true, true, true);
+        bytes memory reason = abi.encodeWithSignature("Error(string)", "MockFallback: uninstall failed");
+        emit ModuleManager.ModuleUnlinked(MODULE_TYPE_FALLBACK, address(mockFallback), reason);
         entryPoint.handleOps(userOps, bundler);
 
         vm.assertTrue(!mockFallback.isInitialized(address(account)), "Fallback not uninitialized");
