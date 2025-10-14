@@ -105,6 +105,23 @@ contract ModularSmartAccount is IMSA, ExecutionHelper, ERC1271Handler, RegistryA
         emit ModuleUninstalled(moduleTypeId, module);
     }
 
+    function unlinkModule(uint256 moduleTypeId, address module, bytes calldata deInitData)
+        external
+        payable
+        onlyEntryPointOrSelf
+    {
+        if (moduleTypeId == MODULE_TYPE_VALIDATOR) {
+            _unlinkValidator(module, deInitData);
+        } else if (moduleTypeId == MODULE_TYPE_EXECUTOR) {
+            _unlinkExecutor(module, deInitData);
+        } else if (moduleTypeId == MODULE_TYPE_FALLBACK) {
+            _unlinkFallbackHandler(module, deInitData);
+        } else {
+            revert UnsupportedModuleType(moduleTypeId);
+        }
+        emit ModuleUninstalled(moduleTypeId, module);
+    }
+
     /// @dev ERC-4337 validateUserOp according to ERC-4337 v0.7
     ///         This function is intended to be called by ERC-4337 EntryPoint.sol
     /// this validation function should decode / sload the validator module to validate the userOp

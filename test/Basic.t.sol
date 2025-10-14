@@ -111,8 +111,7 @@ contract BasicTest is MSATest {
         userOps[0] = makeSignedUserOp(callData, owner.key, address(eoaValidator));
 
         vm.expectEmit(true, true, true, true);
-        bytes4 selector = bytes4(keccak256("Error(string)"));
-        emit ExecutionHelper.TryExecuteUnsuccessful(1, abi.encodeWithSelector(selector, "MockTarget: reverted"));
+        emit ExecutionHelper.TryExecuteUnsuccessful(1, abi.encodeWithSignature("Error(string)", "MockTarget: reverted"));
         entryPoint.handleOps(userOps, bundler);
 
         vm.assertEq(target.value(), 1337, "State not changed via batch call");

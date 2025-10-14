@@ -10,7 +10,11 @@ contract MockFallback is IFallback {
 
     function onInstall(bytes calldata) external { }
 
-    function onUninstall(bytes calldata) external { }
+    function onUninstall(bytes calldata data) external pure {
+        if (data.length > 0) {
+            revert("MockFallback: uninstall failed");
+        }
+    }
 
     function isModuleType(uint256 moduleTypeId) external pure returns (bool) {
         return moduleTypeId == MODULE_TYPE_FALLBACK;
