@@ -37,8 +37,7 @@ contract FallbackTest is MSATest {
 
         bytes memory data = abi.encodeCall(RegistryAdapter.setRegistry, (IERC7484(mockRegistry), attesters, 1));
 
-        PackedUserOperation[] memory userOps = new PackedUserOperation[](1);
-        userOps[0] = makeSignedUserOp(data, owner.key, address(eoaValidator));
+        PackedUserOperation[] memory userOps = makeSignedUserOp(data, owner.key, address(eoaValidator));
 
         vm.expectEmit(true, true, true, true);
         emit RegistryAdapter.ERC7484RegistryConfigured(address(mockRegistry));
@@ -53,8 +52,7 @@ contract FallbackTest is MSATest {
         bytes memory initData = abi.encodePacked(MockFallback.fallbackMethod.selector, LibERC7579.CALLTYPE_SINGLE);
         bytes memory data =
             abi.encodeCall(IERC7579Account.installModule, (MODULE_TYPE_FALLBACK, address(mockFallback), initData));
-        PackedUserOperation[] memory userOps = new PackedUserOperation[](1);
-        userOps[0] = makeSignedUserOp(data, owner.key, address(eoaValidator));
+        PackedUserOperation[] memory userOps = makeSignedUserOp(data, owner.key, address(eoaValidator));
 
         vm.expectEmit(true, true, true, true);
         bytes memory reason = abi.encodeWithSignature("Error(string)", "Threshold not met");
@@ -75,8 +73,7 @@ contract FallbackTest is MSATest {
         bytes memory initData = abi.encodePacked(MockFallback.fallbackMethod.selector, LibERC7579.CALLTYPE_SINGLE);
         bytes memory data =
             abi.encodeCall(IERC7579Account.installModule, (MODULE_TYPE_FALLBACK, address(mockFallback), initData));
-        PackedUserOperation[] memory userOps = new PackedUserOperation[](1);
-        userOps[0] = makeSignedUserOp(data, owner.key, address(eoaValidator));
+        PackedUserOperation[] memory userOps = makeSignedUserOp(data, owner.key, address(eoaValidator));
 
         vm.expectEmit(true, true, true, true);
         emit IERC7579Account.ModuleInstalled(MODULE_TYPE_FALLBACK, address(mockFallback));
@@ -103,8 +100,7 @@ contract FallbackTest is MSATest {
         bytes memory initData = abi.encodePacked(MockFallback.fallbackMethod.selector);
         bytes memory data =
             abi.encodeCall(IERC7579Account.uninstallModule, (MODULE_TYPE_FALLBACK, address(mockFallback), initData));
-        PackedUserOperation[] memory userOps = new PackedUserOperation[](1);
-        userOps[0] = makeSignedUserOp(data, owner.key, address(eoaValidator));
+        PackedUserOperation[] memory userOps = makeSignedUserOp(data, owner.key, address(eoaValidator));
 
         vm.expectEmit(true, true, true, true);
         emit IERC7579Account.ModuleUninstalled(MODULE_TYPE_FALLBACK, address(mockFallback));
@@ -124,8 +120,7 @@ contract FallbackTest is MSATest {
         bytes memory deinitData = abi.encodePacked(MockFallback.fallbackMethod.selector, "some data");
         bytes memory data =
             abi.encodeCall(IERC7579Account.uninstallModule, (MODULE_TYPE_FALLBACK, address(mockFallback), deinitData));
-        PackedUserOperation[] memory userOps = new PackedUserOperation[](1);
-        userOps[0] = makeSignedUserOp(data, owner.key, address(eoaValidator));
+        PackedUserOperation[] memory userOps = makeSignedUserOp(data, owner.key, address(eoaValidator));
 
         vm.expectEmit(true, true, true, true);
         bytes memory reason = abi.encodeWithSignature("Error(string)", "MockFallback: uninstall failed");
@@ -147,8 +142,7 @@ contract FallbackTest is MSATest {
         bytes memory initData = abi.encodePacked(MockFallback.fallbackMethod.selector, "some data");
         bytes memory data =
             abi.encodeCall(ModularSmartAccount.unlinkModule, (MODULE_TYPE_FALLBACK, address(mockFallback), initData));
-        PackedUserOperation[] memory userOps = new PackedUserOperation[](1);
-        userOps[0] = makeSignedUserOp(data, owner.key, address(eoaValidator));
+        PackedUserOperation[] memory userOps = makeSignedUserOp(data, owner.key, address(eoaValidator));
 
         vm.expectEmit(true, true, true, true);
         bytes memory reason = abi.encodeWithSignature("Error(string)", "MockFallback: uninstall failed");

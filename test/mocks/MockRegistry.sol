@@ -44,7 +44,10 @@ contract MockRegistry is IERC7484 {
         _checkN(module, 0, false, attesters, threshold);
     }
 
-    function checkN(address module, uint256 moduleType, address[] calldata attesters, uint256 threshold) external view {
+    function checkN(address module, uint256 moduleType, address[] calldata attesters, uint256 threshold)
+        external
+        view
+    {
         _checkN(module, moduleType, true, attesters, threshold);
     }
 
@@ -56,23 +59,31 @@ contract MockRegistry is IERC7484 {
     }
 
     function attest(address module, uint256 moduleType, uint48 validFor) external {
-        _attestations[msg.sender][module] = Attestation({
-            moduleType: moduleType,
-            validUntil: uint48(block.timestamp) + validFor
-        });
+        _attestations[msg.sender][module] =
+            Attestation({ moduleType: moduleType, validUntil: uint48(block.timestamp) + validFor });
     }
 
     function revokeAttestation(address module) external {
         delete _attestations[msg.sender][module];
     }
 
-    function _check(address module, address attester, bool checkModuleType, uint256 moduleType) internal view returns (bool) {
+    function _check(address module, address attester, bool checkModuleType, uint256 moduleType)
+        internal
+        view
+        returns (bool)
+    {
         Attestation memory attestation = _attestations[attester][module];
         // if not attested, timestamp will be 0 and the first check will fail
         return attestation.validUntil > block.timestamp && (!checkModuleType || attestation.moduleType == moduleType);
     }
 
-    function _checkN(address module, uint256 moduleType, bool checkModuleType, address[] memory attesters, uint256 threshold) internal view {
+    function _checkN(
+        address module,
+        uint256 moduleType,
+        bool checkModuleType,
+        address[] memory attesters,
+        uint256 threshold
+    ) internal view {
         require(threshold > 0, "Threshold must be > 0");
         uint256 attested = 0;
         for (uint256 i; i < attesters.length; i++) {

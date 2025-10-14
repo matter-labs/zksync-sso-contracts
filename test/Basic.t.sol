@@ -34,20 +34,16 @@ contract BasicTest is MSATest {
 
     function test_transfer() public {
         address recipient = makeAddr("recipient");
-        bytes memory execution = encodeSingle(recipient, 1 ether, "");
-        bytes memory callData = abi.encodeCall(IERC7579Account.execute, (simpleSingleMode(), execution));
-        PackedUserOperation[] memory userOps = new PackedUserOperation[](1);
-        userOps[0] = makeSignedUserOp(callData, owner.key, address(eoaValidator));
+        bytes memory call = encodeCall(recipient, 1 ether, "");
+        PackedUserOperation[] memory userOps = makeSignedUserOp(call, owner.key, address(eoaValidator));
 
         entryPoint.handleOps(userOps, bundler);
         vm.assertEq(recipient.balance, 1 ether, "Value not transferred via simple call");
     }
 
     function test_execSingle() public {
-        bytes memory execution = encodeSingle(address(target), 0, abi.encodeCall(MockTarget.setValue, 1337));
-        bytes memory callData = abi.encodeCall(IERC7579Account.execute, (simpleSingleMode(), execution));
-        PackedUserOperation[] memory userOps = new PackedUserOperation[](1);
-        userOps[0] = makeSignedUserOp(callData, owner.key, address(eoaValidator));
+        bytes memory call = encodeCall(address(target), 0, abi.encodeCall(MockTarget.setValue, 1337));
+        PackedUserOperation[] memory userOps = makeSignedUserOp(call, owner.key, address(eoaValidator));
 
         entryPoint.handleOps(userOps, bundler);
         vm.assertEq(target.value(), 1337, "State not changed via simple call");
@@ -63,12 +59,10 @@ contract BasicTest is MSATest {
         executions[1] = Execution({ target: target2, value: target2Amount, callData: "" });
 
         bytes memory callData = abi.encodeCall(
-            IERC7579Account.execute,
-            (LibERC7579.encodeMode(LibERC7579.CALLTYPE_BATCH, 0, 0, 0), encodeBatch(executions))
+            IERC7579Account.execute, (LibERC7579.encodeMode(LibERC7579.CALLTYPE_BATCH, 0, 0, 0), abi.encode(executions))
         );
 
-        PackedUserOperation[] memory userOps = new PackedUserOperation[](1);
-        userOps[0] = makeSignedUserOp(callData, owner.key, address(eoaValidator));
+        PackedUserOperation[] memory userOps = makeSignedUserOp(callData, owner.key, address(eoaValidator));
 
         entryPoint.handleOps(userOps, bundler);
         vm.assertEq(target.value(), 1337, "State not changed via batch call");
@@ -88,8 +82,7 @@ contract BasicTest is MSATest {
             )
         );
 
-        PackedUserOperation[] memory userOps = new PackedUserOperation[](1);
-        userOps[0] = makeSignedUserOp(callData, owner.key, address(eoaValidator));
+        PackedUserOperation[] memory userOps = makeSignedUserOp(callData, owner.key, address(eoaValidator));
 
         entryPoint.handleOps(userOps, bundler);
         vm.assertEq(valueTarget.balance, value, "Value not transferred via delegatecall");
@@ -104,11 +97,10 @@ contract BasicTest is MSATest {
 
         bytes memory callData = abi.encodeCall(
             IERC7579Account.execute,
-            (LibERC7579.encodeMode(LibERC7579.CALLTYPE_BATCH, LibERC7579.EXECTYPE_TRY, 0, 0), encodeBatch(executions))
+            (LibERC7579.encodeMode(LibERC7579.CALLTYPE_BATCH, LibERC7579.EXECTYPE_TRY, 0, 0), abi.encode(executions))
         );
 
-        PackedUserOperation[] memory userOps = new PackedUserOperation[](1);
-        userOps[0] = makeSignedUserOp(callData, owner.key, address(eoaValidator));
+        PackedUserOperation[] memory userOps = makeSignedUserOp(callData, owner.key, address(eoaValidator));
 
         vm.expectEmit(true, true, true, true);
         emit ExecutionHelper.TryExecuteUnsuccessful(1, abi.encodeWithSignature("Error(string)", "MockTarget: reverted"));
@@ -127,8 +119,7 @@ contract BasicTest is MSATest {
                 abi.encodePacked(address(delegateTarget), sendValue)
             )
         );
-        PackedUserOperation[] memory userOps = new PackedUserOperation[](1);
-        userOps[0] = makeSignedUserOp(callData, owner.key, address(eoaValidator));
+        PackedUserOperation[] memory userOps = makeSignedUserOp(callData, owner.key, address(eoaValidator));
 
         vm.expectEmit(true, false, false, false);
         emit ExecutionHelper.TryExecuteUnsuccessful(0, "");
@@ -263,9 +254,8 @@ contract BasicTest is MSATest {
     function test_paymaster() public {
         vm.deal(address(account), 0);
 
-        PackedUserOperation[] memory userOps = new PackedUserOperation[](1);
-        bytes memory callData = encodeSingle(address(target), 0, abi.encodeCall(MockTarget.setValue, 1337));
-        userOps[0] = makeUserOp(abi.encodeCall(IERC7579Account.execute, (simpleSingleMode(), callData)));
+        bytes memory call = encodeCall(address(target), 0, abi.encodeCall(MockTarget.setValue, 1337));
+        PackedUserOperation[] memory userOps = makeUserOp(call);
         userOps[0].paymasterAndData = abi.encodePacked(address(paymaster), uint128(2e6), uint128(2e6));
         signUserOp(userOps[0], owner.key, address(eoaValidator));
 

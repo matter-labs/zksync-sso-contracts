@@ -36,8 +36,7 @@ contract SessionsTest is MSATest {
     function test_installValidator() public {
         bytes memory data =
             abi.encodeCall(ModularSmartAccount.installModule, (MODULE_TYPE_VALIDATOR, address(sessionKeyValidator), ""));
-        PackedUserOperation[] memory userOps = new PackedUserOperation[](1);
-        userOps[0] = makeSignedUserOp(data, owner.key, address(eoaValidator));
+        PackedUserOperation[] memory userOps = makeSignedUserOp(data, owner.key, address(eoaValidator));
 
         vm.expectEmit(true, true, true, true);
         emit IERC7579Account.ModuleInstalled(MODULE_TYPE_VALIDATOR, address(sessionKeyValidator));
@@ -63,11 +62,9 @@ contract SessionsTest is MSATest {
         });
 
         bytes memory call =
-            encodeSingle(address(sessionKeyValidator), 0, abi.encodeCall(SessionKeyValidator.createSession, (spec)));
-        bytes memory callData = abi.encodeCall(IERC7579Account.execute, (simpleSingleMode(), call));
+            encodeCall(address(sessionKeyValidator), 0, abi.encodeCall(SessionKeyValidator.createSession, (spec)));
 
-        PackedUserOperation[] memory userOps = new PackedUserOperation[](1);
-        userOps[0] = makeSignedUserOp(callData, owner.key, address(eoaValidator));
+        PackedUserOperation[] memory userOps = makeSignedUserOp(call, owner.key, address(eoaValidator));
 
         bytes32 sessionHash = keccak256(abi.encode(spec));
         vm.expectEmit(true, true, true, true);
@@ -81,11 +78,8 @@ contract SessionsTest is MSATest {
     function test_useSession() public {
         test_createSession();
 
-        bytes memory call = encodeSingle(recipient, 0.05 ether, "");
-        bytes memory callData = abi.encodeCall(IERC7579Account.execute, (simpleSingleMode(), call));
-
-        PackedUserOperation[] memory userOps = new PackedUserOperation[](1);
-        userOps[0] = makeUserOp(callData);
+        bytes memory call = encodeCall(recipient, 0.05 ether, "");
+        PackedUserOperation[] memory userOps = makeUserOp(call);
         userOps[0].nonce = uint256(uint160(sessionOwner.addr)) << 64;
         _signSessionUserOp(userOps[0]);
 
@@ -96,11 +90,8 @@ contract SessionsTest is MSATest {
     function testRevert_useSession() public {
         test_createSession();
 
-        bytes memory call = encodeSingle(recipient, 0.11 ether, ""); // more than maxValuePerUse
-        bytes memory callData = abi.encodeCall(IERC7579Account.execute, (simpleSingleMode(), call));
-
-        PackedUserOperation[] memory userOps = new PackedUserOperation[](1);
-        userOps[0] = makeUserOp(callData);
+        bytes memory call = encodeCall(recipient, 0.11 ether, ""); // more than maxValuePerUse
+        PackedUserOperation[] memory userOps = makeUserOp(call);
         userOps[0].nonce = uint256(uint160(sessionOwner.addr)) << 64;
         _signSessionUserOp(userOps[0]);
 
@@ -116,11 +107,9 @@ contract SessionsTest is MSATest {
         SessionLib.Status statusBefore = sessionKeyValidator.sessionStatus(address(account), sessionHash);
         vm.assertEq(uint256(statusBefore), uint256(SessionLib.Status.Active), "Session inactive before close");
 
-        bytes memory data =
-            encodeSingle(address(sessionKeyValidator), 0, abi.encodeCall(SessionKeyValidator.revokeKey, (sessionHash)));
-        bytes memory callData = abi.encodeCall(IERC7579Account.execute, (simpleSingleMode(), data));
-        PackedUserOperation[] memory userOps = new PackedUserOperation[](1);
-        userOps[0] = makeSignedUserOp(callData, owner.key, address(eoaValidator));
+        bytes memory call =
+            encodeCall(address(sessionKeyValidator), 0, abi.encodeCall(SessionKeyValidator.revokeKey, (sessionHash)));
+        PackedUserOperation[] memory userOps = makeSignedUserOp(call, owner.key, address(eoaValidator));
 
         vm.expectEmit(true, true, true, true);
         emit SessionKeyValidator.SessionRevoked(address(account), sessionHash);
@@ -146,8 +135,7 @@ contract SessionsTest is MSATest {
             (MODULE_TYPE_VALIDATOR, address(sessionKeyValidator), abi.encode(sessionHashes))
         );
 
-        PackedUserOperation[] memory userOps = new PackedUserOperation[](1);
-        userOps[0] = makeSignedUserOp(data, owner.key, address(eoaValidator));
+        PackedUserOperation[] memory userOps = makeSignedUserOp(data, owner.key, address(eoaValidator));
 
         entryPoint.handleOps(userOps, bundler);
 
@@ -232,12 +220,8 @@ contract SessionsTest is MSATest {
         bytes32 sessionHash = keccak256(abi.encode(spec));
 
         bytes memory createSessionCall =
-            encodeSingle(address(sessionKeyValidator), 0, abi.encodeCall(SessionKeyValidator.createSession, (spec)));
-        bytes memory createSessionCallData =
-            abi.encodeCall(IERC7579Account.execute, (simpleSingleMode(), createSessionCall));
-
-        PackedUserOperation[] memory userOps = new PackedUserOperation[](1);
-        userOps[0] = makeSignedUserOp(createSessionCallData, owner.key, address(eoaValidator));
+            encodeCall(address(sessionKeyValidator), 0, abi.encodeCall(SessionKeyValidator.createSession, (spec)));
+        PackedUserOperation[] memory userOps = makeSignedUserOp(createSessionCall, owner.key, address(eoaValidator));
 
         vm.expectEmit(true, true, true, true);
         emit SessionKeyValidator.SessionCreated(address(account), sessionHash, spec);
@@ -272,11 +256,9 @@ contract SessionsTest is MSATest {
     }
 
     function _sendSessionTransfer(address to, uint256 amount, bool expectRevert) internal {
-        bytes memory transferCall = encodeSingle(address(erc20), 0, abi.encodeCall(IERC20.transfer, (to, amount)));
-        bytes memory transferCallData = abi.encodeCall(IERC7579Account.execute, (simpleSingleMode(), transferCall));
+        bytes memory transferCall = encodeCall(address(erc20), 0, abi.encodeCall(IERC20.transfer, (to, amount)));
 
-        PackedUserOperation[] memory sessionOps = new PackedUserOperation[](1);
-        sessionOps[0] = makeUserOp(transferCallData);
+        PackedUserOperation[] memory sessionOps = makeUserOp(transferCall);
         sessionOps[0].nonce = entryPoint.getNonce(address(account), uint192(uint160(sessionOwner.addr)));
         _signSessionUserOp(sessionOps[0]);
 

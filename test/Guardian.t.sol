@@ -30,8 +30,7 @@ contract GuardianTest is MSATest {
     function test_installExecutor() public {
         bytes memory data =
             abi.encodeCall(ModularSmartAccount.installModule, (MODULE_TYPE_EXECUTOR, address(guardiansExecutor), ""));
-        PackedUserOperation[] memory userOps = new PackedUserOperation[](1);
-        userOps[0] = makeSignedUserOp(data, owner.key, address(eoaValidator));
+        PackedUserOperation[] memory userOps = makeSignedUserOp(data, owner.key, address(eoaValidator));
 
         vm.expectEmit(true, true, true, true);
         emit IERC7579Account.ModuleInstalled(MODULE_TYPE_EXECUTOR, address(guardiansExecutor));
@@ -45,8 +44,7 @@ contract GuardianTest is MSATest {
         test_installExecutor();
         bytes memory data =
             abi.encodeCall(ModularSmartAccount.uninstallModule, (MODULE_TYPE_EXECUTOR, address(guardiansExecutor), ""));
-        PackedUserOperation[] memory userOps = new PackedUserOperation[](1);
-        userOps[0] = makeSignedUserOp(data, owner.key, address(eoaValidator));
+        PackedUserOperation[] memory userOps = makeSignedUserOp(data, owner.key, address(eoaValidator));
         vm.expectEmit(true, true, true, true);
         emit IERC7579Account.ModuleUninstalled(MODULE_TYPE_EXECUTOR, address(guardiansExecutor));
         entryPoint.handleOps(userOps, bundler);
@@ -57,10 +55,8 @@ contract GuardianTest is MSATest {
         test_installExecutor();
 
         bytes memory data = abi.encodeCall(GuardianExecutor.proposeGuardian, (guardian.addr));
-        bytes memory call = encodeSingle(address(guardiansExecutor), 0, data);
-        bytes memory callData = abi.encodeCall(IERC7579Account.execute, (simpleSingleMode(), call));
-        PackedUserOperation[] memory userOps = new PackedUserOperation[](1);
-        userOps[0] = makeSignedUserOp(callData, owner.key, address(eoaValidator));
+        bytes memory call = encodeCall(address(guardiansExecutor), 0, data);
+        PackedUserOperation[] memory userOps = makeSignedUserOp(call, owner.key, address(eoaValidator));
 
         vm.expectEmit(true, true, true, true);
         emit GuardianExecutor.GuardianProposed(address(account), guardian.addr);
