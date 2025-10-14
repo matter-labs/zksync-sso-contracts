@@ -43,7 +43,9 @@ contract WebAuthnValidatorTest is MSATest {
             abi.encodePacked(
                 '{"type":"webauthn.get","challenge":"',
                 Base64.encode(challenge, true, true),
-                '","origin":"', ORIGIN_DOMAIN, '"}'
+                '","origin":"',
+                ORIGIN_DOMAIN,
+                '"}'
             )
         );
         uint256 r = 0x60946081650523acad13c8eff94996a409b1ed60e923c90f9e366aad619adffa;
@@ -92,10 +94,10 @@ contract WebAuthnValidatorTest is MSATest {
         WebAuthnValidator.PasskeyId[] memory passkeys = new WebAuthnValidator.PasskeyId[](1);
         passkeys[0] = WebAuthnValidator.PasskeyId({ credentialId: CREDENTIAL_ID, domain: ORIGIN_DOMAIN });
 
-        bytes memory data =
-            abi.encodeCall(ModularSmartAccount.uninstallModule, (MODULE_TYPE_VALIDATOR, address(validator), abi.encode(passkeys)));
-        PackedUserOperation[] memory userOps = new PackedUserOperation[](1);
-        userOps[0] = makeSignedUserOp(data, owner.key, address(eoaValidator));
+        bytes memory data = abi.encodeCall(
+            ModularSmartAccount.uninstallModule, (MODULE_TYPE_VALIDATOR, address(validator), abi.encode(passkeys))
+        );
+        PackedUserOperation[] memory userOps = makeSignedUserOp(data, owner.key, address(eoaValidator));
         vm.expectEmit(true, true, true, true);
         emit IERC7579Account.ModuleUninstalled(MODULE_TYPE_VALIDATOR, address(validator));
         entryPoint.handleOps(userOps, bundler);

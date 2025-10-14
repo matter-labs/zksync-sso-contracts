@@ -94,11 +94,28 @@ contract ModularSmartAccount is IMSA, ExecutionHelper, ERC1271Handler, RegistryA
         onlyEntryPointOrSelf
     {
         if (moduleTypeId == MODULE_TYPE_VALIDATOR) {
-            _uninstallValidator(module, deInitData);
+            _uninstallValidator(module, deInitData, false);
         } else if (moduleTypeId == MODULE_TYPE_EXECUTOR) {
-            _uninstallExecutor(module, deInitData);
+            _uninstallExecutor(module, deInitData, false);
         } else if (moduleTypeId == MODULE_TYPE_FALLBACK) {
-            _uninstallFallbackHandler(module, deInitData);
+            _uninstallFallbackHandler(module, deInitData, false);
+        } else {
+            revert UnsupportedModuleType(moduleTypeId);
+        }
+        emit ModuleUninstalled(moduleTypeId, module);
+    }
+
+    function unlinkModule(uint256 moduleTypeId, address module, bytes calldata deInitData)
+        external
+        payable
+        onlyEntryPointOrSelf
+    {
+        if (moduleTypeId == MODULE_TYPE_VALIDATOR) {
+            _uninstallValidator(module, deInitData, true);
+        } else if (moduleTypeId == MODULE_TYPE_EXECUTOR) {
+            _uninstallExecutor(module, deInitData, true);
+        } else if (moduleTypeId == MODULE_TYPE_FALLBACK) {
+            _uninstallFallbackHandler(module, deInitData, true);
         } else {
             revert UnsupportedModuleType(moduleTypeId);
         }

@@ -194,8 +194,6 @@ contract WebAuthnValidator is IValidator {
         // as passkeys are linked to domains, so the storage mapping reflects that
         string memory origin = root.at('"origin"').value().decodeString();
         bytes32[2] memory publicKey = publicKeys[origin][credentialId][msg.sender];
-        // TODO this should probably not revert, but return false
-        // require(publicKey[0] != 0 || publicKey[1] != 0, KeyNotFound(origin, credentialId, msg.sender));
 
         // cross-origin validation is optional, but explicitly not supported.
         // cross-origin requests would be from embedding the auth request

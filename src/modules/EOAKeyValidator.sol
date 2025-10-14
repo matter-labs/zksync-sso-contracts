@@ -13,7 +13,7 @@ import { IValidator, MODULE_TYPE_VALIDATOR } from "../interfaces/IERC7579Module.
 contract EOAKeyValidator is IValidator {
     using EnumerableSet for EnumerableSet.AddressSet;
 
-    mapping(address eoa => mapping(address account => bool)) private owners;
+    mapping(address owner => mapping(address account => bool)) private owners;
 
     event OwnerAdded(address indexed smartAccount, address indexed owner);
     event OwnerRemoved(address indexed smartAccount, address indexed owner);
