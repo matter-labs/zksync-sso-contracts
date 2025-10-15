@@ -36,7 +36,7 @@ contract SessionsTest is MSATest {
     function test_installValidator() public {
         bytes memory data =
             abi.encodeCall(ModularSmartAccount.installModule, (MODULE_TYPE_VALIDATOR, address(sessionKeyValidator), ""));
-        PackedUserOperation[] memory userOps = makeSignedUserOp(data, owner.key, address(eoaValidator));
+        PackedUserOperation[] memory userOps = makeSignedUserOp(data);
 
         vm.expectEmit(true, true, true, true);
         emit IERC7579Account.ModuleInstalled(MODULE_TYPE_VALIDATOR, address(sessionKeyValidator));
@@ -64,7 +64,7 @@ contract SessionsTest is MSATest {
         bytes memory call =
             encodeCall(address(sessionKeyValidator), 0, abi.encodeCall(SessionKeyValidator.createSession, (spec)));
 
-        PackedUserOperation[] memory userOps = makeSignedUserOp(call, owner.key, address(eoaValidator));
+        PackedUserOperation[] memory userOps = makeSignedUserOp(call);
 
         bytes32 sessionHash = keccak256(abi.encode(spec));
         vm.expectEmit(true, true, true, true);
@@ -109,7 +109,7 @@ contract SessionsTest is MSATest {
 
         bytes memory call =
             encodeCall(address(sessionKeyValidator), 0, abi.encodeCall(SessionKeyValidator.revokeKey, (sessionHash)));
-        PackedUserOperation[] memory userOps = makeSignedUserOp(call, owner.key, address(eoaValidator));
+        PackedUserOperation[] memory userOps = makeSignedUserOp(call);
 
         vm.expectEmit(true, true, true, true);
         emit SessionKeyValidator.SessionRevoked(address(account), sessionHash);
@@ -135,7 +135,7 @@ contract SessionsTest is MSATest {
             (MODULE_TYPE_VALIDATOR, address(sessionKeyValidator), abi.encode(sessionHashes))
         );
 
-        PackedUserOperation[] memory userOps = makeSignedUserOp(data, owner.key, address(eoaValidator));
+        PackedUserOperation[] memory userOps = makeSignedUserOp(data);
 
         entryPoint.handleOps(userOps, bundler);
 
@@ -219,9 +219,9 @@ contract SessionsTest is MSATest {
 
         bytes32 sessionHash = keccak256(abi.encode(spec));
 
-        bytes memory createSessionCall =
+        bytes memory call =
             encodeCall(address(sessionKeyValidator), 0, abi.encodeCall(SessionKeyValidator.createSession, (spec)));
-        PackedUserOperation[] memory userOps = makeSignedUserOp(createSessionCall, owner.key, address(eoaValidator));
+        PackedUserOperation[] memory userOps = makeSignedUserOp(call);
 
         vm.expectEmit(true, true, true, true);
         emit SessionKeyValidator.SessionCreated(address(account), sessionHash, spec);

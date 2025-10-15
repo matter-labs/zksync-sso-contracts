@@ -67,13 +67,9 @@ contract MSATest is Test {
         });
     }
 
-    function makeSignedUserOp(bytes memory callData, uint256 key, address validator)
-        public
-        view
-        returns (PackedUserOperation[] memory userOps)
-    {
+    function makeSignedUserOp(bytes memory callData) public view returns (PackedUserOperation[] memory userOps) {
         userOps = makeUserOp(callData);
-        signUserOp(userOps[0], key, validator);
+        signUserOp(userOps[0], owner.key, address(eoaValidator));
     }
 
     function signUserOp(PackedUserOperation memory userOp, uint256 key, address validator) public view {
