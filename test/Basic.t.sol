@@ -10,6 +10,8 @@ import { IERC7579Account } from "src/interfaces/IERC7579Account.sol";
 import { Execution } from "src/interfaces/IERC7579Account.sol";
 import { ExecutionHelper } from "src/core/ExecutionHelper.sol";
 import { AccountBase } from "src/core/AccountBase.sol";
+import { ModuleManager } from "src/core/ModuleManager.sol";
+import { IMSA } from "src/interfaces/IMSA.sol";
 import "src/interfaces/IERC7579Module.sol";
 
 import { MockTarget } from "./mocks/MockTarget.sol";
@@ -17,12 +19,14 @@ import { MockDelegateTarget } from "./mocks/MockDelegateTarget.sol";
 import { MockERC1271Caller, MockMessage } from "./mocks/MockERC1271Caller.sol";
 import { MockPaymaster } from "./mocks/MockPaymaster.sol";
 import { MSATest } from "./MSATest.sol";
+import { MockHook } from "./mocks/MockHook.sol";
 
 contract BasicTest is MSATest {
     MockTarget public target;
     MockDelegateTarget public delegateTarget;
     MockERC1271Caller public erc1271Caller;
     MockPaymaster public paymaster;
+    MockHook public hookModule;
 
     function setUp() public override {
         super.setUp();
@@ -31,6 +35,7 @@ contract BasicTest is MSATest {
         delegateTarget = new MockDelegateTarget();
         erc1271Caller = new MockERC1271Caller();
         paymaster = new MockPaymaster();
+        hookModule = new MockHook();
     }
 
     function test_transfer() public {
@@ -137,6 +142,53 @@ contract BasicTest is MSATest {
         vm.expectRevert(ExecutionHelper.ExecutionFailed.selector);
         account.executeUserOp(userOps[0], bytes32(0));
         vm.stopPrank();
+    }
+
+    function testRevert_execute_unsupportedCallType() public {
+        bytes32 mode = LibERC7579.encodeMode(bytes1(0x42), LibERC7579.EXECTYPE_DEFAULT, 0, 0);
+        bytes memory callData = abi.encodePacked(address(target), uint256(0), abi.encodeCall(MockTarget.setValue, (1)));
+
+        vm.expectRevert(abi.encodeWithSelector(ExecutionHelper.UnsupportedCallType.selector, bytes1(0x42)));
+        vm.prank(address(entryPoint));
+        account.execute(mode, callData);
+    }
+
+    function testRevert_execute_unsupportedExecType() public {
+        bytes32 mode = LibERC7579.encodeMode(LibERC7579.CALLTYPE_SINGLE, bytes1(0x42), 0, 0);
+        bytes memory callData = abi.encodePacked(address(target), uint256(0), abi.encodeCall(MockTarget.setValue, (1)));
+
+        vm.expectRevert(abi.encodeWithSelector(ExecutionHelper.UnsupportedExecType.selector, bytes1(0x42)));
+        vm.prank(address(entryPoint));
+        account.execute(mode, callData);
+    }
+
+    function testRevert_execute_unauthorizedSender() public {
+        bytes memory callData = abi.encodePacked(address(target), uint256(0), abi.encodeCall(MockTarget.setValue, (1)));
+        bytes32 mode = LibERC7579.encodeMode(LibERC7579.CALLTYPE_SINGLE, LibERC7579.EXECTYPE_DEFAULT, 0, 0);
+
+        vm.expectRevert(AccountBase.AccountAccessUnauthorized.selector);
+        account.execute(mode, callData);
+    }
+
+    function testRevert_executeFromExecutor_invalidModule() public {
+        bytes32 mode = LibERC7579.encodeMode(LibERC7579.CALLTYPE_SINGLE, LibERC7579.EXECTYPE_DEFAULT, 0, 0);
+        address notExecutor = makeAddr("notExecutor");
+
+        vm.expectRevert(abi.encodeWithSelector(ModuleManager.InvalidModule.selector, notExecutor));
+        vm.prank(notExecutor);
+        account.executeFromExecutor(mode, "");
+    }
+
+    function testRevert_installModuleUnsupportedType() public {
+        vm.expectRevert(abi.encodeWithSelector(IMSA.UnsupportedModuleType.selector, MODULE_TYPE_HOOK));
+        vm.prank(address(entryPoint));
+        account.installModule(MODULE_TYPE_HOOK, address(hookModule), bytes(""));
+    }
+
+    function testRevert_uninstallLastValidator() public {
+        vm.expectRevert(ModuleManager.CannotRemoveLastValidator.selector);
+        vm.prank(address(entryPoint));
+        account.uninstallModule(MODULE_TYPE_VALIDATOR, address(eoaValidator), bytes(""));
     }
 
     function testRevert_executeUserOp_unauthorizedCaller() public {
