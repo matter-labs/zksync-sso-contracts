@@ -2,6 +2,7 @@
 pragma solidity ^0.8.24;
 
 import { PackedUserOperation } from "account-abstraction/interfaces/PackedUserOperation.sol";
+import { IEntryPoint } from "account-abstraction/interfaces/IEntryPoint.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 import { ModularSmartAccount } from "src/ModularSmartAccount.sol";
@@ -24,7 +25,7 @@ contract SessionsTest is MSATest {
 
     SessionLib.SessionSpec public spec;
 
-    function setUp() public override {
+    function setUp() public virtual override {
         super.setUp();
 
         recipient = makeAddr("sessionRecipient");
@@ -46,24 +47,9 @@ contract SessionsTest is MSATest {
     function test_createSession() public {
         test_installValidator();
 
-        SessionLib.TransferSpec[] memory transferPolicies = new SessionLib.TransferSpec[](1);
-        transferPolicies[0] = SessionLib.TransferSpec({
-            target: recipient,
-            maxValuePerUse: 0.1 ether,
-            valueLimit: SessionLib.UsageLimit({ limitType: SessionLib.LimitType.Unlimited, limit: 0, period: 0 })
-        });
-
-        spec = SessionLib.SessionSpec({
-            signer: sessionOwner.addr,
-            expiresAt: uint48(block.timestamp + 1000),
-            transferPolicies: transferPolicies,
-            callPolicies: new SessionLib.CallSpec[](0),
-            feeLimit: SessionLib.UsageLimit({ limitType: SessionLib.LimitType.Lifetime, limit: 0.15 ether, period: 0 })
-        });
-
+        spec = _baseSessionSpec();
         bytes memory call =
             encodeCall(address(sessionKeyValidator), 0, abi.encodeCall(SessionKeyValidator.createSession, (spec)));
-
         PackedUserOperation[] memory userOps = makeSignedUserOp(call);
 
         bytes32 sessionHash = keccak256(abi.encode(spec));
@@ -73,6 +59,75 @@ contract SessionsTest is MSATest {
 
         SessionLib.Status status = sessionKeyValidator.sessionStatus(address(account), sessionHash);
         vm.assertTrue(status == SessionLib.Status.Active, "Session not active after creating");
+    }
+
+    function testRevert_createSession_zeroSigner() public {
+        test_installValidator();
+
+        SessionLib.SessionSpec memory invalidSpec = _baseSessionSpec();
+        invalidSpec.signer = address(0);
+
+        vm.expectRevert(SessionLib.ZeroSigner.selector);
+        vm.prank(address(account));
+        sessionKeyValidator.createSession(invalidSpec);
+    }
+
+    function testRevert_createSession_unlimitedFees() public {
+        test_installValidator();
+
+        SessionLib.SessionSpec memory invalidSpec = _baseSessionSpec();
+        invalidSpec.feeLimit.limitType = SessionLib.LimitType.Unlimited;
+
+        vm.expectRevert(SessionLib.UnlimitedFees.selector);
+        vm.prank(address(account));
+        sessionKeyValidator.createSession(invalidSpec);
+    }
+
+    function testRevert_createSession_signerAlreadyUsed() public {
+        test_createSession();
+
+        SessionLib.SessionSpec memory duplicateSpec = spec;
+        duplicateSpec.expiresAt = uint48(block.timestamp + 2000);
+
+        vm.expectRevert(abi.encodeWithSelector(SessionLib.SignerAlreadyUsed.selector, sessionOwner.addr));
+        vm.prank(address(account));
+        sessionKeyValidator.createSession(duplicateSpec);
+    }
+
+    function testRevert_createSession_sessionExpiresTooSoon() public {
+        test_installValidator();
+
+        SessionLib.SessionSpec memory invalidSpec = _baseSessionSpec();
+        invalidSpec.expiresAt = uint48(block.timestamp + 30);
+
+        vm.expectRevert(abi.encodeWithSelector(SessionLib.SessionExpiresTooSoon.selector, invalidSpec.expiresAt));
+        vm.prank(address(account));
+        sessionKeyValidator.createSession(invalidSpec);
+    }
+
+    function testRevert_createSession_callPolicyBanned() public {
+        test_installValidator();
+
+        SessionLib.CallSpec[] memory callPolicies = new SessionLib.CallSpec[](1);
+        callPolicies[0] = SessionLib.CallSpec({
+            target: address(sessionKeyValidator),
+            selector: bytes4(0),
+            maxValuePerUse: 0,
+            valueLimit: SessionLib.UsageLimit({ limitType: SessionLib.LimitType.Unlimited, limit: 0, period: 0 }),
+            constraints: new SessionLib.Constraint[](0)
+        });
+
+        SessionLib.SessionSpec memory invalidSpec = SessionLib.SessionSpec({
+            signer: sessionOwner.addr,
+            expiresAt: uint48(block.timestamp + 1000),
+            transferPolicies: new SessionLib.TransferSpec[](0),
+            callPolicies: callPolicies,
+            feeLimit: SessionLib.UsageLimit({ limitType: SessionLib.LimitType.Lifetime, limit: 0.15 ether, period: 0 })
+        });
+
+        vm.expectRevert(abi.encodeWithSelector(SessionLib.CallPolicyBanned.selector, address(sessionKeyValidator), bytes4(0)));
+        vm.prank(address(account));
+        sessionKeyValidator.createSession(invalidSpec);
     }
 
     function test_useSession() public {
@@ -99,6 +154,26 @@ contract SessionsTest is MSATest {
         entryPoint.handleOps(userOps, bundler);
     }
 
+    function testRevert_useSession_invalidNonceKey() public {
+        test_createSession();
+
+        bytes memory call = encodeCall(recipient, 0.05 ether, "");
+        PackedUserOperation[] memory userOps = makeUserOp(call);
+        userOps[0].nonce = entryPoint.getNonce(address(account), 0);
+        _signSessionUserOp(userOps[0]);
+
+        bytes32 userOpHash = entryPoint.getUserOpHash(userOps[0]);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                SessionLib.InvalidNonceKey.selector,
+                uint192(userOps[0].nonce >> 64),
+                uint192(uint160(sessionOwner.addr))
+            )
+        );
+        vm.prank(address(entryPoint));
+        sessionKeyValidator.validateUserOp(userOps[0], userOpHash);
+    }
+
     function test_closeSession() public {
         test_createSession();
         bytes32 sessionHash = keccak256(abi.encode(spec));
@@ -117,6 +192,15 @@ contract SessionsTest is MSATest {
 
         SessionLib.Status status = sessionKeyValidator.sessionStatus(address(account), sessionHash);
         vm.assertEq(uint256(status), uint256(SessionLib.Status.Closed), "Session not closed");
+    }
+
+    function testRevert_revokeKey_notActive() public {
+        test_closeSession();
+        bytes32 sessionHash = keccak256(abi.encode(spec));
+
+        vm.expectRevert(SessionLib.SessionNotActive.selector);
+        vm.prank(address(account));
+        sessionKeyValidator.revokeKey(sessionHash);
     }
 
     function test_uninstallModule() public {
@@ -145,6 +229,48 @@ contract SessionsTest is MSATest {
             "Validator still installed"
         );
         vm.assertEq(uint256(status), uint256(SessionLib.Status.Closed), "Session not revoked on uninstall");
+    }
+
+    function test_revokeKeys() public {
+        test_installValidator();
+
+        SessionLib.SessionSpec memory firstSpec = _baseSessionSpec();
+        bytes memory createFirst =
+            encodeCall(address(sessionKeyValidator), 0, abi.encodeCall(SessionKeyValidator.createSession, (firstSpec)));
+        entryPoint.handleOps(makeSignedUserOp(createFirst), bundler);
+        bytes32 sessionHashOne = keccak256(abi.encode(firstSpec));
+
+        Account memory secondOwner = makeAccount("secondSessionOwner");
+        SessionLib.SessionSpec memory secondSpec = firstSpec;
+        secondSpec.signer = secondOwner.addr;
+        secondSpec.expiresAt = uint48(block.timestamp + 2000);
+
+        bytes memory createSecond =
+            encodeCall(address(sessionKeyValidator), 0, abi.encodeCall(SessionKeyValidator.createSession, (secondSpec)));
+        PackedUserOperation[] memory secondUserOps = makeSignedUserOp(createSecond);
+        entryPoint.handleOps(secondUserOps, bundler);
+        bytes32 sessionHashTwo = keccak256(abi.encode(secondSpec));
+
+        bytes32[] memory hashes = new bytes32[](2);
+        hashes[0] = sessionHashOne;
+        hashes[1] = sessionHashTwo;
+
+        bytes memory revokeCall =
+            encodeCall(address(sessionKeyValidator), 0, abi.encodeCall(SessionKeyValidator.revokeKeys, (hashes)));
+        PackedUserOperation[] memory userOps = makeSignedUserOp(revokeCall);
+
+        entryPoint.handleOps(userOps, bundler);
+
+        vm.assertEq(
+            uint256(sessionKeyValidator.sessionStatus(address(account), sessionHashOne)),
+            uint256(SessionLib.Status.Closed),
+            "First session not closed"
+        );
+        vm.assertEq(
+            uint256(sessionKeyValidator.sessionStatus(address(account), sessionHashTwo)),
+            uint256(SessionLib.Status.Closed),
+            "Second session not closed"
+        );
     }
 
     function test_sessionState() public {
@@ -255,7 +381,25 @@ contract SessionsTest is MSATest {
         factory.deployAccount(keccak256("my-other-account-id"), data);
     }
 
+    function _baseSessionSpec() internal view returns (SessionLib.SessionSpec memory base) {
+        SessionLib.TransferSpec[] memory transferPolicies = new SessionLib.TransferSpec[](1);
+        transferPolicies[0] = SessionLib.TransferSpec({
+            target: recipient,
+            maxValuePerUse: 0.1 ether,
+            valueLimit: SessionLib.UsageLimit({ limitType: SessionLib.LimitType.Unlimited, limit: 0, period: 0 })
+        });
+
+        base = SessionLib.SessionSpec({
+            signer: sessionOwner.addr,
+            expiresAt: uint48(block.timestamp + 1000),
+            transferPolicies: transferPolicies,
+            callPolicies: new SessionLib.CallSpec[](0),
+            feeLimit: SessionLib.UsageLimit({ limitType: SessionLib.LimitType.Lifetime, limit: 0.15 ether, period: 0 })
+        });
+    }
+
     function _sendSessionTransfer(address to, uint256 amount, bool expectRevert) internal {
+        uint256 balanceBefore = erc20.balanceOf(to);
         bytes memory transferCall = encodeCall(address(erc20), 0, abi.encodeCall(IERC20.transfer, (to, amount)));
 
         PackedUserOperation[] memory sessionOps = makeUserOp(transferCall);
@@ -267,6 +411,12 @@ contract SessionsTest is MSATest {
         }
 
         entryPoint.handleOps(sessionOps, bundler);
+
+        vm.assertEq(
+            erc20.balanceOf(to) - balanceBefore,
+            expectRevert ? 0 : amount,
+            "Value not transferred using session"
+        );
     }
 
     function _signSessionUserOp(PackedUserOperation memory userOp) internal view {
