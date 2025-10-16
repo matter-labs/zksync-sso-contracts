@@ -1,0 +1,20 @@
+{
+  "userOperation": {
+    "sender": "0xa0Ee7A142d267C1f36714E4a8F75612F20a79720",
+    "nonce": "0x0",
+    "initCode": "0x",
+    "callData": "0x",
+    "callGasLimit": "0x0",
+    "verificationGasLimit": "0x0",
+    "preVerificationGas": "0x0",
+    "maxFeePerGas": "0x0",
+    "maxPriorityFeePerGas": "0x0",
+    "paymasterAndData": "0x",
+    "signature": "0x"
+  },
+  "metadata": {
+    "chainId": 1337,
+    "entryPointAddress": "0x4337084D9E255Ff0702461CF8895CE9E3b5Ff108",
+    "entryPointVersion": "0.8"
+  }
+}
