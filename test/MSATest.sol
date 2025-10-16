@@ -88,7 +88,9 @@ contract MSATest is Test {
         userOps[0] = userOp;
 
         vm.expectEmit(true, true, true, true);
-        emit IEntryPoint.UserOperationRevertReason(entryPoint.getUserOpHash(userOp), address(account), userOp.nonce, reason);
+        emit IEntryPoint.UserOperationRevertReason(
+            entryPoint.getUserOpHash(userOp), address(account), userOp.nonce, reason
+        );
         entryPoint.handleOps(userOps, bundler);
     }
 }

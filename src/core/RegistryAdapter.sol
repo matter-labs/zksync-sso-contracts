@@ -20,6 +20,10 @@ abstract contract RegistryAdapter is AccountBase {
         _;
     }
 
+    /// @notice Configure the ERC-7484 registry used to attest modules for the account.
+    /// @param registry Registry contract to trust.
+    /// @param attesters Optional list of attesters to trust immediately.
+    /// @param threshold Minimum number of trusted attesters required by the registry.
     function setRegistry(IERC7484 registry, address[] calldata attesters, uint8 threshold)
         external
         onlyEntryPointOrSelf

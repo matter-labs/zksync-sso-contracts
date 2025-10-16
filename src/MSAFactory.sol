@@ -28,6 +28,11 @@ contract MSAFactory is ReentrancyGuard {
         beacon = _beacon;
     }
 
+    /// @notice Deploy a new smart account using the configured beacon.
+    /// @param accountId Unique identifier used as salt for deterministic deployment.
+    /// @param initData Initialization calldata forwarded to the beacon proxy;
+    /// Usually, an abi-encoded call to IMSA.initializeAccount.
+    /// @return account Address of the deployed account proxy.
     function deployAccount(bytes32 accountId, bytes calldata initData)
         external
         nonReentrant

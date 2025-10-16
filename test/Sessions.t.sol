@@ -129,7 +129,9 @@ contract SessionsTest is MSATest {
             feeLimit: SessionLib.UsageLimit({ limitType: SessionLib.LimitType.Lifetime, limit: 0.15 ether, period: 0 })
         });
 
-        vm.expectRevert(abi.encodeWithSelector(SessionLib.CallPolicyBanned.selector, address(sessionKeyValidator), bytes4(0)));
+        vm.expectRevert(
+            abi.encodeWithSelector(SessionLib.CallPolicyBanned.selector, address(sessionKeyValidator), bytes4(0))
+        );
         vm.prank(address(account));
         sessionKeyValidator.createSession(invalidSpec);
     }
@@ -451,7 +453,14 @@ contract SessionsTest is MSATest {
 
         sessionOps[0].nonce++;
         _signAllowedSessionUserOp(sessionOps[0]);
-        vm.expectRevert(abi.encodeWithSelector(IEntryPoint.FailedOpWithRevert.selector, 0, "AA23 reverted", abi.encodeWithSelector(SessionLib.ActionsNotAllowed.selector, actionsHash)));
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IEntryPoint.FailedOpWithRevert.selector,
+                0,
+                "AA23 reverted",
+                abi.encodeWithSelector(SessionLib.ActionsNotAllowed.selector, actionsHash)
+            )
+        );
         entryPoint.handleOps(sessionOps, bundler);
         vm.assertEq(address(recipient).balance, 0.1 ether, "Balance should not change after failed transfer");
     }
@@ -498,9 +507,7 @@ contract SessionsTest is MSATest {
         entryPoint.handleOps(sessionOps, bundler);
 
         vm.assertEq(
-            erc20.balanceOf(to) - balanceBefore,
-            expectRevert ? 0 : amount,
-            "Value not transferred using session"
+            erc20.balanceOf(to) - balanceBefore, expectRevert ? 0 : amount, "Value not transferred using session"
         );
     }
 

@@ -144,6 +144,9 @@ abstract contract ModuleManager {
         return $fallback.handler == _handler;
     }
 
+    /// @notice Retrieve the fallback handler registered for a given selector.
+    /// @param functionSig Selector to query.
+    /// @return Struct containing handler address and call type metadata.
     function getActiveFallbackHandler(bytes4 functionSig) external view virtual returns (FallbackHandler memory) {
         return $moduleManager().$fallbacks[functionSig];
     }

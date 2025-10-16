@@ -148,13 +148,13 @@ contract FallbackTest is MSATest {
     }
 
     function testRevert_uninstallFallback_notInstalled() public {
-        bytes memory data =
-            abi.encodeCall(
-                IERC7579Account.uninstallModule,
-                (MODULE_TYPE_FALLBACK, address(mockFallback), abi.encodePacked(MockFallback.fallbackMethod.selector))
-            );
+        bytes memory data = abi.encodeCall(
+            IERC7579Account.uninstallModule,
+            (MODULE_TYPE_FALLBACK, address(mockFallback), abi.encodePacked(MockFallback.fallbackMethod.selector))
+        );
 
-        bytes memory reason = abi.encodeWithSelector(ModuleManager.NoFallbackHandler.selector, MockFallback.fallbackMethod.selector);
+        bytes memory reason =
+            abi.encodeWithSelector(ModuleManager.NoFallbackHandler.selector, MockFallback.fallbackMethod.selector);
         expectUserOpRevert(makeSignedUserOp(data)[0], reason);
     }
 

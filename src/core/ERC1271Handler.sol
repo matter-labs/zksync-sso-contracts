@@ -56,6 +56,8 @@ abstract contract ERC1271Handler is ERC1271, ModuleManager {
         return false;
     }
 
+    /// @notice Expose the current EIP-712 domain separator used for signatures.
+    /// @return bytes32 Hash of the domain separator.
     function domainSeparator() external view returns (bytes32) {
         return _domainSeparator();
     }

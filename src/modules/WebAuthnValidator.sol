@@ -16,7 +16,7 @@ import { IValidator, IModule, MODULE_TYPE_VALIDATOR } from "../interfaces/IERC75
 /// @author Matter Labs
 /// @custom:security-contact security@matterlabs.dev
 /// @dev This contract allows secure user authentication using WebAuthn public keys.
-contract WebAuthnValidator is IValidator {
+contract WebAuthnValidator is IValidator, IERC165 {
     using JSONParserLib for JSONParserLib.Item;
     using JSONParserLib for string;
 
@@ -73,8 +73,8 @@ contract WebAuthnValidator is IValidator {
         return publicKeys[originDomain][credentialId][accountAddress];
     }
 
-    /// @notice Runs on module install
-    /// @param data ABI-encoded WebAuthn passkey to add immediately, or empty if not needed
+    /// @inheritdoc IModule
+    /// @param data ABI-encoded WebAuthn passkey to add immediately, or empty if not needed.
     function onInstall(bytes calldata data) external override {
         if (data.length > 0) {
             (bytes memory credentialId, bytes32[2] memory rawPublicKey, string memory originDomain) =
@@ -83,8 +83,8 @@ contract WebAuthnValidator is IValidator {
         }
     }
 
-    /// @notice Runs on module uninstall, does not manage any dependant modules
-    /// @param data ABI-encoded array of origin domains to remove keys for
+    /// @inheritdoc IModule
+    /// @param data ABI-encoded array of origin domains to remove keys for.
     function onUninstall(bytes calldata data) external override {
         PasskeyId[] memory passkeyIds = abi.decode(data, (PasskeyId[]));
         for (uint256 i = 0; i < passkeyIds.length; ++i) {
@@ -93,14 +93,19 @@ contract WebAuthnValidator is IValidator {
         }
     }
 
+    /// @inheritdoc IModule
     function isInitialized(address account) public view override returns (bool) {
         return IMSA(account).isModuleInstalled(MODULE_TYPE_VALIDATOR, address(this), "");
     }
 
+    /// @inheritdoc IModule
     function isModuleType(uint256 moduleType) external pure returns (bool) {
         return moduleType == MODULE_TYPE_VALIDATOR;
     }
 
+    /// @notice Remove an existing WebAuthn passkey belonging to the caller.
+    /// @param credentialId Credential identifier associated with the key.
+    /// @param domain Domain for which the key was registered.
     function removeValidationKey(bytes memory credentialId, string memory domain) public {
         address registered = registeredAddress[domain][credentialId];
         require(registered == msg.sender, NotKeyOwner(registered));
@@ -142,10 +147,7 @@ contract WebAuthnValidator is IValidator {
         emit PasskeyCreated(msg.sender, originDomain, credentialId);
     }
 
-    /// @notice Validates a WebAuthn signature
-    /// @param signedHash The hash of the signed message
-    /// @param signature The signature to validate
-    /// @return the magic value if the signature is valid, 0xffffffff otherwise
+    /// @inheritdoc IValidator
     function isValidSignatureWithSender(
         address, // sender
         bytes32 signedHash,
@@ -154,12 +156,7 @@ contract WebAuthnValidator is IValidator {
         return webAuthVerify(signedHash, signature) ? IERC1271.isValidSignature.selector : bytes4(0xffffffff);
     }
 
-    /// @notice Validates a transaction signed with a passkey
-    /// @dev Does not validate the transaction signature field, which is expected to be different
-    /// due to the modular format
-    /// @param signedHash The hash of the signed transaction
-    /// @param userOp The user operation to validate
-    /// @return 0 if the signature is valid, 1 if invalid, otherwise reverts
+    /// @inheritdoc IValidator
     function validateUserOp(PackedUserOperation calldata userOp, bytes32 signedHash) external view returns (uint256) {
         return webAuthVerify(signedHash, userOp.signature[20:]) ? 0 : 1;
     }
@@ -212,6 +209,7 @@ contract WebAuthnValidator is IValidator {
         return signatureValid && challengeValid;
     }
 
+    /// @inheritdoc IERC165
     function supportsInterface(bytes4 interfaceId) external pure returns (bool) {
         return interfaceId == type(IERC165).interfaceId || interfaceId == type(IValidator).interfaceId
             || interfaceId == type(IModule).interfaceId;
