@@ -4,11 +4,13 @@ pragma solidity ^0.8.24;
 import { PackedUserOperation } from "account-abstraction/interfaces/PackedUserOperation.sol";
 import { IEntryPoint } from "account-abstraction/interfaces/IEntryPoint.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { IAccessControl } from "@openzeppelin/contracts/access/IAccessControl.sol";
 
 import { ModularSmartAccount } from "src/ModularSmartAccount.sol";
 import { MSAFactory } from "src/MSAFactory.sol";
 import { EOAKeyValidator } from "src/modules/EOAKeyValidator.sol";
 import { SessionKeyValidator } from "src/modules/SessionKeyValidator.sol";
+import { AllowedSessionsValidator } from "src/modules/contrib/AllowedSessionsValidator.sol";
 import { IMSA } from "src/interfaces/IMSA.sol";
 import { MODULE_TYPE_VALIDATOR } from "src/interfaces/IERC7579Module.sol";
 import { IERC7579Account } from "src/interfaces/IERC7579Account.sol";
@@ -19,6 +21,7 @@ import { MockERC20 } from "./mocks/MockERC20.sol";
 
 contract SessionsTest is MSATest {
     SessionKeyValidator public sessionKeyValidator;
+    AllowedSessionsValidator public allowedValidator;
     Account public sessionOwner;
     address recipient;
     MockERC20 erc20;
@@ -31,6 +34,7 @@ contract SessionsTest is MSATest {
         recipient = makeAddr("sessionRecipient");
         sessionOwner = makeAccount("sessionOwner");
         sessionKeyValidator = new SessionKeyValidator();
+        allowedValidator = new AllowedSessionsValidator();
         erc20 = new MockERC20(address(account));
     }
 
@@ -381,6 +385,87 @@ contract SessionsTest is MSATest {
         factory.deployAccount(keccak256("my-other-account-id"), data);
     }
 
+    function testRevert_createSession_actionsNotAllowed() public {
+        test_installAllowedValidator();
+        SessionLib.SessionSpec memory localSpec = _baseSessionSpec();
+        bytes32 actionsHash = allowedValidator.getSessionActionsHash(localSpec);
+
+        vm.expectRevert(abi.encodeWithSelector(SessionLib.ActionsNotAllowed.selector, actionsHash));
+        vm.prank(address(account));
+        allowedValidator.createSession(localSpec);
+    }
+
+    function test_createSession_allowed() public {
+        test_installAllowedValidator();
+        SessionLib.SessionSpec memory localSpec = _baseSessionSpec();
+        bytes32 actionsHash = allowedValidator.getSessionActionsHash(localSpec);
+
+        vm.expectEmit(true, true, true, true);
+        emit AllowedSessionsValidator.SessionActionsAllowed(actionsHash, true);
+        allowedValidator.setSessionActionsAllowed(actionsHash, true);
+
+        bytes32 sessionHash = keccak256(abi.encode(localSpec));
+        bytes memory call =
+            encodeCall(address(allowedValidator), 0, abi.encodeCall(SessionKeyValidator.createSession, (localSpec)));
+        PackedUserOperation[] memory userOps = makeSignedUserOp(call);
+
+        vm.expectEmit(true, true, true, true);
+        emit SessionKeyValidator.SessionCreated(address(account), sessionHash, localSpec);
+        entryPoint.handleOps(userOps, bundler);
+
+        vm.assertTrue(allowedValidator.areSessionActionsAllowed(actionsHash), "Session actions unexpectedly disallowed");
+        vm.assertEq(allowedValidator.sessionSigner(localSpec.signer), sessionHash, "Session hash not stored for signer");
+    }
+
+    function testRevert_setSessionActionsAllowed_unauthorized() public {
+        bytes32 role = allowedValidator.SESSION_REGISTRY_MANAGER_ROLE();
+        address intruder = makeAddr("intruder");
+
+        vm.expectRevert(
+            abi.encodeWithSelector(IAccessControl.AccessControlUnauthorizedAccount.selector, intruder, role)
+        );
+        vm.prank(intruder);
+        allowedValidator.setSessionActionsAllowed(bytes32("hash"), true);
+    }
+
+    function testRevert_useSession_actionsNotAllowed() public {
+        test_installAllowedValidator();
+        spec = _baseSessionSpec();
+        bytes32 actionsHash = allowedValidator.getSessionActionsHash(spec);
+
+        allowedValidator.setSessionActionsAllowed(actionsHash, true);
+
+        bytes memory call =
+            encodeCall(address(allowedValidator), 0, abi.encodeCall(SessionKeyValidator.createSession, (spec)));
+        PackedUserOperation[] memory userOps = makeSignedUserOp(call);
+        entryPoint.handleOps(userOps, bundler);
+
+        bytes memory transferCall = encodeCall(recipient, 0.1 ether, "");
+        PackedUserOperation[] memory sessionOps = makeUserOp(transferCall);
+        sessionOps[0].nonce = entryPoint.getNonce(address(account), uint192(uint160(sessionOwner.addr)));
+        _signAllowedSessionUserOp(sessionOps[0]);
+        entryPoint.handleOps(sessionOps, bundler);
+        vm.assertEq(address(recipient).balance, 0.1 ether, "Balance not changed after transfer");
+
+        allowedValidator.setSessionActionsAllowed(actionsHash, false);
+
+        sessionOps[0].nonce++;
+        _signAllowedSessionUserOp(sessionOps[0]);
+        vm.expectRevert(abi.encodeWithSelector(IEntryPoint.FailedOpWithRevert.selector, 0, "AA23 reverted", abi.encodeWithSelector(SessionLib.ActionsNotAllowed.selector, actionsHash)));
+        entryPoint.handleOps(sessionOps, bundler);
+        vm.assertEq(address(recipient).balance, 0.1 ether, "Balance should not change after failed transfer");
+    }
+
+    function test_installAllowedValidator() public {
+        bytes memory data =
+            abi.encodeCall(ModularSmartAccount.installModule, (MODULE_TYPE_VALIDATOR, address(allowedValidator), ""));
+        PackedUserOperation[] memory userOps = makeSignedUserOp(data);
+
+        vm.expectEmit(true, true, true, true);
+        emit IERC7579Account.ModuleInstalled(MODULE_TYPE_VALIDATOR, address(allowedValidator));
+        entryPoint.handleOps(userOps, bundler);
+    }
+
     function _baseSessionSpec() internal view returns (SessionLib.SessionSpec memory base) {
         SessionLib.TransferSpec[] memory transferPolicies = new SessionLib.TransferSpec[](1);
         transferPolicies[0] = SessionLib.TransferSpec({
@@ -419,7 +504,7 @@ contract SessionsTest is MSATest {
         );
     }
 
-    function _signSessionUserOp(PackedUserOperation memory userOp) internal view {
+    function _signUserOpNoPrefix(PackedUserOperation memory userOp) internal view {
         uint256 constraints = 0;
         for (uint256 i = 0; i < spec.callPolicies.length; i++) {
             constraints += spec.callPolicies[i].constraints.length;
@@ -429,6 +514,16 @@ contract SessionsTest is MSATest {
         bytes32 userOpHash = entryPoint.getUserOpHash(userOp);
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(sessionOwner.key, userOpHash);
         bytes memory signature = abi.encodePacked(r, s, v);
-        userOp.signature = abi.encodePacked(sessionKeyValidator, abi.encode(signature, spec, periodIds));
+        userOp.signature = abi.encode(signature, spec, periodIds);
+    }
+
+    function _signSessionUserOp(PackedUserOperation memory userOp) internal view {
+        _signUserOpNoPrefix(userOp);
+        userOp.signature = abi.encodePacked(sessionKeyValidator, userOp.signature);
+    }
+
+    function _signAllowedSessionUserOp(PackedUserOperation memory userOp) internal view {
+        _signUserOpNoPrefix(userOp);
+        userOp.signature = abi.encodePacked(allowedValidator, userOp.signature);
     }
 }
