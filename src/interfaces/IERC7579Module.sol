@@ -54,7 +54,11 @@ interface IValidator is IModule {
     /// @return return value according to ERC-4337
     function validateUserOp(PackedUserOperation calldata userOp, bytes32 userOpHash) external returns (uint256);
 
-    /// Validator can be used for ERC-1271 validation
+    /// @notice Validate an ERC-1271 signature with context about the original sender.
+    /// @param sender Address that triggered the validation on the account.
+    /// @param hash Hash of the signed message being validated.
+    /// @param data Additional signature payload supplied by the caller.
+    /// @return Selector indicating whether the signature is valid.
     function isValidSignatureWithSender(address sender, bytes32 hash, bytes calldata data)
         external
         view
@@ -64,16 +68,29 @@ interface IValidator is IModule {
 interface IExecutor is IModule { }
 
 interface IHook is IModule {
+    /// @notice Perform logic before the account executes a call.
+    /// @param msgSender Original caller forwarded by the account.
+    /// @param msgValue ETH value forwarded with the call.
+    /// @param msgData Calldata forwarded with the call.
+    /// @return hookData Encoded context to feed back into `postCheck`.
     function preCheck(address msgSender, uint256 msgValue, bytes calldata msgData)
         external
         returns (bytes memory hookData);
 
+    /// @notice Finalise hook logic after the account executes a call.
+    /// @param hookData Data produced by `preCheck`.
     function postCheck(bytes calldata hookData) external;
 }
 
 interface IFallback is IModule { }
 
 interface IPreValidationHookERC1271 is IModule {
+    /// @notice Provide supplemental data during ERC-1271 pre-validation.
+    /// @param sender Address that initiated the signature validation.
+    /// @param hash Hash of the signed payload.
+    /// @param data Additional signature data provided by the caller.
+    /// @return hookHash Supplemental hash to include in validation.
+    /// @return hookSignature Supplemental signature bytes to include in validation.
     function preValidationHookERC1271(address sender, bytes32 hash, bytes calldata data)
         external
         view
@@ -81,6 +98,12 @@ interface IPreValidationHookERC1271 is IModule {
 }
 
 interface IPreValidationHookERC4337 is IModule {
+    /// @notice Provide supplemental data during ERC-4337 pre-validation.
+    /// @param userOp The user operation being validated.
+    /// @param missingAccountFunds Amount of prefund still required.
+    /// @param userOpHash Canonical hash of the user operation.
+    /// @return hookHash Supplemental hash to include in validation.
+    /// @return hookSignature Supplemental signature bytes to include in validation.
     function preValidationHookERC4337(
         PackedUserOperation calldata userOp,
         uint256 missingAccountFunds,

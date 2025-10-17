@@ -12,7 +12,7 @@ interface IERC7579Account {
     event ModuleUninstalled(uint256 indexed moduleTypeId, address indexed module);
 
     /// @dev Executes a transaction on behalf of the account.
-    ///         This function is intended to be called by ERC-4337 EntryPoint.sol
+    /// This function is intended to be called by ERC-4337 EntryPoint.sol
     /// @dev Ensure adequate authorization control: i.e. onlyEntryPointOrSelf
     ///
     /// @dev MSA MUST implement this function signature.
@@ -22,7 +22,7 @@ interface IERC7579Account {
     function execute(bytes32 mode, bytes calldata executionCalldata) external payable;
 
     /// @dev Executes a transaction on behalf of the account.
-    ///         This function is intended to be called by Executor Modules
+    /// This function is intended to be called by Executor Modules
     /// @dev Ensure adequate authorization control: i.e. onlyExecutorModule
     ///
     /// @dev MSA MUST implement this function signature.
@@ -35,7 +35,7 @@ interface IERC7579Account {
         returns (bytes[] memory returnData);
 
     /// @dev ERC-1271 isValidSignature
-    ///         This function is intended to be used to validate a smart account signature
+    /// This function is intended to be used to validate a smart account signature
     /// and may forward the call to a validator module
     ///
     /// @param hash The hash of the data that is signed
@@ -68,8 +68,8 @@ interface IERC7579Account {
 
     /// Function to check if the account has a certain module installed
     /// @param moduleTypeId the module type ID according the ERC-7579 spec
-    ///      Note: keep in mind that some contracts can be multiple module types at the same time. It
-    ///            thus may be necessary to query multiple module types
+    /// Note: keep in mind that some contracts can be multiple module types at the same time.
+    /// It thus may be necessary to query multiple module types
     /// @param module the module address
     /// @param additionalContext additional context data that the smart account may interpret to
     ///                          identifiy conditions under which the module is installed.
@@ -82,7 +82,6 @@ interface IERC7579Account {
 
     /// @dev Returns the account id of the smart account
     /// @return accountImplementationId the account id of the smart account
-    /// the accountId should be structured like so:
-    ///        "vendorname.accountname.semver"
+    /// the accountId should be structured like so: "vendorname.accountname.semver"
     function accountId() external view returns (string memory accountImplementationId);
 }

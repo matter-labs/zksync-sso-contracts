@@ -105,6 +105,10 @@ contract ModularSmartAccount is IMSA, ExecutionHelper, ERC1271Handler, RegistryA
         emit ModuleUninstalled(moduleTypeId, module);
     }
 
+    /// @notice Uninstall a module while allowing its cleanup to revert without bubbling up.
+    /// @param moduleTypeId Type identifier of the module being removed.
+    /// @param module Address of the module to unlink.
+    /// @param deInitData ABI-encoded data forwarded to the uninstall routine when possible.
     function unlinkModule(uint256 moduleTypeId, address module, bytes calldata deInitData)
         external
         payable
@@ -146,6 +150,7 @@ contract ModularSmartAccount is IMSA, ExecutionHelper, ERC1271Handler, RegistryA
         }
     }
 
+    /// @inheritdoc IERC7579Account
     function isValidSignature(bytes32 hash, bytes calldata data)
         public
         view
@@ -203,7 +208,7 @@ contract ModularSmartAccount is IMSA, ExecutionHelper, ERC1271Handler, RegistryA
         else return false;
     }
 
-    /// @dev Initializes the account.
+    /// @inheritdoc IMSA
     function initializeAccount(address[] calldata modules, bytes[] calldata data)
         external
         payable

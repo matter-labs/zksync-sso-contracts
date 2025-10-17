@@ -11,7 +11,7 @@ import { IERC7579Account } from "src/interfaces/IERC7579Account.sol";
 import { MODULE_TYPE_FALLBACK } from "src/interfaces/IERC7579Module.sol";
 import { ModularSmartAccount } from "src/ModularSmartAccount.sol";
 import { ModuleManager } from "src/core/ModuleManager.sol";
-import { IERC7484 } from "src/interfaces/IERC7484.sol";
+import { IERC7484Registry } from "src/interfaces/IERC7484Registry.sol";
 import { RegistryAdapter } from "src/core/RegistryAdapter.sol";
 
 import { MockFallback } from "./mocks/MockFallback.sol";
@@ -35,9 +35,9 @@ contract FallbackTest is MSATest {
         address[] memory attesters = new address[](1);
         attesters[0] = attester;
 
-        bytes memory data = abi.encodeCall(RegistryAdapter.setRegistry, (IERC7484(mockRegistry), attesters, 1));
+        bytes memory data = abi.encodeCall(RegistryAdapter.setRegistry, (IERC7484Registry(mockRegistry), attesters, 1));
 
-        PackedUserOperation[] memory userOps = makeSignedUserOp(data, owner.key, address(eoaValidator));
+        PackedUserOperation[] memory userOps = makeSignedUserOp(data);
 
         vm.expectEmit(true, true, true, true);
         emit RegistryAdapter.ERC7484RegistryConfigured(address(mockRegistry));
@@ -52,12 +52,9 @@ contract FallbackTest is MSATest {
         bytes memory initData = abi.encodePacked(MockFallback.fallbackMethod.selector, LibERC7579.CALLTYPE_SINGLE);
         bytes memory data =
             abi.encodeCall(IERC7579Account.installModule, (MODULE_TYPE_FALLBACK, address(mockFallback), initData));
-        PackedUserOperation[] memory userOps = makeSignedUserOp(data, owner.key, address(eoaValidator));
 
-        vm.expectEmit(true, true, true, true);
         bytes memory reason = abi.encodeWithSignature("Error(string)", "Threshold not met");
-        emit IEntryPoint.UserOperationRevertReason(entryPoint.getUserOpHash(userOps[0]), address(account), 1, reason);
-        entryPoint.handleOps(userOps, bundler);
+        expectUserOpRevert(makeSignedUserOp(data)[0], reason);
     }
 
     function test_installAttestedModule() public {
@@ -73,7 +70,7 @@ contract FallbackTest is MSATest {
         bytes memory initData = abi.encodePacked(MockFallback.fallbackMethod.selector, LibERC7579.CALLTYPE_SINGLE);
         bytes memory data =
             abi.encodeCall(IERC7579Account.installModule, (MODULE_TYPE_FALLBACK, address(mockFallback), initData));
-        PackedUserOperation[] memory userOps = makeSignedUserOp(data, owner.key, address(eoaValidator));
+        PackedUserOperation[] memory userOps = makeSignedUserOp(data);
 
         vm.expectEmit(true, true, true, true);
         emit IERC7579Account.ModuleInstalled(MODULE_TYPE_FALLBACK, address(mockFallback));
@@ -84,6 +81,24 @@ contract FallbackTest is MSATest {
             account.getActiveFallbackHandler(MockFallback.fallbackMethod.selector).handler,
             address(mockFallback),
             "Fallback not set correctly"
+        );
+    }
+
+    function testRevert_installFallback_duplicateSelector() public {
+        test_installFallback();
+
+        bytes memory initData = abi.encodePacked(MockFallback.fallbackMethod.selector, LibERC7579.CALLTYPE_SINGLE);
+        bytes memory data =
+            abi.encodeCall(IERC7579Account.installModule, (MODULE_TYPE_FALLBACK, address(mockFallback), initData));
+
+        bytes memory reason =
+            abi.encodeWithSelector(ModuleManager.SelectorAlreadyUsed.selector, MockFallback.fallbackMethod.selector);
+        expectUserOpRevert(makeSignedUserOp(data)[0], reason);
+
+        vm.assertEq(
+            account.getActiveFallbackHandler(MockFallback.fallbackMethod.selector).handler,
+            address(mockFallback),
+            "Fallback handler unexpectedly removed"
         );
     }
 
@@ -100,7 +115,7 @@ contract FallbackTest is MSATest {
         bytes memory initData = abi.encodePacked(MockFallback.fallbackMethod.selector);
         bytes memory data =
             abi.encodeCall(IERC7579Account.uninstallModule, (MODULE_TYPE_FALLBACK, address(mockFallback), initData));
-        PackedUserOperation[] memory userOps = makeSignedUserOp(data, owner.key, address(eoaValidator));
+        PackedUserOperation[] memory userOps = makeSignedUserOp(data);
 
         vm.expectEmit(true, true, true, true);
         emit IERC7579Account.ModuleUninstalled(MODULE_TYPE_FALLBACK, address(mockFallback));
@@ -114,18 +129,15 @@ contract FallbackTest is MSATest {
         );
     }
 
-    function testRevert_uninstallFallback() public {
+    function testRevert_uninstallFallback_onUninstall() public {
         test_installFallback();
 
         bytes memory deinitData = abi.encodePacked(MockFallback.fallbackMethod.selector, "some data");
         bytes memory data =
             abi.encodeCall(IERC7579Account.uninstallModule, (MODULE_TYPE_FALLBACK, address(mockFallback), deinitData));
-        PackedUserOperation[] memory userOps = makeSignedUserOp(data, owner.key, address(eoaValidator));
 
-        vm.expectEmit(true, true, true, true);
         bytes memory reason = abi.encodeWithSignature("Error(string)", "MockFallback: uninstall failed");
-        emit IEntryPoint.UserOperationRevertReason(entryPoint.getUserOpHash(userOps[0]), address(account), 1, reason);
-        entryPoint.handleOps(userOps, bundler);
+        expectUserOpRevert(makeSignedUserOp(data)[0], reason);
 
         vm.assertTrue(mockFallback.isInitialized(address(account)), "Fallback still initialized but should not be");
         vm.assertEq(
@@ -135,6 +147,17 @@ contract FallbackTest is MSATest {
         );
     }
 
+    function testRevert_uninstallFallback_notInstalled() public {
+        bytes memory data = abi.encodeCall(
+            IERC7579Account.uninstallModule,
+            (MODULE_TYPE_FALLBACK, address(mockFallback), abi.encodePacked(MockFallback.fallbackMethod.selector))
+        );
+
+        bytes memory reason =
+            abi.encodeWithSelector(ModuleManager.NoFallbackHandler.selector, MockFallback.fallbackMethod.selector);
+        expectUserOpRevert(makeSignedUserOp(data)[0], reason);
+    }
+
     function test_unlinkFallback() public {
         test_installFallback();
 
@@ -142,7 +165,7 @@ contract FallbackTest is MSATest {
         bytes memory initData = abi.encodePacked(MockFallback.fallbackMethod.selector, "some data");
         bytes memory data =
             abi.encodeCall(ModularSmartAccount.unlinkModule, (MODULE_TYPE_FALLBACK, address(mockFallback), initData));
-        PackedUserOperation[] memory userOps = makeSignedUserOp(data, owner.key, address(eoaValidator));
+        PackedUserOperation[] memory userOps = makeSignedUserOp(data);
 
         vm.expectEmit(true, true, true, true);
         bytes memory reason = abi.encodeWithSignature("Error(string)", "MockFallback: uninstall failed");

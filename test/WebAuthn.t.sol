@@ -97,7 +97,7 @@ contract WebAuthnValidatorTest is MSATest {
         bytes memory data = abi.encodeCall(
             ModularSmartAccount.uninstallModule, (MODULE_TYPE_VALIDATOR, address(validator), abi.encode(passkeys))
         );
-        PackedUserOperation[] memory userOps = makeSignedUserOp(data, owner.key, address(eoaValidator));
+        PackedUserOperation[] memory userOps = makeSignedUserOp(data);
         vm.expectEmit(true, true, true, true);
         emit IERC7579Account.ModuleUninstalled(MODULE_TYPE_VALIDATOR, address(validator));
         entryPoint.handleOps(userOps, bundler);

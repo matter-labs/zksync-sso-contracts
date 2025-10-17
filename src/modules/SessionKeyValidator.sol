@@ -14,7 +14,7 @@ import "../interfaces/IERC7579Module.sol";
 /// @author Matter Labs
 /// @custom:security-contact security@matterlabs.dev
 /// @notice This contract is used to manage sessions for a smart account.
-contract SessionKeyValidator is IValidator {
+contract SessionKeyValidator is IValidator, IERC165 {
     using SessionLib for SessionLib.SessionStorage;
 
     event SessionCreated(address indexed account, bytes32 indexed sessionHash, SessionLib.SessionSpec sessionSpec);
@@ -45,9 +45,8 @@ contract SessionKeyValidator is IValidator {
         return sessions[sessionHash].status[account];
     }
 
-    /// @notice Runs on module install
-    /// @param data ABI-encoded session specification to immediately create a session, or empty if
-    /// not needed
+    /// @inheritdoc IModule
+    /// @param data ABI-encoded session specification to immediately create a session, or empty if not needed.
     function onInstall(bytes calldata data) external virtual {
         if (data.length > 0) {
             // This always either succeeds with `true` or reverts within,
@@ -57,13 +56,8 @@ contract SessionKeyValidator is IValidator {
         }
     }
 
-    /// @notice Runs on module uninstall
-    /// @param data ABI-encoded array of session hashes to revoke
-    /// @dev Revokes provided sessions before uninstalling,
-    /// reverts if any session is still active after that.
-    /// @notice Only provided sessions will be revoked, not necessarily all active sessions.
-    /// If any active session is unrevoked on uninstall, it will become active again
-    /// if the module is reinstalled, unless the session expires.
+    /// @inheritdoc IModule
+    /// @notice Revokes the provided sessions before uninstalling.
     function onUninstall(bytes calldata data) external virtual {
         // Revoke keys before uninstalling
         bytes32[] memory sessionHashes = abi.decode(data, (bytes32[]));
@@ -72,6 +66,7 @@ contract SessionKeyValidator is IValidator {
         }
     }
 
+    /// @inheritdoc IValidator
     /// @notice This module should not be used to validate signatures (including EIP-1271),
     /// as a signature by itself does not have enough information to validate it against a session.
     function isValidSignatureWithSender(address, bytes32, bytes calldata) external pure returns (bytes4) {
@@ -135,6 +130,7 @@ contract SessionKeyValidator is IValidator {
         emit SessionCreated(msg.sender, sessionHash, sessionSpec);
     }
 
+    /// @inheritdoc IERC165
     function supportsInterface(bytes4 interfaceId) external pure virtual returns (bool) {
         return interfaceId == type(IERC165).interfaceId || interfaceId == type(IValidator).interfaceId
             || interfaceId == type(IModule).interfaceId;
@@ -157,18 +153,13 @@ contract SessionKeyValidator is IValidator {
         }
     }
 
-    /// @notice Check if the validator is registered for the smart account
-    /// @param smartAccount The smart account to check
-    /// @return true if validator is registered for the account, false otherwise
+    /// @inheritdoc IModule
     function isInitialized(address smartAccount) public view virtual returns (bool) {
         return IMSA(smartAccount).isModuleInstalled(MODULE_TYPE_VALIDATOR, address(this), "");
     }
 
-    /// @notice Validate a session transaction for an account
-    /// @param userOp User operation to validate
-    /// @param userOpHash The hash of the userOp
-    /// @return uint256 Validation data, according to ERC-4337 (EntryPoint v0.8)
-    /// @dev Session spec and period IDs must be provided as validator data
+    /// @inheritdoc IValidator
+    /// @dev Session spec and period IDs must be provided as validator data.
     function validateUserOp(PackedUserOperation calldata userOp, bytes32 userOpHash) public virtual returns (uint256) {
         (bytes memory transactionSignature, SessionLib.SessionSpec memory spec, uint48[] memory periodIds) =
             abi.decode(userOp.signature[20:], (bytes, SessionLib.SessionSpec, uint48[]));
@@ -193,6 +184,7 @@ contract SessionKeyValidator is IValidator {
         return _packValidationData(false, validUntil, validAfter);
     }
 
+    /// @inheritdoc IModule
     function isModuleType(uint256 moduleTypeId) external pure virtual returns (bool) {
         return moduleTypeId == MODULE_TYPE_VALIDATOR;
     }
