@@ -150,6 +150,7 @@ contract ModularSmartAccount is IMSA, ExecutionHelper, ERC1271Handler, RegistryA
         }
     }
 
+    /// @inheritdoc IERC7579Account
     function isValidSignature(bytes32 hash, bytes calldata data)
         public
         view
@@ -207,7 +208,7 @@ contract ModularSmartAccount is IMSA, ExecutionHelper, ERC1271Handler, RegistryA
         else return false;
     }
 
-    /// @dev Initializes the account.
+    /// @inheritdoc IMSA
     function initializeAccount(address[] calldata modules, bytes[] calldata data)
         external
         payable

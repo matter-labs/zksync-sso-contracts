@@ -11,7 +11,7 @@ import { IERC7579Account } from "src/interfaces/IERC7579Account.sol";
 import { MODULE_TYPE_FALLBACK } from "src/interfaces/IERC7579Module.sol";
 import { ModularSmartAccount } from "src/ModularSmartAccount.sol";
 import { ModuleManager } from "src/core/ModuleManager.sol";
-import { IERC7484 } from "src/interfaces/IERC7484.sol";
+import { IERC7484Registry } from "src/interfaces/IERC7484Registry.sol";
 import { RegistryAdapter } from "src/core/RegistryAdapter.sol";
 
 import { MockFallback } from "./mocks/MockFallback.sol";
@@ -35,7 +35,7 @@ contract FallbackTest is MSATest {
         address[] memory attesters = new address[](1);
         attesters[0] = attester;
 
-        bytes memory data = abi.encodeCall(RegistryAdapter.setRegistry, (IERC7484(mockRegistry), attesters, 1));
+        bytes memory data = abi.encodeCall(RegistryAdapter.setRegistry, (IERC7484Registry(mockRegistry), attesters, 1));
 
         PackedUserOperation[] memory userOps = makeSignedUserOp(data);
 

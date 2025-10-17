@@ -116,6 +116,10 @@ contract WebAuthnValidator is IValidator, IERC165 {
         emit PasskeyRemoved(msg.sender, domain, credentialId);
     }
 
+    /// @notice Register a new WebAuthn passkey for the caller's account.
+    /// @param credentialId Credential identifier received from the authenticator.
+    /// @param newKey The WebAuthn public key encoded as two 32-byte words.
+    /// @param originDomain Domain that scoped the passkey.
     function addValidationKey(bytes memory credentialId, bytes32[2] memory newKey, string memory originDomain) public {
         require(isInitialized(msg.sender), NotInitialized(msg.sender));
         _addValidationKey(credentialId, newKey, originDomain);

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.23;
 
-import { IERC7484 } from "../interfaces/IERC7484.sol";
+import { IERC7484Registry } from "../interfaces/IERC7484Registry.sol";
 import { AccountBase } from "./AccountBase.sol";
 
 /// @title RegistryAdapter
@@ -10,10 +10,10 @@ import { AccountBase } from "./AccountBase.sol";
 abstract contract RegistryAdapter is AccountBase {
     event ERC7484RegistryConfigured(address indexed registry);
 
-    IERC7484 internal $registry;
+    IERC7484Registry internal $registry;
 
     modifier withRegistry(address module, uint256 moduleTypeId) {
-        IERC7484 registry = $registry;
+        IERC7484Registry registry = $registry;
         if (address(registry) != address(0)) {
             registry.check(module, moduleTypeId);
         }
@@ -21,10 +21,10 @@ abstract contract RegistryAdapter is AccountBase {
     }
 
     /// @notice Configure the ERC-7484 registry used to attest modules for the account.
-    /// @param registry Registry contract to trust.
-    /// @param attesters Optional list of attesters to trust immediately.
+    /// @param registry Registry contract to use.
+    /// @param attesters List of attesters to trust immediately.
     /// @param threshold Minimum number of trusted attesters required by the registry.
-    function setRegistry(IERC7484 registry, address[] calldata attesters, uint8 threshold)
+    function setRegistry(IERC7484Registry registry, address[] calldata attesters, uint8 threshold)
         external
         onlyEntryPointOrSelf
     {
