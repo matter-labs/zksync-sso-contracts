@@ -16,6 +16,7 @@ import { GuardianExecutor } from "../GuardianExecutor.sol";
 import { IERC7579Account } from "../../interfaces/IERC7579Account.sol";
 
 /// @title GuardianBasedRecoveryExecutor
+/// @author Oleg Bedrin - <o.bedrin@xsolla.com> - Xsolla ZK
 /// @notice GuardianExecutor variant with an implicit, globally trusted Xsolla
 /// guardian (no per‑account guardian setup).
 /// @dev Disables all mutable guardian management; only a privileged submit /
