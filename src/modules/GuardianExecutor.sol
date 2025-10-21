@@ -265,7 +265,7 @@ contract GuardianExecutor is IExecutor, IERC165 {
     }
 
     /// @inheritdoc IERC165
-    function supportsInterface(bytes4 interfaceId) external pure returns (bool) {
+    function supportsInterface(bytes4 interfaceId) external pure virtual returns (bool) {
         return interfaceId == type(IExecutor).interfaceId || interfaceId == type(IModule).interfaceId
             || interfaceId == type(IERC165).interfaceId;
     }

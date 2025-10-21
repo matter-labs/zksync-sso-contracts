@@ -17,62 +17,41 @@ import { IERC7579Account } from "../../interfaces/IERC7579Account.sol";
 
 /// @title GuardianBasedRecoveryExecutor
 /// @author Oleg Bedrin - <o.bedrin@xsolla.com> - Xsolla ZK
-/// @notice GuardianExecutor variant with an implicit, globally trusted Xsolla
-/// guardian (no per‑account guardian setup).
-/// @dev Disables all mutable guardian management; only a privileged submit /
-/// finalize recovery flow is allowed. Recovery lifecycle:
-/// 1. initializeRecovery(): stores a pending request if none active (or
-/// previous expired). 2. finalizeRecovery(): callable only after
-/// REQUEST_DELAY_TIME has strictly passed
-///    and strictly before (timestamp + REQUEST_VALIDITY_TIME) expires.
-/// 3. discardRecovery()/discardRecoveryFor(): cancels an active request.
-/// A recovery is considered active if (timestamp != 0 && data.length != 0).
+/// @notice GuardianExecutor with implicit global guardian - no per-account setup required
+/// @dev Recovery flow: initializeRecovery() -> wait delay -> finalizeRecovery()
 contract GuardianBasedRecoveryExecutor is GuardianExecutor, Initializable, AccessControl {
-    /// @notice Role allowed to submit (initialize) recovery requests acting as
-    /// the implicit guardian. @dev Holders can start or discard recoveries for
-    /// any account.
+    /// @notice Role for submitting recovery requests
     bytes32 public constant SUBMITTER_ROLE = keccak256("SUBMITTER_ROLE");
-    /// @notice Role allowed to finalize (execute) a pending recovery after the
-    /// delay window. @dev Separation of duties: submitter cannot finalize
-    /// unless also granted this role.
+    
+    /// @notice Role for finalizing pending recoveries
     bytes32 public constant FINALIZER_ROLE = keccak256("FINALIZER_ROLE");
 
-    /// @notice Thrown when attempting to use disabled guardian management
-    /// functions. @custom:error GuardianModificationDisabled All guardian
-    /// mutation entrypoints revert with this error.
+    /// @notice Thrown when guardian management functions are called
     error GuardianModificationDisabled();
 
-    /// @notice Thrown when trying to discard a recovery that does not exist for
-    /// the target account. @param account The account for which no active
-    /// recovery exists.
+    /// @notice Thrown when trying to discard non-existent recovery
+    /// @param account The account with no active recovery
     error CannotDiscardRecoveryFor(address account);
 
-    // NOTE:
-    // - Keep a minimal constructor only to satisfy GuardianExecutor's constructor
-    // (validators are fixed at implementation deploy time).
-    // - Do NOT set roles here; roles are set via initialize() for proxies.
-    constructor(address _webAuthValidator, address _eoaValidator) GuardianExecutor(_webAuthValidator, _eoaValidator) { }
+    constructor(address _webAuthValidator, address _eoaValidator) GuardianExecutor(_webAuthValidator, _eoaValidator) {
+        _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
+        _disableInitializers();
+    }
 
-    /// @notice Initializer for TransparentUpgradeableProxy deployments.
-    /// @dev Call this once via proxy right after deploying the proxy.
-    /// Grants admin/submitter/finalizer roles.
+    /// @notice Initializer function.
+    /// @param _admin Admin role recipient
+    /// @param _finalizer Finalizer role recipient  
+    /// @param _submitter Submitter role recipient
     function initialize(address _admin, address _finalizer, address _submitter) external initializer {
         _grantRole(DEFAULT_ADMIN_ROLE, _admin);
         _grantRole(FINALIZER_ROLE, _finalizer);
         _grantRole(SUBMITTER_ROLE, _submitter);
     }
 
-    /// @notice Initializes a recovery request for a smart account (implicit
-    /// global guardian). @dev Requirements:
-    /// - Corresponding validator for recoveryType must be installed
-    /// (checkInstalledValidator). - No active (non‑expired) recovery in
-    /// progress (else RecoveryInProgress).
-    /// Behavior:
-    /// - If a previous recovery exists but has expired, it is discarded first.
-    /// - Records timestamp = current block time.
-    /// @param accountToRecover Smart account to recover.
-    /// @param recoveryType Recovery type enum (EOA or Passkey).
-    /// @param data ABI‑encoded validator payload (e.g. new key material).
+    /// @notice Start recovery process for an account
+    /// @param accountToRecover Target smart account
+    /// @param recoveryType EOA or Passkey recovery
+    /// @param data Encoded validator payload (new key material)
     function initializeRecovery(address accountToRecover, RecoveryType recoveryType, bytes calldata data)
         external
         virtual
@@ -93,18 +72,9 @@ contract GuardianBasedRecoveryExecutor is GuardianExecutor, Initializable, Acces
         emit RecoveryInitiated(accountToRecover, msg.sender, recovery);
     }
 
-    /// @notice Finalizes an initialized recovery after delay and before expiry,
-    /// executing the validator action. @dev Requirements:
-    /// - Active recovery must exist (else NoRecoveryInProgress).
-    /// - Validator for stored recovery type still installed.
-    /// - Timing: (timestamp + REQUEST_DELAY_TIME) < block.timestamp (strictly
-    /// after delay) AND block.timestamp < (timestamp + REQUEST_VALIDITY_TIME)
-    /// (strictly before expiry).
-    /// Side effects:
-    /// - Deletes pending recovery before external call.
-    /// - Executes validator-specific addOwner / addValidationKey via account.
-    /// @param account Account whose recovery is being finalized.
-    /// @return returnData ABI return data from underlying validator call.
+    /// @notice Execute pending recovery after delay period
+    /// @param account Account to recover
+    /// @return returnData Result from validator call
     function finalizeRecovery(address account)
         external
         virtual
@@ -140,27 +110,21 @@ contract GuardianBasedRecoveryExecutor is GuardianExecutor, Initializable, Acces
         emit RecoveryFinished(account);
     }
 
-    /// @notice Discards caller's own pending recovery request, if any.
-    /// @dev Reverts with CannotDiscardRecoveryFor if none is active.
+    /// @notice Cancel caller's pending recovery
     function discardRecovery() public virtual override {
         _discardRecoveryFor(msg.sender, true);
     }
 
-    /// @notice Discards a pending recovery for a target account (submitter
-    /// authority). @dev Reverts with CannotDiscardRecoveryFor if no active
-    /// recovery for account.
-    /// @param account Target account whose recovery is to be discarded.
+    /// @notice Cancel pending recovery for target account
+    /// @param account Account whose recovery to cancel
     function discardRecoveryFor(address account) external virtual onlyRole(SUBMITTER_ROLE) {
         _discardRecoveryFor(account, true);
     }
 
-    /// @notice Prevents removal of all past guardians when this module is
-    /// disabled in an account, since they are not utilized.
-    function onUninstall(bytes calldata) external virtual override { }
-
-    // ---------------------------------------------------------------------
-    // Disabled guardian management (only implicit xsolla guardian is allowed).
-    // ---------------------------------------------------------------------
+    /// @notice Cleanup on module uninstall
+    function onUninstall(bytes calldata) external virtual override {
+        _discardRecoveryFor(msg.sender, false);
+    }
 
     /// @inheritdoc GuardianExecutor
     /// @notice Disabled in this implementation; always reverts.

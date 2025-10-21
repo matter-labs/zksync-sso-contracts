@@ -31,7 +31,10 @@ contract RecoveryTest is MSATest {
         finalizer = makeAccount("finalizer");
 
         recoveryExecutor = new GuardianBasedRecoveryExecutor(address(0), address(eoaValidator));
-        recoveryExecutor.initialize(admin.addr, finalizer.addr, submitter.addr);
+        // recoveryExecutor.initialize(admin.addr, finalizer.addr, submitter.addr);
+        recoveryExecutor.grantRole(recoveryExecutor.DEFAULT_ADMIN_ROLE(), admin.addr);
+        recoveryExecutor.grantRole(recoveryExecutor.FINALIZER_ROLE(), finalizer.addr);
+        recoveryExecutor.grantRole(recoveryExecutor.SUBMITTER_ROLE(), submitter.addr);
     }
 
     function test_installExecutor() public {
