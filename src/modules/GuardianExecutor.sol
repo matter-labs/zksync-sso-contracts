@@ -150,16 +150,7 @@ contract GuardianExecutor is IExecutor, IERC165 {
         virtual
         onlyGuardianOf(accountToRecover)
     {
-        require(isInitialized(accountToRecover), NotInitialized(accountToRecover));
-        checkInstalledValidator(accountToRecover, recoveryType);
-        uint256 pendingRecoveryTimestamp = pendingRecovery[accountToRecover].timestamp;
-        require(
-            pendingRecoveryTimestamp == 0 || pendingRecoveryTimestamp + REQUEST_VALIDITY_TIME < block.timestamp,
-            RecoveryInProgress(accountToRecover)
-        );
-        RecoveryRequest memory recovery = RecoveryRequest(recoveryType, data, uint48(block.timestamp));
-        pendingRecovery[accountToRecover] = recovery;
-        emit RecoveryInitiated(accountToRecover, msg.sender, recovery);
+        _initializeRecovery(accountToRecover, recoveryType, data);
     }
 
     /// @dev Ensure the appropriate validator module is installed for the requested recovery.
@@ -187,28 +178,7 @@ contract GuardianExecutor is IExecutor, IERC165 {
     /// @param account Account that requested recovery.
     /// @return returnData ABI-encoded response from validator execution.
     function finalizeRecovery(address account) external virtual returns (bytes memory returnData) {
-        RecoveryRequest memory recovery = pendingRecovery[account];
-        checkInstalledValidator(account, recovery.recoveryType);
-        require(recovery.timestamp != 0 && recovery.data.length != 0, NoRecoveryInProgress(account));
-        require(
-            recovery.timestamp + REQUEST_DELAY_TIME < block.timestamp
-                && recovery.timestamp + REQUEST_VALIDITY_TIME > block.timestamp,
-            RecoveryTimestampInvalid(recovery.timestamp)
-        );
-
-        // NOTE: the fact that recovery type is not `None` is checked in `checkInstalledValidator`.
-        // slither-disable-next-line incorrect-equality
-        address validator = recovery.recoveryType == RecoveryType.EOA ? eoaValidator : webAuthValidator;
-        // slither-disable-next-line incorrect-equality
-        bytes4 selector = recovery.recoveryType == RecoveryType.EOA
-            ? EOAKeyValidator.addOwner.selector
-            : WebAuthnValidator.addValidationKey.selector;
-        bytes memory execution = abi.encodePacked(validator, uint256(0), abi.encodePacked(selector, recovery.data));
-
-        delete pendingRecovery[account];
-        bytes32 mode = LibERC7579.encodeMode(LibERC7579.CALLTYPE_SINGLE, LibERC7579.EXECTYPE_DEFAULT, 0, 0);
-        returnData = IERC7579Account(account).executeFromExecutor(mode, execution)[0];
-        emit RecoveryFinished(account);
+        return _finalizeRecovery(account);
     }
 
     /// @notice List all guardians configured for an account.
@@ -268,5 +238,45 @@ contract GuardianExecutor is IExecutor, IERC165 {
     function supportsInterface(bytes4 interfaceId) external pure virtual returns (bool) {
         return interfaceId == type(IExecutor).interfaceId || interfaceId == type(IModule).interfaceId
             || interfaceId == type(IERC165).interfaceId;
+    }
+
+    /// @dev Internal helper to start a recovery process.
+    function _initializeRecovery(address accountToRecover, RecoveryType recoveryType, bytes calldata data) internal {
+        require(isInitialized(accountToRecover), NotInitialized(accountToRecover));
+        checkInstalledValidator(accountToRecover, recoveryType);
+        uint256 pendingRecoveryTimestamp = pendingRecovery[accountToRecover].timestamp;
+        require(
+            pendingRecoveryTimestamp == 0 || pendingRecoveryTimestamp + REQUEST_VALIDITY_TIME < block.timestamp,
+            RecoveryInProgress(accountToRecover)
+        );
+        RecoveryRequest memory recovery = RecoveryRequest(recoveryType, data, uint48(block.timestamp));
+        pendingRecovery[accountToRecover] = recovery;
+        emit RecoveryInitiated(accountToRecover, msg.sender, recovery);
+    }
+
+    /// @dev Internal helper to finalize a recovery process.
+    function _finalizeRecovery(address account) internal returns (bytes memory returnData) {
+        RecoveryRequest memory recovery = pendingRecovery[account];
+        checkInstalledValidator(account, recovery.recoveryType);
+        require(recovery.timestamp != 0 && recovery.data.length != 0, NoRecoveryInProgress(account));
+        require(
+            recovery.timestamp + REQUEST_DELAY_TIME < block.timestamp
+                && recovery.timestamp + REQUEST_VALIDITY_TIME > block.timestamp,
+            RecoveryTimestampInvalid(recovery.timestamp)
+        );
+
+        // NOTE: the fact that recovery type is not `None` is checked in `checkInstalledValidator`.
+        // slither-disable-next-line incorrect-equality
+        address validator = recovery.recoveryType == RecoveryType.EOA ? eoaValidator : webAuthValidator;
+        // slither-disable-next-line incorrect-equality
+        bytes4 selector = recovery.recoveryType == RecoveryType.EOA
+            ? EOAKeyValidator.addOwner.selector
+            : WebAuthnValidator.addValidationKey.selector;
+        bytes memory execution = abi.encodePacked(validator, uint256(0), abi.encodePacked(selector, recovery.data));
+
+        delete pendingRecovery[account];
+        bytes32 mode = LibERC7579.encodeMode(LibERC7579.CALLTYPE_SINGLE, LibERC7579.EXECTYPE_DEFAULT, 0, 0);
+        returnData = IERC7579Account(account).executeFromExecutor(mode, execution)[0];
+        emit RecoveryFinished(account);
     }
 }

@@ -58,18 +58,7 @@ contract GuardianBasedRecoveryExecutor is GuardianExecutor, Initializable, Acces
         override
         onlyRole(SUBMITTER_ROLE)
     {
-        // Implicit guardian path: replicate the base logic without the
-        // onlyGuardianOf modifier.
-        checkInstalledValidator(accountToRecover, recoveryType);
-        uint256 pendingRecoveryTimestamp = pendingRecovery[accountToRecover].timestamp;
-        if (pendingRecoveryTimestamp != 0 && pendingRecoveryTimestamp + REQUEST_VALIDITY_TIME >= block.timestamp) {
-            revert RecoveryInProgress(accountToRecover);
-        } else {
-            _discardRecoveryFor(accountToRecover, false);
-        }
-        RecoveryRequest memory recovery = RecoveryRequest(recoveryType, data, uint48(block.timestamp));
-        pendingRecovery[accountToRecover] = recovery;
-        emit RecoveryInitiated(accountToRecover, msg.sender, recovery);
+        _initializeRecovery(accountToRecover, recoveryType, data);
     }
 
     /// @notice Execute pending recovery after delay period
@@ -82,32 +71,7 @@ contract GuardianBasedRecoveryExecutor is GuardianExecutor, Initializable, Acces
         onlyRole(FINALIZER_ROLE)
         returns (bytes memory returnData)
     {
-        RecoveryRequest memory recovery = pendingRecovery[account];
-        checkInstalledValidator(account, recovery.recoveryType);
-
-        if (recovery.timestamp == 0 || recovery.data.length == 0) {
-            revert NoRecoveryInProgress(account);
-        }
-
-        if (!(recovery.timestamp + REQUEST_DELAY_TIME < block.timestamp
-                    && recovery.timestamp + REQUEST_VALIDITY_TIME > block.timestamp)) {
-            revert RecoveryTimestampInvalid(recovery.timestamp);
-        }
-
-        // NOTE: the fact that recovery type is not `None` is checked in
-        // `checkInstalledValidator`. slither-disable-next-line
-        // incorrect-equality
-        address validator = recovery.recoveryType == RecoveryType.EOA ? eoaValidator : webAuthValidator;
-        // slither-disable-next-line incorrect-equality
-        bytes4 selector = recovery.recoveryType == RecoveryType.EOA
-            ? EOAKeyValidator.addOwner.selector
-            : WebAuthnValidator.addValidationKey.selector;
-        bytes memory execution = abi.encodePacked(validator, uint256(0), abi.encodePacked(selector, recovery.data));
-
-        delete pendingRecovery[account];
-        bytes32 mode = LibERC7579.encodeMode(LibERC7579.CALLTYPE_SINGLE, LibERC7579.EXECTYPE_DEFAULT, 0, 0);
-        returnData = IERC7579Account(account).executeFromExecutor(mode, execution)[0];
-        emit RecoveryFinished(account);
+        return _finalizeRecovery(account);
     }
 
     /// @notice Cancel caller's pending recovery
