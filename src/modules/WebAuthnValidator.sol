@@ -23,7 +23,7 @@ contract WebAuthnValidator is IValidator, IERC165 {
     error NotKeyOwner(address account);
     error KeyAlreadyExists();
     error AccountAlreadyExists();
-    error EmtpyKey();
+    error EmptyKey();
     error BadDomainLength();
     error BadCredentialIDLength();
     error KeyNotFound(string originDomain, bytes credentialId, address account);
@@ -138,7 +138,7 @@ contract WebAuthnValidator is IValidator, IERC165 {
         // this key already exists on the domain for an existing account
         require(registeredAddress[originDomain][credentialId] == address(0), AccountAlreadyExists());
         // empty keys aren't valid
-        require(newKey[0] != 0 || newKey[1] != 0, EmtpyKey());
+        require(newKey[0] != 0 || newKey[1] != 0, EmptyKey());
         // RFC 1035 sets domains between 1-253 characters
         uint256 domainLength = bytes(originDomain).length;
         require(domainLength >= 1 && domainLength <= 253, BadDomainLength());
@@ -199,7 +199,7 @@ contract WebAuthnValidator is IValidator, IERC165 {
         // cross-origin validation is optional, but explicitly not supported.
         // cross-origin requests would be from embedding the auth request
         // from another domain. The current SSO setup uses a pop-up instead of
-        // an i-frame, so we're rejecting these until the implemention supports it
+        // an i-frame, so we're rejecting these until the implementation supports it
         JSONParserLib.Item memory crossOriginItem = root.at('"crossOrigin"');
         if (!crossOriginItem.isUndefined()) {
             string memory crossOrigin = crossOriginItem.value();

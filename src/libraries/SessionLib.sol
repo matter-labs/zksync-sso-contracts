@@ -299,7 +299,7 @@ library SessionLib {
         (address target, uint256 value, bytes calldata callData) =
             LibERC7579.decodeSingle(userOp.callData[offset + 32:offset + 32 + length]);
 
-        // Time range whithin which the transaction is valid.
+        // Time range within which the transaction is valid.
         uint48[2] memory timeRange = [0, spec.expiresAt];
 
         if (callData.length >= 4) {

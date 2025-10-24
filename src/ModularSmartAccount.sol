@@ -201,10 +201,10 @@ contract ModularSmartAccount is IMSA, ExecutionHelper, ERC1271Handler, RegistryA
     }
 
     /// @inheritdoc IERC7579Account
-    function supportsModule(uint256 modulTypeId) external view virtual override returns (bool) {
-        if (modulTypeId == MODULE_TYPE_VALIDATOR) return true;
-        else if (modulTypeId == MODULE_TYPE_EXECUTOR) return true;
-        else if (modulTypeId == MODULE_TYPE_FALLBACK) return true;
+    function supportsModule(uint256 moduleTypeId) external view virtual override returns (bool) {
+        if (moduleTypeId == MODULE_TYPE_VALIDATOR) return true;
+        else if (moduleTypeId == MODULE_TYPE_EXECUTOR) return true;
+        else if (moduleTypeId == MODULE_TYPE_FALLBACK) return true;
         else return false;
     }
 

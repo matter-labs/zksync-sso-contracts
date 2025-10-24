@@ -43,7 +43,7 @@ interface IERC7579Account {
     function isValidSignature(bytes32 hash, bytes calldata data) external view returns (bytes4);
 
     /// @dev installs a Module of a certain type on the smart account
-    /// @dev Implement Authorization control of your chosing
+    /// @dev Implement Authorization control of your choosing
     /// @param moduleTypeId the module type ID according the ERC-7579 spec
     /// @param module the module address
     /// @param initData arbitrary data that may be required on the module during `onInstall`
@@ -51,7 +51,7 @@ interface IERC7579Account {
     function installModule(uint256 moduleTypeId, address module, bytes calldata initData) external payable;
 
     /// @dev uninstalls a Module of a certain type on the smart account
-    /// @dev Implement Authorization control of your chosing
+    /// @dev Implement Authorization control of your choosing
     /// @param moduleTypeId the module type ID according the ERC-7579 spec
     /// @param module the module address
     /// @param deInitData arbitrary data that may be required on the module during `onUninstall`
@@ -72,7 +72,7 @@ interface IERC7579Account {
     /// It thus may be necessary to query multiple module types
     /// @param module the module address
     /// @param additionalContext additional context data that the smart account may interpret to
-    ///                          identifiy conditions under which the module is installed.
+    ///                          identify conditions under which the module is installed.
     ///                          usually this is not necessary, but for some special hooks that
     ///                          are stored in mappings, this param might be needed
     function isModuleInstalled(uint256 moduleTypeId, address module, bytes calldata additionalContext)
