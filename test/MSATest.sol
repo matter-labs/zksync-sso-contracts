@@ -7,13 +7,11 @@ import { IEntryPoint } from "account-abstraction/interfaces/IEntryPoint.sol";
 import { PackedUserOperation } from "account-abstraction/interfaces/PackedUserOperation.sol";
 import { UpgradeableBeacon } from "@openzeppelin/contracts/proxy/beacon/UpgradeableBeacon.sol";
 import { Test } from "forge-std/Test.sol";
-import { LibERC7579 } from "solady/accounts/LibERC7579.sol";
 
 import { ModularSmartAccount } from "src/ModularSmartAccount.sol";
 import { MSAFactory } from "src/MSAFactory.sol";
 import { EOAKeyValidator } from "src/modules/EOAKeyValidator.sol";
 import { IMSA } from "src/interfaces/IMSA.sol";
-import { Execution } from "src/interfaces/IERC7579Account.sol";
 
 contract MSATest is Test {
     EntryPoint public entryPoint;

@@ -4,10 +4,6 @@ pragma solidity ^0.8.24;
 import { PackedUserOperation } from "account-abstraction/interfaces/PackedUserOperation.sol";
 
 import { ModularSmartAccount } from "src/ModularSmartAccount.sol";
-import { MSAFactory } from "src/MSAFactory.sol";
-import { EOAKeyValidator } from "src/modules/EOAKeyValidator.sol";
-import { SessionKeyValidator } from "src/modules/SessionKeyValidator.sol";
-import { IMSA } from "src/interfaces/IMSA.sol";
 import { MODULE_TYPE_EXECUTOR } from "src/interfaces/IERC7579Module.sol";
 import { IERC7579Account } from "src/interfaces/IERC7579Account.sol";
 import { GuardianExecutor } from "src/modules/GuardianExecutor.sol";

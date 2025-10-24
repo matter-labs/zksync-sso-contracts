@@ -4,8 +4,6 @@ pragma solidity ^0.8.24;
 import { BeaconProxy } from "@openzeppelin/contracts/proxy/beacon/BeaconProxy.sol";
 import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
-import { IMSA } from "./interfaces/IMSA.sol";
-
 /// @title MSAFactory
 /// @author Matter Labs
 /// @custom:security-contact security@matterlabs.dev

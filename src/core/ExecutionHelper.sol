@@ -2,7 +2,6 @@
 pragma solidity ^0.8.23;
 
 import { LibERC7579 } from "solady/accounts/LibERC7579.sol";
-import { Execution } from "../interfaces/IERC7579Account.sol";
 
 /// @title Execution
 /// @dev This contract executes calls in the context of this contract.

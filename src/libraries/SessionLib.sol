@@ -3,7 +3,6 @@ pragma solidity ^0.8.24;
 
 import { PackedUserOperation } from "account-abstraction/interfaces/PackedUserOperation.sol";
 import { UserOperationLib } from "account-abstraction/core/UserOperationLib.sol";
-import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { LibBytes } from "solady/utils/LibBytes.sol";
 import { LibERC7579 } from "solady/accounts/LibERC7579.sol";
 

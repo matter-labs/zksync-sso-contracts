@@ -2,7 +2,7 @@
 pragma solidity ^0.8.21;
 
 import { EnumerableSet } from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
-import "../interfaces/IERC7579Module.sol";
+import "../interfaces/IERC7579Module.sol" as ERC7579;
 
 /// @title ModuleManager
 /// @author zeroknots.eth | rhinestone.wtf
@@ -71,15 +71,15 @@ abstract contract ModuleManager {
 
     function _installValidator(address validator, bytes calldata data) internal virtual {
         require($moduleManager().$validators.add(validator), AlreadyInstalled(validator));
-        IValidator(validator).onInstall(data);
+        ERC7579.IValidator(validator).onInstall(data);
     }
 
     function _uninstallValidator(address validator, bytes calldata data, bool force) internal {
         require($moduleManager().$validators.remove(validator), NotInstalled(validator));
         require($moduleManager().$validators.length() > 0, CannotRemoveLastValidator());
-        try IValidator(validator).onUninstall(data) { }
+        try ERC7579.IValidator(validator).onUninstall(data) { }
         catch (bytes memory reason) {
-            _onUninstallFail(reason, force, MODULE_TYPE_VALIDATOR, validator);
+            _onUninstallFail(reason, force, ERC7579.MODULE_TYPE_VALIDATOR, validator);
         }
     }
 
@@ -93,14 +93,14 @@ abstract contract ModuleManager {
 
     function _installExecutor(address executor, bytes calldata data) internal {
         require($moduleManager().$executors.add(executor), AlreadyInstalled(executor));
-        IExecutor(executor).onInstall(data);
+        ERC7579.IExecutor(executor).onInstall(data);
     }
 
     function _uninstallExecutor(address executor, bytes calldata data, bool force) internal {
         require($moduleManager().$executors.remove(executor), NotInstalled(executor));
-        try IExecutor(executor).onUninstall(data) { }
+        try ERC7579.IExecutor(executor).onUninstall(data) { }
         catch (bytes memory reason) {
-            _onUninstallFail(reason, force, MODULE_TYPE_EXECUTOR, executor);
+            _onUninstallFail(reason, force, ERC7579.MODULE_TYPE_EXECUTOR, executor);
         }
     }
 
@@ -118,7 +118,7 @@ abstract contract ModuleManager {
         bytes calldata initData = params[5:];
         require(!_isFallbackHandlerInstalled(selector), SelectorAlreadyUsed(selector));
         $moduleManager().$fallbacks[selector] = FallbackHandler(handler, calltype);
-        IFallback(handler).onInstall(initData);
+        ERC7579.IFallback(handler).onInstall(initData);
     }
 
     function _uninstallFallbackHandler(address handler, bytes calldata deInitData, bool force) internal virtual {
@@ -128,9 +128,9 @@ abstract contract ModuleManager {
         FallbackHandler memory activeFallback = $moduleManager().$fallbacks[selector];
         require(activeFallback.handler == handler, NotInstalled(handler));
         $moduleManager().$fallbacks[selector] = FallbackHandler(address(0), 0);
-        try IFallback(handler).onUninstall(_deInitData) { }
+        try ERC7579.IFallback(handler).onUninstall(_deInitData) { }
         catch (bytes memory reason) {
-            _onUninstallFail(reason, force, MODULE_TYPE_FALLBACK, handler);
+            _onUninstallFail(reason, force, ERC7579.MODULE_TYPE_FALLBACK, handler);
         }
     }
 

@@ -2,14 +2,13 @@
 pragma solidity ^0.8.24;
 
 import { IERC165 } from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
-import { ECDSA } from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import { AccessControl } from "@openzeppelin/contracts/access/AccessControl.sol";
 import { IAccessControl } from "@openzeppelin/contracts/access/IAccessControl.sol";
 import { PackedUserOperation } from "account-abstraction/interfaces/PackedUserOperation.sol";
 
 import { SessionLib } from "src/libraries/SessionLib.sol";
 import { SessionKeyValidator } from "../SessionKeyValidator.sol";
-import { IValidator, IModule, MODULE_TYPE_VALIDATOR } from "src/interfaces/IERC7579Module.sol";
+import { IValidator } from "src/interfaces/IERC7579Module.sol";
 
 /// @title AllowedSessionsValidator
 /// @author Oleg Bedrin - <o.bedrin@xsolla.com> - Xsolla Special Initiatives

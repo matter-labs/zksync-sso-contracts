@@ -12,7 +12,7 @@ import { ExecutionHelper } from "src/core/ExecutionHelper.sol";
 import { AccountBase } from "src/core/AccountBase.sol";
 import { ModuleManager } from "src/core/ModuleManager.sol";
 import { IMSA } from "src/interfaces/IMSA.sol";
-import "src/interfaces/IERC7579Module.sol";
+import "src/interfaces/IERC7579Module.sol" as ERC7579;
 
 import { MockTarget } from "./mocks/MockTarget.sol";
 import { MockDelegateTarget } from "./mocks/MockDelegateTarget.sol";
@@ -180,15 +180,15 @@ contract BasicTest is MSATest {
     }
 
     function testRevert_installModuleUnsupportedType() public {
-        vm.expectRevert(abi.encodeWithSelector(IMSA.UnsupportedModuleType.selector, MODULE_TYPE_HOOK));
+        vm.expectRevert(abi.encodeWithSelector(IMSA.UnsupportedModuleType.selector, ERC7579.MODULE_TYPE_HOOK));
         vm.prank(address(entryPoint));
-        account.installModule(MODULE_TYPE_HOOK, address(hookModule), bytes(""));
+        account.installModule(ERC7579.MODULE_TYPE_HOOK, address(hookModule), bytes(""));
     }
 
     function testRevert_uninstallLastValidator() public {
         vm.expectRevert(ModuleManager.CannotRemoveLastValidator.selector);
         vm.prank(address(entryPoint));
-        account.uninstallModule(MODULE_TYPE_VALIDATOR, address(eoaValidator), bytes(""));
+        account.uninstallModule(ERC7579.MODULE_TYPE_VALIDATOR, address(eoaValidator), bytes(""));
     }
 
     function testRevert_executeUserOp_unauthorizedCaller() public {
@@ -214,11 +214,12 @@ contract BasicTest is MSATest {
             account.supportsExecutionMode(LibERC7579.encodeMode(0x42, 0x18, 0, 0)), "Mode should not be supported"
         );
 
-        uint256[3] memory moduleTypes = [MODULE_TYPE_EXECUTOR, MODULE_TYPE_VALIDATOR, MODULE_TYPE_FALLBACK];
+        uint256[3] memory moduleTypes =
+            [ERC7579.MODULE_TYPE_EXECUTOR, ERC7579.MODULE_TYPE_VALIDATOR, ERC7579.MODULE_TYPE_FALLBACK];
         for (uint256 i; i < moduleTypes.length; i++) {
             vm.assertTrue(account.supportsModule(moduleTypes[i]), "Module type should be supported");
         }
-        vm.assertFalse(account.supportsModule(MODULE_TYPE_HOOK), "Module type should not be supported");
+        vm.assertFalse(account.supportsModule(ERC7579.MODULE_TYPE_HOOK), "Module type should not be supported");
     }
 
     function test_signatureTypedData() public view {

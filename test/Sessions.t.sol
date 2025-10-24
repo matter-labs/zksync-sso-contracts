@@ -7,8 +7,6 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { IAccessControl } from "@openzeppelin/contracts/access/IAccessControl.sol";
 
 import { ModularSmartAccount } from "src/ModularSmartAccount.sol";
-import { MSAFactory } from "src/MSAFactory.sol";
-import { EOAKeyValidator } from "src/modules/EOAKeyValidator.sol";
 import { SessionKeyValidator } from "src/modules/SessionKeyValidator.sol";
 import { AllowedSessionsValidator } from "src/modules/contrib/AllowedSessionsValidator.sol";
 import { IMSA } from "src/interfaces/IMSA.sol";
