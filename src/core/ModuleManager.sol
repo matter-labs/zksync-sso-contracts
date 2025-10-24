@@ -2,13 +2,15 @@
 pragma solidity ^0.8.21;
 
 import { EnumerableSet } from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
+
+import { RegistryAdapter } from "./RegistryAdapter.sol";
 import "../interfaces/IERC7579Module.sol" as ERC7579;
 
 /// @title ModuleManager
 /// @author zeroknots.eth | rhinestone.wtf
 /// @dev This contract manages Validator, Executor and Fallback modules for the MSA
 /// NOTE: the linked list is just an example. accounts may implement this differently
-abstract contract ModuleManager {
+abstract contract ModuleManager is RegistryAdapter {
     using EnumerableSet for EnumerableSet.AddressSet;
 
     error InvalidModule(address module);
@@ -176,6 +178,9 @@ abstract contract ModuleManager {
                 revert NoFallbackHandler(msg.sig);
             }
         }
+
+        // Verify that the handler is attested in the registry.
+        checkWithRegistry(handler, ERC7579.MODULE_TYPE_FALLBACK);
 
         assembly {
             function allocate(length) -> pos {

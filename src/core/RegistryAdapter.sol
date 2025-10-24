@@ -12,12 +12,22 @@ abstract contract RegistryAdapter is AccountBase {
 
     IERC7484Registry internal $registry;
 
+    /// @dev Reverts if the module is not attested for the given type in the registry.
     modifier withRegistry(address module, uint256 moduleTypeId) {
+        checkWithRegistry(module, moduleTypeId);
+        _;
+    }
+
+    /// @notice Check the registry to see if the module is attested for the given type.
+    /// @notice If no registry is set, this function does nothing.
+    /// @param module Module address to check.
+    /// @param moduleTypeId Type ID of the module to check.
+    /// @dev Reverts if the module is not attested.
+    function checkWithRegistry(address module, uint256 moduleTypeId) internal view {
         IERC7484Registry registry = $registry;
         if (address(registry) != address(0)) {
             registry.check(module, moduleTypeId);
         }
-        _;
     }
 
     /// @notice Configure the ERC-7484 registry used to attest modules for the account.

@@ -10,7 +10,6 @@ import { ExecutionHelper } from "./core/ExecutionHelper.sol";
 import { IERC7579Account } from "./interfaces/IERC7579Account.sol";
 import { IMSA } from "./interfaces/IMSA.sol";
 import { ERC1271Handler } from "./core/ERC1271Handler.sol";
-import { RegistryAdapter } from "./core/RegistryAdapter.sol";
 
 import "./interfaces/IERC7579Module.sol" as ERC7579;
 
@@ -19,7 +18,7 @@ import "./interfaces/IERC7579Module.sol" as ERC7579;
 /// This account implements CallType: SINGLE, BATCH and DELEGATECALL.
 /// This account implements ExecType: DEFAULT and TRY.
 /// Hook support is implemented
-contract ModularSmartAccount is IMSA, ExecutionHelper, ERC1271Handler, RegistryAdapter, Initializable {
+contract ModularSmartAccount is IMSA, ExecutionHelper, ERC1271Handler, Initializable {
     using LibERC7579 for bytes32;
 
     constructor() {
@@ -140,6 +139,7 @@ contract ModularSmartAccount is IMSA, ExecutionHelper, ERC1271Handler, RegistryA
         returns (uint256 validSignature)
     {
         address validator = address(bytes20(userOp.signature[:20]));
+        checkWithRegistry(validator, ERC7579.MODULE_TYPE_VALIDATOR);
 
         // check if validator is enabled. If not terminate the validation phase.
         if (!_isValidatorInstalled(validator)) {
