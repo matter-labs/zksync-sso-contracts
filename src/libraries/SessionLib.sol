@@ -445,4 +445,43 @@ library SessionLib {
             callParams: callParams
         });
     }
+
+    // ============================================
+  // Type Export Functions (for ABI generation)
+  // ============================================
+  // These functions exist solely to force the Solidity compiler to include
+  // struct and enum definitions in the generated ABI JSON.
+  // They should never be called.
+
+  /// @notice Exports SessionSpec type to ABI
+  /// @dev Never call this function - it exists only for ABI generation
+  function __exportSessionSpec(SessionSpec calldata) external pure {}
+
+  /// @notice Exports SessionState type to ABI
+  /// @dev Never call this function - it exists only for ABI generation
+  function __exportSessionState(SessionState calldata) external pure {}
+
+  /// @notice Exports CallSpec type to ABI
+  /// @dev Never call this function - it exists only for ABI generation
+  function __exportCallSpec(CallSpec calldata) external pure {}
+
+  /// @notice Exports TransferSpec type to ABI
+  /// @dev Never call this function - it exists only for ABI generation
+  function __exportTransferSpec(TransferSpec calldata) external pure {}
+
+  /// @notice Exports Constraint type to ABI
+  /// @dev Never call this function - it exists only for ABI generation
+  function __exportConstraint(Constraint calldata) external pure {}
+
+  /// @notice Exports UsageLimit type to ABI
+  /// @dev Never call this function - it exists only for ABI generation
+  function __exportUsageLimit(UsageLimit calldata) external pure {}
+
+  /// @notice Exports LimitState type to ABI
+  /// @dev Never call this function - it exists only for ABI generation
+  function __exportLimitState(LimitState calldata) external pure {}
+
+  /// @notice Exports enum types to ABI
+  /// @dev Never call this function - it exists only for ABI generation
+  function __exportEnums() external pure returns (Status, LimitType, Condition) {}
 }
