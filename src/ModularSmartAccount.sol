@@ -139,7 +139,6 @@ contract ModularSmartAccount is IMSA, ExecutionHelper, ERC1271Handler, Initializ
         returns (uint256 validSignature)
     {
         address validator = address(bytes20(userOp.signature[:20]));
-        checkWithRegistry(validator, ERC7579.MODULE_TYPE_VALIDATOR);
 
         // check if validator is enabled. If not terminate the validation phase.
         if (!_isValidatorInstalled(validator)) {

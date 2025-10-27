@@ -8,13 +8,14 @@ import { PackedUserOperation } from "account-abstraction/interfaces/PackedUserOp
 import { _packValidationData, SIG_VALIDATION_FAILED } from "account-abstraction/core/Helpers.sol";
 
 import { IMSA } from "../interfaces/IMSA.sol";
+import { IModule, IValidator } from "../interfaces/IERC7579Module.sol";
 import "../interfaces/IERC7579Module.sol" as ERC7579;
 
 /// @title SessionKeyValidator
 /// @author Matter Labs
 /// @custom:security-contact security@matterlabs.dev
 /// @notice This contract is used to manage sessions for a smart account.
-contract SessionKeyValidator is ERC7579.IValidator, IERC165 {
+contract SessionKeyValidator is IValidator, IERC165 {
     using SessionLib for SessionLib.SessionStorage;
 
     event SessionCreated(address indexed account, bytes32 indexed sessionHash, SessionLib.SessionSpec sessionSpec);
@@ -45,7 +46,7 @@ contract SessionKeyValidator is ERC7579.IValidator, IERC165 {
         return sessions[sessionHash].status[account];
     }
 
-    /// @inheritdoc ERC7579.IModule
+    /// @inheritdoc IModule
     /// @param data ABI-encoded session specification to immediately create a session, or empty if not needed.
     function onInstall(bytes calldata data) external virtual {
         if (data.length > 0) {
@@ -56,7 +57,7 @@ contract SessionKeyValidator is ERC7579.IValidator, IERC165 {
         }
     }
 
-    /// @inheritdoc ERC7579.IModule
+    /// @inheritdoc IModule
     /// @notice Revokes the provided sessions before uninstalling.
     function onUninstall(bytes calldata data) external virtual {
         // Revoke keys before uninstalling
@@ -66,7 +67,7 @@ contract SessionKeyValidator is ERC7579.IValidator, IERC165 {
         }
     }
 
-    /// @inheritdoc ERC7579.IValidator
+    /// @inheritdoc IValidator
     /// @notice This module should not be used to validate signatures (including EIP-1271),
     /// as a signature by itself does not have enough information to validate it against a session.
     function isValidSignatureWithSender(address, bytes32, bytes calldata) external pure returns (bytes4) {
@@ -133,8 +134,8 @@ contract SessionKeyValidator is ERC7579.IValidator, IERC165 {
 
     /// @inheritdoc IERC165
     function supportsInterface(bytes4 interfaceId) external pure virtual returns (bool) {
-        return interfaceId == type(IERC165).interfaceId || interfaceId == type(ERC7579.IValidator).interfaceId
-            || interfaceId == type(ERC7579.IModule).interfaceId;
+        return interfaceId == type(IERC165).interfaceId || interfaceId == type(IValidator).interfaceId
+            || interfaceId == type(IModule).interfaceId;
     }
 
     /// @notice Revoke a session for an account
@@ -154,12 +155,12 @@ contract SessionKeyValidator is ERC7579.IValidator, IERC165 {
         }
     }
 
-    /// @inheritdoc ERC7579.IModule
+    /// @inheritdoc IModule
     function isInitialized(address smartAccount) public view virtual returns (bool) {
         return IMSA(smartAccount).isModuleInstalled(ERC7579.MODULE_TYPE_VALIDATOR, address(this), "");
     }
 
-    /// @inheritdoc ERC7579.IValidator
+    /// @inheritdoc IValidator
     /// @dev Session spec and period IDs must be provided as validator data.
     function validateUserOp(PackedUserOperation calldata userOp, bytes32 userOpHash) public virtual returns (uint256) {
         (bytes memory transactionSignature, SessionLib.SessionSpec memory spec, uint48[] memory periodIds) =
@@ -185,7 +186,7 @@ contract SessionKeyValidator is ERC7579.IValidator, IERC165 {
         return _packValidationData(false, validUntil, validAfter);
     }
 
-    /// @inheritdoc ERC7579.IModule
+    /// @inheritdoc IModule
     function isModuleType(uint256 moduleTypeId) external pure virtual returns (bool) {
         return moduleTypeId == ERC7579.MODULE_TYPE_VALIDATOR;
     }
