@@ -33,12 +33,10 @@ contract RecoveryTest is MSATest {
 
         recoveryExecutor = GuardianBasedRecoveryExecutor(address(
             new TransparentUpgradeableProxy(
-                address(new GuardianBasedRecoveryExecutor()), 
+                address(new GuardianBasedRecoveryExecutor(address(0), address(eoaValidator))), 
                 admin.addr,
                 abi.encodeWithSelector(
                     GuardianBasedRecoveryExecutor.initialize.selector,
-                    address(0),
-                    address(eoaValidator),
                     admin.addr,
                     finalizer.addr,
                     submitter.addr

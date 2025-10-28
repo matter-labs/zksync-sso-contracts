@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-import { TransparentUpgradeableProxy } from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 import { PackedUserOperation } from "account-abstraction/interfaces/PackedUserOperation.sol";
 
 import { ModularSmartAccount } from "src/ModularSmartAccount.sol";
@@ -25,15 +24,7 @@ contract GuardianTest is MSATest {
 
         guardian = makeAccount("guardian");
         newOwner = makeAccount("newOwner");
-        guardiansExecutor = GuardianExecutor(
-            address(
-                new TransparentUpgradeableProxy(
-                    address(new GuardianExecutor()),
-                    newOwner.addr,
-                    abi.encodeWithSelector(GuardianExecutor.initialize.selector, address(0), address(eoaValidator))
-                )
-            )
-        );
+        guardiansExecutor = new GuardianExecutor(address(0), address(eoaValidator));
     }
 
     function test_installExecutor() public {

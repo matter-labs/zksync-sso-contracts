@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
+import { Initializable } from "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 import { IERC165 } from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 import { IAccessControl } from "@openzeppelin/contracts/access/IAccessControl.sol";
 import { AccessControl } from "@openzeppelin/contracts/access/AccessControl.sol";
@@ -12,7 +13,7 @@ import { GuardianExecutor } from "../GuardianExecutor.sol";
 /// @author Oleg Bedrin - <o.bedrin@xsolla.com> - Xsolla ZK
 /// @notice GuardianExecutor with implicit global guardian - no per-account setup required
 /// @dev Recovery flow: initializeRecovery() -> wait delay -> finalizeRecovery()
-contract GuardianBasedRecoveryExecutor is GuardianExecutor, AccessControl {
+contract GuardianBasedRecoveryExecutor is GuardianExecutor, Initializable, AccessControl {
     /// @notice Role for submitting recovery requests
     bytes32 public constant SUBMITTER_ROLE = keccak256("SUBMITTER_ROLE");
     
@@ -26,24 +27,21 @@ contract GuardianBasedRecoveryExecutor is GuardianExecutor, AccessControl {
     /// @param account The account with no active recovery
     error CannotDiscardRecoveryFor(address account);
 
-    constructor() {
+    constructor(address _webAuthValidator, address _eoaValidator) 
+        GuardianExecutor(_webAuthValidator, _eoaValidator)
+    {
         _disableInitializers();
     }
 
     /// @notice Initializer function.
-    /// @param _webAuthValidator WebAuthn validator module address
-    /// @param _eoaValidator EOA key validator module address
     /// @param _admin Admin role recipient
     /// @param _finalizer Finalizer role recipient  
     /// @param _submitter Submitter role recipient
     function initialize(
-        address _webAuthValidator, 
-        address _eoaValidator, 
         address _admin, 
-        address _finalizer, 
+        address _finalizer,
         address _submitter
     ) external initializer {
-        _setValidators(_webAuthValidator, _eoaValidator);
         _grantRole(DEFAULT_ADMIN_ROLE, _admin);
         _grantRole(FINALIZER_ROLE, _finalizer);
         _grantRole(SUBMITTER_ROLE, _submitter);

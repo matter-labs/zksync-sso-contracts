@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-import { Initializable } from "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 import { IERC165 } from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 import { PackedUserOperation } from "account-abstraction/interfaces/PackedUserOperation.sol";
 import { EnumerableMap } from "@openzeppelin/contracts/utils/structs/EnumerableMap.sol";
@@ -17,7 +16,7 @@ import { IERC7579Account } from "../interfaces/IERC7579Account.sol";
 /// @author Matter Labs
 /// @custom:security-contact security@matterlabs.dev
 /// @dev This contract allows account recovery using trusted guardians.
-contract GuardianExecutor is IExecutor, IERC165, Initializable {
+contract GuardianExecutor is IExecutor, IERC165 {
     using EnumerableMap for EnumerableMap.AddressToUintMap;
 
     enum RecoveryType {
@@ -53,8 +52,8 @@ contract GuardianExecutor is IExecutor, IERC165, Initializable {
     uint256 public constant REQUEST_VALIDITY_TIME = 72 hours;
     uint256 public constant REQUEST_DELAY_TIME = 24 hours;
 
-    address public webAuthValidator;
-    address public eoaValidator;
+    address public immutable webAuthValidator;
+    address public immutable eoaValidator;
 
     mapping(address account => EnumerableMap.AddressToUintMap guardians) private accountGuardians;
     mapping(address account => RecoveryRequest recoveryData) public pendingRecovery;
@@ -71,12 +70,9 @@ contract GuardianExecutor is IExecutor, IERC165, Initializable {
         _;
     }
 
-    constructor() {
-        _disableInitializers();
-    }
-
-    function initialize(address _webAuthValidator, address _eoaValidator) external initializer {
-        _setValidators(_webAuthValidator, _eoaValidator);
+    constructor(address _webAuthValidator, address _eoaValidator) {
+        webAuthValidator = _webAuthValidator;
+        eoaValidator = _eoaValidator;
     }
 
     /// @inheritdoc IModule
@@ -282,14 +278,6 @@ contract GuardianExecutor is IExecutor, IERC165, Initializable {
         bytes32 mode = LibERC7579.encodeMode(LibERC7579.CALLTYPE_SINGLE, LibERC7579.EXECTYPE_DEFAULT, 0, 0);
         returnData = IERC7579Account(account).executeFromExecutor(mode, execution)[0];
         emit RecoveryFinished(account);
-    }
-
-    /// @dev Set the addresses of the validator modules.
-    /// @param _webAuthValidator Address of the WebAuthn validator module.
-    /// @param _eoaValidator Address of the EOA validator module.
-    function _setValidators(address _webAuthValidator, address _eoaValidator) internal {
-        webAuthValidator = _webAuthValidator;
-        eoaValidator = _eoaValidator;
     }
 
     // Reserve storage space for upgradeability.
