@@ -2,6 +2,7 @@
 pragma solidity ^0.8.28;
 
 import { IERC165 } from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
+import { SIG_VALIDATION_FAILED, SIG_VALIDATION_SUCCESS } from "account-abstraction/core/Helpers.sol";
 import { Base64 } from "solady/utils/Base64.sol";
 import { JSONParserLib } from "solady/utils/JSONParserLib.sol";
 import { PackedUserOperation } from "account-abstraction/interfaces/PackedUserOperation.sol";
@@ -165,7 +166,7 @@ contract WebAuthnValidator is IValidator, IERC165 {
 
     /// @inheritdoc IValidator
     function validateUserOp(PackedUserOperation calldata userOp, bytes32 signedHash) external view returns (uint256) {
-        return webAuthVerify(signedHash, userOp.signature[20:]) ? 0 : 1;
+        return webAuthVerify(signedHash, userOp.signature[20:]) ? SIG_VALIDATION_SUCCESS : SIG_VALIDATION_FAILED;
     }
 
     /// @notice Validates a WebAuthn signature

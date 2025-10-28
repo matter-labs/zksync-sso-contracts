@@ -47,6 +47,7 @@ contract GuardianExecutor is IExecutor, IERC165 {
     error ValidatorNotInstalled(address account, address validator);
     error RecoveryTimestampInvalid(uint48 timestamp);
     error UnsupportedRecoveryType(RecoveryType recoveryType);
+    error EmptyRecoveryData();
 
     uint256 public constant REQUEST_VALIDITY_TIME = 72 hours;
     uint256 public constant REQUEST_DELAY_TIME = 24 hours;
@@ -131,7 +132,6 @@ contract GuardianExecutor is IExecutor, IERC165 {
             return false;
         }
 
-        // TODO: why do we need this addedAt timestamp at all?
         // slither-disable-next-line unused-return
         accountGuardians[accountToGuard].set(msg.sender, _packGuardianData(true));
 
@@ -150,6 +150,7 @@ contract GuardianExecutor is IExecutor, IERC165 {
     {
         require(isInitialized(accountToRecover), NotInitialized(accountToRecover));
         checkInstalledValidator(accountToRecover, recoveryType);
+        require(data.length > 0, EmptyRecoveryData());
         uint256 pendingRecoveryTimestamp = pendingRecovery[accountToRecover].timestamp;
         require(
             pendingRecoveryTimestamp == 0 || pendingRecoveryTimestamp + REQUEST_VALIDITY_TIME < block.timestamp,
@@ -221,11 +222,10 @@ contract GuardianExecutor is IExecutor, IERC165 {
     /// @param guardian Guardian address to check.
     /// @return isPresent True if the guardian is configured for the account.
     /// @return isActive True if the guardian is active.
-    /// @return addedAt Timestamp when the guardian was proposed.
     function guardianStatusFor(address account, address guardian)
         external
         view
-        returns (bool isPresent, bool isActive, uint48 addedAt)
+        returns (bool isPresent, bool isActive)
     {
         uint256 data;
         (isPresent, data) = accountGuardians[account].tryGet(guardian);
@@ -238,7 +238,7 @@ contract GuardianExecutor is IExecutor, IERC165 {
     function discardRecovery() public virtual {
         RecoveryRequest memory recovery = pendingRecovery[msg.sender];
         delete pendingRecovery[msg.sender];
-        if (recovery.timestamp != 0 && recovery.data.length != 0) {
+        if (recovery.timestamp != 0) {
             emit RecoveryDiscarded(msg.sender);
         }
     }

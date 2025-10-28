@@ -62,7 +62,7 @@ contract GuardianTest is MSATest {
         vm.assertEq(guardians.length, 1, "Invalid guardians array");
         vm.assertEq(guardians[0], guardian.addr, "Guardian not found for account");
 
-        (bool isPresent, bool isActive, uint48 timestamp) =
+        (bool isPresent, bool isActive) =
             guardiansExecutor.guardianStatusFor(address(account), guardian.addr);
         vm.assertTrue(isPresent, "Guardian not present after proposing");
         vm.assertTrue(!isActive, "Proposed guardian should not be active");
@@ -76,7 +76,7 @@ contract GuardianTest is MSATest {
         emit GuardianExecutor.GuardianAdded(address(account), guardian.addr);
         guardiansExecutor.acceptGuardian(address(account));
 
-        (, bool isActive,) = guardiansExecutor.guardianStatusFor(address(account), guardian.addr);
+        (, bool isActive) = guardiansExecutor.guardianStatusFor(address(account), guardian.addr);
         vm.assertTrue(isActive, "Guardian not active after accepting");
     }
 
