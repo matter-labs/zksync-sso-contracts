@@ -8,7 +8,7 @@ import { PackedUserOperation } from "account-abstraction/interfaces/PackedUserOp
 
 import { SessionLib } from "src/libraries/SessionLib.sol";
 import { SessionKeyValidator } from "../SessionKeyValidator.sol";
-import { IValidator } from "src/interfaces/IERC7579Module.sol";
+import { IValidator, IModule } from "src/interfaces/IERC7579Module.sol";
 
 /// @title AllowedSessionsValidator
 /// @author Oleg Bedrin - <o.bedrin@xsolla.com> - Xsolla Special Initiatives
@@ -94,7 +94,7 @@ contract AllowedSessionsValidator is SessionKeyValidator, AccessControl {
         returns (bool)
     {
         return interfaceId == type(IERC165).interfaceId || interfaceId == type(IValidator).interfaceId
-            || interfaceId == type(IAccessControl).interfaceId;
+            || interfaceId == type(IModule).interfaceId || interfaceId == type(IAccessControl).interfaceId;
     }
 
     /// @notice Validate a session transaction for an account.
