@@ -2,24 +2,17 @@
 pragma solidity ^0.8.24;
 
 import { IERC165 } from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
-import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import { IAccessControl } from "@openzeppelin/contracts/access/IAccessControl.sol";
 import { AccessControl } from "@openzeppelin/contracts/access/AccessControl.sol";
-import { Initializable } from "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 
-import { LibERC7579 } from "solady/accounts/LibERC7579.sol";
-
-import { IExecutor, IModule, MODULE_TYPE_EXECUTOR, MODULE_TYPE_VALIDATOR } from "../../interfaces/IERC7579Module.sol";
-import { WebAuthnValidator } from "../WebAuthnValidator.sol";
-import { EOAKeyValidator } from "../EOAKeyValidator.sol";
+import { IExecutor, IModule } from "../../interfaces/IERC7579Module.sol";
 import { GuardianExecutor } from "../GuardianExecutor.sol";
-import { IERC7579Account } from "../../interfaces/IERC7579Account.sol";
 
 /// @title GuardianBasedRecoveryExecutor
 /// @author Oleg Bedrin - <o.bedrin@xsolla.com> - Xsolla ZK
 /// @notice GuardianExecutor with implicit global guardian - no per-account setup required
 /// @dev Recovery flow: initializeRecovery() -> wait delay -> finalizeRecovery()
-contract GuardianBasedRecoveryExecutor is GuardianExecutor, Initializable, AccessControl {
+contract GuardianBasedRecoveryExecutor is GuardianExecutor, AccessControl {
     /// @notice Role for submitting recovery requests
     bytes32 public constant SUBMITTER_ROLE = keccak256("SUBMITTER_ROLE");
     
@@ -33,16 +26,24 @@ contract GuardianBasedRecoveryExecutor is GuardianExecutor, Initializable, Acces
     /// @param account The account with no active recovery
     error CannotDiscardRecoveryFor(address account);
 
-    constructor(address _webAuthValidator, address _eoaValidator) GuardianExecutor(_webAuthValidator, _eoaValidator) {
-        _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
+    constructor() {
         _disableInitializers();
     }
 
     /// @notice Initializer function.
+    /// @param _webAuthValidator WebAuthn validator module address
+    /// @param _eoaValidator EOA key validator module address
     /// @param _admin Admin role recipient
     /// @param _finalizer Finalizer role recipient  
     /// @param _submitter Submitter role recipient
-    function initialize(address _admin, address _finalizer, address _submitter) external initializer {
+    function initialize(
+        address _webAuthValidator, 
+        address _eoaValidator, 
+        address _admin, 
+        address _finalizer, 
+        address _submitter
+    ) external initializer {
+        _setValidators(_webAuthValidator, _eoaValidator);
         _grantRole(DEFAULT_ADMIN_ROLE, _admin);
         _grantRole(FINALIZER_ROLE, _finalizer);
         _grantRole(SUBMITTER_ROLE, _submitter);

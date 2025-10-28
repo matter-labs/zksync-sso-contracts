@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
+import { Initializable } from "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 import { IERC165 } from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 import { PackedUserOperation } from "account-abstraction/interfaces/PackedUserOperation.sol";
 import { EnumerableMap } from "@openzeppelin/contracts/utils/structs/EnumerableMap.sol";
@@ -16,7 +17,7 @@ import { IERC7579Account } from "../interfaces/IERC7579Account.sol";
 /// @author Matter Labs
 /// @custom:security-contact security@matterlabs.dev
 /// @dev This contract allows account recovery using trusted guardians.
-contract GuardianExecutor is IExecutor, IERC165 {
+contract GuardianExecutor is IExecutor, IERC165, Initializable {
     using EnumerableMap for EnumerableMap.AddressToUintMap;
 
     enum RecoveryType {
@@ -52,8 +53,8 @@ contract GuardianExecutor is IExecutor, IERC165 {
     uint256 public constant REQUEST_VALIDITY_TIME = 72 hours;
     uint256 public constant REQUEST_DELAY_TIME = 24 hours;
 
-    address public immutable webAuthValidator;
-    address public immutable eoaValidator;
+    address public webAuthValidator;
+    address public eoaValidator;
 
     mapping(address account => EnumerableMap.AddressToUintMap guardians) private accountGuardians;
     mapping(address account => RecoveryRequest recoveryData) public pendingRecovery;
@@ -70,9 +71,12 @@ contract GuardianExecutor is IExecutor, IERC165 {
         _;
     }
 
-    constructor(address _webAuthValidator, address _eoaValidator) {
-        webAuthValidator = _webAuthValidator;
-        eoaValidator = _eoaValidator;
+    constructor() {
+        _disableInitializers();
+    }
+
+    function initialize(address _webAuthValidator, address _eoaValidator) external initializer {
+        _setValidators(_webAuthValidator, _eoaValidator);
     }
 
     /// @inheritdoc IModule
@@ -279,4 +283,15 @@ contract GuardianExecutor is IExecutor, IERC165 {
         returnData = IERC7579Account(account).executeFromExecutor(mode, execution)[0];
         emit RecoveryFinished(account);
     }
+
+    /// @dev Set the addresses of the validator modules.
+    /// @param _webAuthValidator Address of the WebAuthn validator module.
+    /// @param _eoaValidator Address of the EOA validator module.
+    function _setValidators(address _webAuthValidator, address _eoaValidator) internal {
+        webAuthValidator = _webAuthValidator;
+        eoaValidator = _eoaValidator;
+    }
+
+    // Reserve storage space for upgradeability.
+    uint256[50] private __gap;
 }

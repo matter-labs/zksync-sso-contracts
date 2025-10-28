@@ -3,6 +3,7 @@ pragma solidity ^0.8.24;
 
 import { PackedUserOperation } from "account-abstraction/interfaces/PackedUserOperation.sol";
 import { IAccessControl } from "@openzeppelin/contracts/access/IAccessControl.sol";
+import { TransparentUpgradeableProxy } from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 
 import { ModularSmartAccount } from "src/ModularSmartAccount.sol";
 import { MSAFactory } from "src/MSAFactory.sol";
@@ -30,10 +31,20 @@ contract RecoveryTest is MSATest {
         submitter = makeAccount("submitter");
         finalizer = makeAccount("finalizer");
 
-        recoveryExecutor = new GuardianBasedRecoveryExecutor(address(0), address(eoaValidator));
-        recoveryExecutor.grantRole(recoveryExecutor.DEFAULT_ADMIN_ROLE(), admin.addr);
-        recoveryExecutor.grantRole(recoveryExecutor.FINALIZER_ROLE(), finalizer.addr);
-        recoveryExecutor.grantRole(recoveryExecutor.SUBMITTER_ROLE(), submitter.addr);
+        recoveryExecutor = GuardianBasedRecoveryExecutor(address(
+            new TransparentUpgradeableProxy(
+                address(new GuardianBasedRecoveryExecutor()), 
+                admin.addr,
+                abi.encodeWithSelector(
+                    GuardianBasedRecoveryExecutor.initialize.selector,
+                    address(0),
+                    address(eoaValidator),
+                    admin.addr,
+                    finalizer.addr,
+                    submitter.addr
+                )
+            )
+        ));
     }
 
     function test_installExecutor() public {

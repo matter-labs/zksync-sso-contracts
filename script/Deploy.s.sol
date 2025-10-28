@@ -25,7 +25,13 @@ contract Deploy is Script {
         defaultModules[0] = makeProxy(address(new EOAKeyValidator()));
         defaultModules[1] = makeProxy(address(new SessionKeyValidator()));
         defaultModules[2] = makeProxy(address(new WebAuthnValidator()));
-        defaultModules[3] = makeProxy(address(new GuardianExecutor(defaultModules[2], defaultModules[0])));
+        defaultModules[3] = address(
+            new TransparentUpgradeableProxy(
+                address(new GuardianExecutor()), 
+                msg.sender,
+                abi.encodeWithSelector(GuardianExecutor.initialize.selector, defaultModules[2], defaultModules[0])
+            )
+        );
 
         address accountImpl = address(new ModularSmartAccount());
         address beacon = address(new UpgradeableBeacon(accountImpl, msg.sender));
