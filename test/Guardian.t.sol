@@ -66,7 +66,6 @@ contract GuardianTest is MSATest {
             guardiansExecutor.guardianStatusFor(address(account), guardian.addr);
         vm.assertTrue(isPresent, "Guardian not present after proposing");
         vm.assertTrue(!isActive, "Proposed guardian should not be active");
-        vm.assertTrue(timestamp != 0, "Proposed guardian timestamp is empty");
     }
 
     function test_acceptGuardian() public {

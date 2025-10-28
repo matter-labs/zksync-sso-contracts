@@ -123,8 +123,6 @@ library SessionLib {
         UsageLimit valueLimit;
         Constraint[] constraints;
     }
-    // add max data length restriction?
-    // add max number of calls restriction?
 
     struct TransferSpec {
         address target;

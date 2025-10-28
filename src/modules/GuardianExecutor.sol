@@ -63,7 +63,7 @@ contract GuardianExecutor is IExecutor, IERC165 {
         (bool exists, uint256 guardianData) = accountGuardians[account].tryGet(msg.sender);
         require(exists, GuardianNotFound(account, msg.sender));
 
-        (bool isActive,) = _unpackGuardianData(guardianData);
+        bool isActive = _unpackGuardianData(guardianData);
         require(isActive, GuardianNotActive(account, msg.sender));
         // Continue execution if called by guardian
         _;
@@ -92,7 +92,7 @@ contract GuardianExecutor is IExecutor, IERC165 {
         require(!accountGuardians[msg.sender].contains(newGuardian), GuardianAlreadyPresent(msg.sender, newGuardian));
 
         // slither-disable-next-line unused-return
-        accountGuardians[msg.sender].set(newGuardian, _packGuardianData(false, uint48(block.timestamp)));
+        accountGuardians[msg.sender].set(newGuardian, _packGuardianData(false));
 
         emit GuardianProposed(msg.sender, newGuardian);
     }
@@ -103,7 +103,7 @@ contract GuardianExecutor is IExecutor, IERC165 {
         require(isInitialized(msg.sender), NotInitialized(msg.sender));
         require(accountGuardians[msg.sender].contains(guardianToRemove), GuardianNotFound(msg.sender, guardianToRemove));
 
-        (bool wasActive,) = _unpackGuardianData(accountGuardians[msg.sender].get(guardianToRemove));
+        bool wasActive = _unpackGuardianData(accountGuardians[msg.sender].get(guardianToRemove));
         // slither-disable-next-line unused-return
         accountGuardians[msg.sender].remove(guardianToRemove);
 
@@ -124,8 +124,7 @@ contract GuardianExecutor is IExecutor, IERC165 {
         (bool exists, uint256 data) = accountGuardians[accountToGuard].tryGet(msg.sender);
         require(exists, GuardianNotFound(accountToGuard, msg.sender));
 
-        (bool isActive, uint48 addedAt) = _unpackGuardianData(data);
-        require(addedAt != 0); // sanity check
+        bool isActive = _unpackGuardianData(data);
 
         if (isActive) {
             // No need to do anything, guardian already active
@@ -134,7 +133,7 @@ contract GuardianExecutor is IExecutor, IERC165 {
 
         // TODO: why do we need this addedAt timestamp at all?
         // slither-disable-next-line unused-return
-        accountGuardians[accountToGuard].set(msg.sender, _packGuardianData(true, addedAt));
+        accountGuardians[accountToGuard].set(msg.sender, _packGuardianData(true));
 
         emit GuardianAdded(accountToGuard, msg.sender);
         return true;
@@ -231,7 +230,7 @@ contract GuardianExecutor is IExecutor, IERC165 {
         uint256 data;
         (isPresent, data) = accountGuardians[account].tryGet(guardian);
         if (isPresent) {
-            (isActive, addedAt) = _unpackGuardianData(data);
+            isActive = _unpackGuardianData(data);
         }
     }
 
@@ -244,13 +243,14 @@ contract GuardianExecutor is IExecutor, IERC165 {
         }
     }
 
-    function _packGuardianData(bool isActive, uint48 addedAt) internal pure returns (uint256) {
-        return (isActive ? 1 : 0) | (uint256(addedAt) << 1);
+    /// @notice Pack guardian data into a single uint256 for storage.
+    /// @dev For now this is only a single bool, but something might be added later.
+    function _packGuardianData(bool isActive) internal pure returns (uint256) {
+        return (isActive ? 1 : 0);
     }
 
-    function _unpackGuardianData(uint256 data) internal pure returns (bool isActive, uint48 addedAt) {
+    function _unpackGuardianData(uint256 data) internal pure returns (bool isActive) {
         isActive = (data & 1) != 0;
-        addedAt = uint48(data >> 1);
     }
 
     /// @inheritdoc IModule
