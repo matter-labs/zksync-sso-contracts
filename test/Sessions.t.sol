@@ -37,8 +37,9 @@ contract SessionsTest is MSATest {
     }
 
     function test_installValidator() public {
-        bytes memory data =
-            abi.encodeCall(ModularSmartAccount.installModule, (MODULE_TYPE_VALIDATOR, address(sessionKeyValidator), ""));
+        bytes memory data = abi.encodeCall(
+            ModularSmartAccount.installModule, (MODULE_TYPE_VALIDATOR, address(sessionKeyValidator), "")
+        );
         PackedUserOperation[] memory userOps = makeSignedUserOp(data);
 
         vm.expectEmit(true, true, true, true);
@@ -249,8 +250,9 @@ contract SessionsTest is MSATest {
         secondSpec.signer = secondOwner.addr;
         secondSpec.expiresAt = uint48(block.timestamp + 2000);
 
-        bytes memory createSecond =
-            encodeCall(address(sessionKeyValidator), 0, abi.encodeCall(SessionKeyValidator.createSession, (secondSpec)));
+        bytes memory createSecond = encodeCall(
+            address(sessionKeyValidator), 0, abi.encodeCall(SessionKeyValidator.createSession, (secondSpec))
+        );
         PackedUserOperation[] memory secondUserOps = makeSignedUserOp(createSecond);
         entryPoint.handleOps(secondUserOps, bundler);
         bytes32 sessionHashTwo = keccak256(abi.encode(secondSpec));

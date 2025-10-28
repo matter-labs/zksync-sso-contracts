@@ -88,7 +88,12 @@ contract EOAKeyValidator is IValidator {
         address, // sender
         bytes32 hash,
         bytes calldata data
-    ) external view override returns (bytes4) {
+    )
+        external
+        view
+        override
+        returns (bytes4)
+    {
         // slither-disable-next-line unused-return
         (address signer, ECDSA.RecoverError err,) = ECDSA.tryRecover(hash, data);
         return err == ECDSA.RecoverError.NoError && owners[signer][msg.sender]

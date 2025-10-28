@@ -321,9 +321,8 @@ library SessionLib {
             shrinkRange(timeRange, newValidAfter, newValidUntil);
 
             for (uint256 i = 0; i < callPolicy.constraints.length; i++) {
-                (newValidAfter, newValidUntil) = callPolicy.constraints[i].checkAndUpdate(
-                    state.params[target][selector][i], callData, periodIds[2 + i]
-                );
+                (newValidAfter, newValidUntil) = callPolicy.constraints[i]
+                .checkAndUpdate(state.params[target][selector][i], callData, periodIds[2 + i]);
                 shrinkRange(timeRange, newValidAfter, newValidUntil);
             }
         } else {
@@ -421,7 +420,9 @@ library SessionLib {
                 if (callSpec.constraints[j].limit.limitType != LimitType.Unlimited) {
                     callParams[paramLimitIndex++] = LimitState({
                         remaining: remainingLimit(
-                            callSpec.constraints[j].limit, session.params[callSpec.target][callSpec.selector][j], account
+                            callSpec.constraints[j].limit,
+                            session.params[callSpec.target][callSpec.selector][j],
+                            account
                         ),
                         target: callSpec.target,
                         selector: callSpec.selector,

@@ -31,11 +31,7 @@ contract MSAFactory is ReentrancyGuard {
     /// @param initData Initialization calldata forwarded to the beacon proxy;
     /// Usually, an abi-encoded call to IMSA.initializeAccount.
     /// @return account Address of the deployed account proxy.
-    function deployAccount(bytes32 accountId, bytes calldata initData)
-        external
-        nonReentrant
-        returns (address account)
-    {
+    function deployAccount(bytes32 accountId, bytes calldata initData) external nonReentrant returns (address account) {
         require(accountRegistry[accountId] == address(0), AccountAlreadyExists(accountId));
 
         // slither-disable-next-line reentrancy-no-eth

@@ -59,7 +59,11 @@ contract ModularSmartAccount is IMSA, ExecutionHelper, ERC1271Handler, Initializ
     function executeUserOp(
         PackedUserOperation calldata userOp,
         bytes32 // userOpHash
-    ) external payable onlyEntryPoint {
+    )
+        external
+        payable
+        onlyEntryPoint
+    {
         bytes calldata callData = userOp.callData[4:];
         (bool success,) = address(this).delegatecall(callData);
         if (!success) revert ExecutionFailed();
@@ -208,12 +212,7 @@ contract ModularSmartAccount is IMSA, ExecutionHelper, ERC1271Handler, Initializ
     }
 
     /// @inheritdoc IMSA
-    function initializeAccount(address[] calldata modules, bytes[] calldata data)
-        external
-        payable
-        virtual
-        initializer
-    {
+    function initializeAccount(address[] calldata modules, bytes[] calldata data) external payable virtual initializer {
         for (uint256 i = 0; i < modules.length; i++) {
             address module = modules[i];
             if (ERC7579.IModule(module).isModuleType(ERC7579.MODULE_TYPE_VALIDATOR)) {

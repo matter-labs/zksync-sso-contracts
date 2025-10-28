@@ -21,9 +21,8 @@ contract MockFallback is IFallback {
     }
 
     function isInitialized(address smartAccount) external view returns (bool) {
-        return IMSA(smartAccount).isModuleInstalled(
-            MODULE_TYPE_FALLBACK, address(this), abi.encode(MockFallback.fallbackMethod.selector)
-        );
+        return IMSA(smartAccount)
+            .isModuleInstalled(MODULE_TYPE_FALLBACK, address(this), abi.encode(MockFallback.fallbackMethod.selector));
     }
 
     function fallbackMethod(uint256 _value) external {
