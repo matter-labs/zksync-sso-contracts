@@ -513,7 +513,7 @@ contract SessionsTest is MSATest {
 
     function _signUserOpNoPrefix(PackedUserOperation memory userOp) internal view {
         uint256 constraints = 0;
-        for (uint256 i = 0; i < spec.callPolicies.length; i++) {
+        for (uint256 i = 0; i < spec.callPolicies.length; ++i) {
             constraints += spec.callPolicies[i].constraints.length;
         }
 

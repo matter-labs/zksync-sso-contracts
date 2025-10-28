@@ -17,7 +17,7 @@ interface IERC7579Account {
     ///
     /// @dev MSA MUST implement this function signature.
     /// If a mode is requested that is not supported by the Account, it MUST revert
-    /// @param mode The encoded execution mode of the transaction. See ModeLib.sol for details
+    /// @param mode The encoded execution mode of the transaction. See solady's LibERC7579.sol for details
     /// @param executionCalldata The encoded execution call data
     function execute(bytes32 mode, bytes calldata executionCalldata) external payable;
 
@@ -27,7 +27,7 @@ interface IERC7579Account {
     ///
     /// @dev MSA MUST implement this function signature.
     /// If a mode is requested that is not supported by the Account, it MUST revert
-    /// @param mode The encoded execution mode of the transaction. See ModeLib.sol for details
+    /// @param mode The encoded execution mode of the transaction. See solady's LibERC7579.sol for details
     /// @param executionCalldata The encoded execution call data
     function executeFromExecutor(bytes32 mode, bytes calldata executionCalldata)
         external
@@ -58,7 +58,7 @@ interface IERC7579Account {
     /// de-initialization.
     function uninstallModule(uint256 moduleTypeId, address module, bytes calldata deInitData) external payable;
 
-    /// Function to check if the account supports a certain CallType or ExecType (see ModeLib.sol)
+    /// Function to check if the account supports a certain CallType or ExecType (see solady's LibERC7579.sol)
     /// @param encodedMode the encoded mode
     function supportsExecutionMode(bytes32 encodedMode) external view returns (bool);
 

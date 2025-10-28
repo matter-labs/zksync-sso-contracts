@@ -204,7 +204,7 @@ contract BasicTest is MSATest {
             [LibERC7579.CALLTYPE_SINGLE, LibERC7579.CALLTYPE_DELEGATECALL, LibERC7579.CALLTYPE_BATCH];
         bytes1[2] memory execTypes = [LibERC7579.EXECTYPE_TRY, LibERC7579.EXECTYPE_DEFAULT];
 
-        for (uint256 i; i < callTypes.length; i++) {
+        for (uint256 i; i < callTypes.length; ++i) {
             for (uint256 j; j < execTypes.length; j++) {
                 bytes32 mode = LibERC7579.encodeMode(callTypes[i], execTypes[j], 0, 0);
                 vm.assertTrue(account.supportsExecutionMode(mode), "Mode should be supported");
@@ -216,7 +216,7 @@ contract BasicTest is MSATest {
 
         uint256[3] memory moduleTypes =
             [ERC7579.MODULE_TYPE_EXECUTOR, ERC7579.MODULE_TYPE_VALIDATOR, ERC7579.MODULE_TYPE_FALLBACK];
-        for (uint256 i; i < moduleTypes.length; i++) {
+        for (uint256 i; i < moduleTypes.length; ++i) {
             vm.assertTrue(account.supportsModule(moduleTypes[i]), "Module type should be supported");
         }
         vm.assertFalse(account.supportsModule(ERC7579.MODULE_TYPE_HOOK), "Module type should not be supported");

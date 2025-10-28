@@ -6,17 +6,22 @@ pragma solidity ^0.8.21;
 contract AccountBase {
     error AccountAccessUnauthorized();
 
-    address public constant ENTRY_POINT = 0x4337084D9E255Ff0702461CF8895CE9E3b5Ff108;
+    /// @dev The EntryPoint v0.8 standard address.
+    address public constant ENTRY_POINT_V08 = 0x4337084D9E255Ff0702461CF8895CE9E3b5Ff108;
+
+    function entryPoint() public pure virtual returns (address) {
+        return ENTRY_POINT_V08;
+    }
 
     modifier onlyEntryPointOrSelf() virtual {
-        if (!(msg.sender == ENTRY_POINT || msg.sender == address(this))) {
+        if (!(msg.sender == entryPoint() || msg.sender == address(this))) {
             revert AccountAccessUnauthorized();
         }
         _;
     }
 
     modifier onlyEntryPoint() virtual {
-        if (msg.sender != ENTRY_POINT) {
+        if (msg.sender != entryPoint()) {
             revert AccountAccessUnauthorized();
         }
         _;

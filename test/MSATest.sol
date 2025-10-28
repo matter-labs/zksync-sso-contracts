@@ -29,7 +29,7 @@ contract MSATest is Test {
 
         ModularSmartAccount accountImplementation = new ModularSmartAccount();
 
-        address entryPointAddress = accountImplementation.ENTRY_POINT();
+        address entryPointAddress = accountImplementation.entryPoint();
         vm.etch(entryPointAddress, address(new EntryPoint()).code);
         entryPoint = EntryPoint(payable(entryPointAddress));
 

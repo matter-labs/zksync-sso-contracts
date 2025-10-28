@@ -17,7 +17,6 @@ import "./interfaces/IERC7579Module.sol" as ERC7579;
 /// Reference implementation of a very simple ERC7579 Account.
 /// This account implements CallType: SINGLE, BATCH and DELEGATECALL.
 /// This account implements ExecType: DEFAULT and TRY.
-/// Hook support is implemented
 contract ModularSmartAccount is IMSA, ExecutionHelper, ERC1271Handler, Initializable {
     using LibERC7579 for bytes32;
 
@@ -27,9 +26,6 @@ contract ModularSmartAccount is IMSA, ExecutionHelper, ERC1271Handler, Initializ
 
     /// @inheritdoc IERC7579Account
     /// @dev this function is only callable by the entry point or the account itself
-    /// @dev this function demonstrates how to implement
-    /// CallType SINGLE and BATCH and ExecType DEFAULT and TRY
-    /// @dev this function demonstrates how to implement hook support (modifier)
     function execute(bytes32 mode, bytes calldata executionCalldata) external payable onlyEntryPointOrSelf {
         // slither-disable-next-line unused-return
         _handleExecute(mode, executionCalldata);
@@ -37,9 +33,6 @@ contract ModularSmartAccount is IMSA, ExecutionHelper, ERC1271Handler, Initializ
 
     /// @inheritdoc IERC7579Account
     /// @dev this function is only callable by an installed executor module
-    /// @dev this function demonstrates how to implement
-    /// CallType SINGLE and BATCH and ExecType DEFAULT and TRY
-    /// @dev this function demonstrates how to implement hook support (modifier)
     function executeFromExecutor(bytes32 mode, bytes calldata executionCalldata)
         external
         payable
@@ -213,7 +206,7 @@ contract ModularSmartAccount is IMSA, ExecutionHelper, ERC1271Handler, Initializ
 
     /// @inheritdoc IMSA
     function initializeAccount(address[] calldata modules, bytes[] calldata data) external payable virtual initializer {
-        for (uint256 i = 0; i < modules.length; i++) {
+        for (uint256 i = 0; i < modules.length; ++i) {
             address module = modules[i];
             if (ERC7579.IModule(module).isModuleType(ERC7579.MODULE_TYPE_VALIDATOR)) {
                 _installValidator(module, data[i]);

@@ -62,7 +62,7 @@ contract SessionKeyValidator is IValidator, IERC165 {
     function onUninstall(bytes calldata data) external virtual {
         // Revoke keys before uninstalling
         bytes32[] memory sessionHashes = abi.decode(data, (bytes32[]));
-        for (uint256 i = 0; i < sessionHashes.length; i++) {
+        for (uint256 i = 0; i < sessionHashes.length; ++i) {
             revokeKey(sessionHashes[i]);
         }
     }
@@ -109,7 +109,7 @@ contract SessionKeyValidator is IValidator, IERC165 {
         bytes32 sessionHash = keccak256(abi.encode(sessionSpec));
 
         uint256 totalCallPolicies = sessionSpec.callPolicies.length;
-        for (uint256 i = 0; i < totalCallPolicies; i++) {
+        for (uint256 i = 0; i < totalCallPolicies; ++i) {
             require(
                 !isBannedCall(sessionSpec.callPolicies[i].target, sessionSpec.callPolicies[i].selector),
                 SessionLib.CallPolicyBanned(sessionSpec.callPolicies[i].target, sessionSpec.callPolicies[i].selector)
@@ -150,7 +150,7 @@ contract SessionKeyValidator is IValidator, IERC165 {
     /// @notice Revoke multiple sessions for an account
     /// @param sessionHashes An array of session hashes to revoke
     function revokeKeys(bytes32[] calldata sessionHashes) external virtual {
-        for (uint256 i = 0; i < sessionHashes.length; i++) {
+        for (uint256 i = 0; i < sessionHashes.length; ++i) {
             revokeKey(sessionHashes[i]);
         }
     }

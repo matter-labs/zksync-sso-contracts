@@ -20,12 +20,13 @@ contract EOAKeyValidator is IValidator {
 
     error OwnerAlreadyExists(address smartAccount, address owner);
     error OwnerDoesNotExist(address smartAccount, address owner);
+    error ZeroAddress(address smartAccount);
 
     /// @inheritdoc IModule
     /// @notice Adds the provided owners for the installing account.
     function onInstall(bytes calldata data) external {
         address[] memory initialOwners = abi.decode(data, (address[]));
-        for (uint256 i = 0; i < initialOwners.length; i++) {
+        for (uint256 i = 0; i < initialOwners.length; ++i) {
             _addOwner(initialOwners[i]);
         }
     }
@@ -34,7 +35,7 @@ contract EOAKeyValidator is IValidator {
     /// @notice Removes the provided owners when the validator is uninstalled.
     function onUninstall(bytes calldata data) external {
         address[] memory ownersToRemove = abi.decode(data, (address[]));
-        for (uint256 i = 0; i < ownersToRemove.length; i++) {
+        for (uint256 i = 0; i < ownersToRemove.length; ++i) {
             removeOwner(ownersToRemove[i]);
         }
     }
@@ -64,6 +65,7 @@ contract EOAKeyValidator is IValidator {
     /// @param owner Address to add as a valid owner.
     function addOwner(address owner) public {
         require(isInitialized(msg.sender), NotInitialized(msg.sender));
+        require(owner != address(0), ZeroAddress(msg.sender));
         _addOwner(owner);
     }
 

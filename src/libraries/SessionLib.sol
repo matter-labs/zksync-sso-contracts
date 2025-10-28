@@ -306,7 +306,7 @@ library SessionLib {
             CallSpec memory callPolicy;
             bool found = false;
 
-            for (uint256 i = 0; i < spec.callPolicies.length; i++) {
+            for (uint256 i = 0; i < spec.callPolicies.length; ++i) {
                 if (spec.callPolicies[i].target == target && spec.callPolicies[i].selector == selector) {
                     callPolicy = spec.callPolicies[i];
                     found = true;
@@ -320,7 +320,7 @@ library SessionLib {
                 callPolicy.valueLimit.checkAndUpdate(state.callValue[target][selector], value, periodIds[1]);
             shrinkRange(timeRange, newValidAfter, newValidUntil);
 
-            for (uint256 i = 0; i < callPolicy.constraints.length; i++) {
+            for (uint256 i = 0; i < callPolicy.constraints.length; ++i) {
                 (newValidAfter, newValidUntil) = callPolicy.constraints[i]
                 .checkAndUpdate(state.params[target][selector][i], callData, periodIds[2 + i]);
                 shrinkRange(timeRange, newValidAfter, newValidUntil);
@@ -329,7 +329,7 @@ library SessionLib {
             TransferSpec memory transferPolicy;
             bool found = false;
 
-            for (uint256 i = 0; i < spec.transferPolicies.length; i++) {
+            for (uint256 i = 0; i < spec.transferPolicies.length; ++i) {
                 if (spec.transferPolicies[i].target == target) {
                     transferPolicy = spec.transferPolicies[i];
                     found = true;
@@ -385,7 +385,7 @@ library SessionLib {
         returns (SessionState memory)
     {
         uint256 totalConstraints = 0;
-        for (uint256 i = 0; i < spec.callPolicies.length; i++) {
+        for (uint256 i = 0; i < spec.callPolicies.length; ++i) {
             totalConstraints += spec.callPolicies[i].constraints.length;
         }
 
@@ -395,7 +395,7 @@ library SessionLib {
             // ones at the end
         uint256 paramLimitIndex = 0;
 
-        for (uint256 i = 0; i < transferValue.length; i++) {
+        for (uint256 i = 0; i < transferValue.length; ++i) {
             TransferSpec memory transferSpec = spec.transferPolicies[i];
             transferValue[i] = LimitState({
                 remaining: remainingLimit(transferSpec.valueLimit, session.transferValue[transferSpec.target], account),
@@ -405,7 +405,7 @@ library SessionLib {
             });
         }
 
-        for (uint256 i = 0; i < callValue.length; i++) {
+        for (uint256 i = 0; i < callValue.length; ++i) {
             CallSpec memory callSpec = spec.callPolicies[i];
             callValue[i] = LimitState({
                 remaining: remainingLimit(

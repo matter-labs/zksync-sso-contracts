@@ -21,7 +21,7 @@ contract ExecutionHelper {
         uint256 length = executions.length;
         result = new bytes[](length);
 
-        for (uint256 i; i < length; i++) {
+        for (uint256 i; i < length; ++i) {
             (address target, uint256 value, bytes calldata callData) = LibERC7579.getExecution(executions, i);
             result[i] = _execute(target, value, callData);
         }
@@ -31,7 +31,7 @@ contract ExecutionHelper {
         uint256 length = executions.length;
         result = new bytes[](length);
 
-        for (uint256 i; i < length; i++) {
+        for (uint256 i; i < length; ++i) {
             (address target, uint256 value, bytes calldata callData) = LibERC7579.getExecution(executions, i);
             bool success;
             (success, result[i]) = _tryExecute(target, value, callData);
