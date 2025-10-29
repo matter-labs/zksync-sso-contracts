@@ -34,15 +34,15 @@ const server = http.createServer((req, res) => {
 
   req.on("end", () => {
     // Forward request to Alto
+    // Clone original headers and update Content-Length
+    const headers = { ...req.headers };
+    headers['content-length'] = Buffer.byteLength(body);
     const options = {
       hostname: ALTO_HOST,
       port: ALTO_PORT,
       path: req.url,
       method: req.method,
-      headers: {
-        "Content-Type": "application/json",
-        "Content-Length": Buffer.byteLength(body),
-      },
+      headers,
     };
 
     const proxyReq = http.request(options, (proxyRes) => {
