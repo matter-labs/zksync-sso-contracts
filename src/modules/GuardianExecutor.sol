@@ -9,7 +9,6 @@ import { IExecutor, IModule, MODULE_TYPE_EXECUTOR, MODULE_TYPE_VALIDATOR } from 
 import { IMSA } from "../interfaces/IMSA.sol";
 import { WebAuthnValidator } from "./WebAuthnValidator.sol";
 import { EOAKeyValidator } from "./EOAKeyValidator.sol";
-import { IERC7579Account } from "../interfaces/IERC7579Account.sol";
 
 /// @title GuardianExecutor
 /// @author Matter Labs
@@ -275,7 +274,7 @@ contract GuardianExecutor is IExecutor, IERC165 {
 
         delete pendingRecovery[account];
         bytes32 mode = LibERC7579.encodeMode(LibERC7579.CALLTYPE_SINGLE, LibERC7579.EXECTYPE_DEFAULT, 0, 0);
-        returnData = IERC7579Account(account).executeFromExecutor(mode, execution)[0];
+        returnData = IMSA(account).executeFromExecutor(mode, execution)[0];
         emit RecoveryFinished(account);
     }
 

@@ -45,8 +45,8 @@ interface IValidator is IModule {
     error InvalidTargetAddress(address target);
 
     /// @dev Validates a transaction on behalf of the account.
-    ///         This function is intended to be called by the MSA during the ERC-4337 validation phase
-    ///         Note: solely relying on bytes32 hash and signature is not sufficient for some
+    /// This function is intended to be called by the MSA during the ERC-4337 validation phase
+    /// Note: solely relying on bytes32 hash and signature is not sufficient for some
     /// validation implementations (i.e. SessionKeys often need access to userOp.calldata)
     /// @param userOp The user operation to be validated. The userOp MUST NOT contain any metadata.
     /// The MSA MUST clean up the userOp before sending it to the validator.

@@ -5,14 +5,11 @@ import { PackedUserOperation } from "account-abstraction/interfaces/PackedUserOp
 import { SIG_VALIDATION_FAILED, SIG_VALIDATION_SUCCESS } from "account-abstraction/core/Helpers.sol";
 import { ECDSA } from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import { IERC1271 } from "@openzeppelin/contracts/interfaces/IERC1271.sol";
-import { EnumerableSet } from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 
 import { IMSA } from "../interfaces/IMSA.sol";
 import { IValidator, IModule, MODULE_TYPE_VALIDATOR } from "../interfaces/IERC7579Module.sol";
 
 contract EOAKeyValidator is IValidator {
-    using EnumerableSet for EnumerableSet.AddressSet;
-
     mapping(address owner => mapping(address account => bool)) private owners;
 
     event OwnerAdded(address indexed smartAccount, address indexed owner);

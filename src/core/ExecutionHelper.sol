@@ -118,7 +118,7 @@ contract ExecutionHelper {
         bytes1 callType = mode.getCallType();
         bytes1 execType = mode.getExecType();
 
-        // check if calltype is batch or single
+        // check if calltype is batch, single or delegatecall
         if (callType == LibERC7579.CALLTYPE_BATCH) {
             // destructure executionCallData according to batched exec
             bytes32[] calldata executions = LibERC7579.decodeBatch(data);
