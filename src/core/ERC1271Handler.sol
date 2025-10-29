@@ -8,6 +8,7 @@ import { IValidator } from "../interfaces/IERC7579Module.sol";
 
 /// @title ERC1271Handler
 /// @author Matter Labs
+/// @custom:security-contact security@matterlabs.dev
 /// @notice Contract which provides ERC1271 signature validation
 /// @notice Uses ERC7739 for signature replay protection
 abstract contract ERC1271Handler is ERC1271, ModuleManager {

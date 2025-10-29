@@ -5,7 +5,9 @@ import { IERC7484Registry } from "../interfaces/IERC7484Registry.sol";
 import { AccountBase } from "./AccountBase.sol";
 
 /// @title RegistryAdapter
-/// @author kopy-kat | rhinestone.wtf
+/// @author Matter Labs
+/// @custom:security-contact security@matterlabs.dev
+/// @notice The implementation is inspired by https://github.com/erc7579/erc7579-implementation
 /// @dev This contract uses ERC-7484 to check if a module is attested to and exposes a modifier to use it.
 abstract contract RegistryAdapter is AccountBase {
     event ERC7484RegistryConfigured(address indexed registry);

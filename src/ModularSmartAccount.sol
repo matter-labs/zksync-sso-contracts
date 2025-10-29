@@ -13,8 +13,10 @@ import { ERC1271Handler } from "./core/ERC1271Handler.sol";
 
 import "./interfaces/IERC7579Module.sol" as ERC7579;
 
-/// @author zeroknots.eth | rhinestone.wtf
-/// Reference implementation of a very simple ERC7579 Account.
+/// @author Matter Labs
+/// @custom:security-contact security@matterlabs.dev
+/// @notice The implementation is inspired by https://github.com/erc7579/erc7579-implementation
+/// Implementation of a simple ERC7579 Account.
 /// This account implements CallType: SINGLE, BATCH and DELEGATECALL.
 /// This account implements ExecType: DEFAULT and TRY.
 contract ModularSmartAccount is IMSA, ExecutionHelper, ERC1271Handler, Initializable {

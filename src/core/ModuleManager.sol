@@ -7,7 +7,9 @@ import { RegistryAdapter } from "./RegistryAdapter.sol";
 import "../interfaces/IERC7579Module.sol" as ERC7579;
 
 /// @title ModuleManager
-/// @author zeroknots.eth | rhinestone.wtf
+/// @author Matter Labs
+/// @custom:security-contact security@matterlabs.dev
+/// @notice The implementation is inspired by https://github.com/erc7579/erc7579-implementation
 /// @dev This contract manages Validator, Executor and Fallback modules for the MSA
 /// NOTE: the linked list is just an example. accounts may implement this differently
 abstract contract ModuleManager is RegistryAdapter {

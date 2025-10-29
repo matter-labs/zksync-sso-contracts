@@ -9,6 +9,10 @@ import { IERC1271 } from "@openzeppelin/contracts/interfaces/IERC1271.sol";
 import { IMSA } from "../interfaces/IMSA.sol";
 import { IValidator, IModule, MODULE_TYPE_VALIDATOR } from "../interfaces/IERC7579Module.sol";
 
+/// @title EOAKeyValidator
+/// @author Matter Labs
+/// @custom:security-contact security@matterlabs.dev
+/// @dev This validator allows EOAs to be registered as owners for a smart account.
 contract EOAKeyValidator is IValidator {
     mapping(address owner => mapping(address account => bool)) private owners;
 

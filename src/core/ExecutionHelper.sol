@@ -3,9 +3,11 @@ pragma solidity ^0.8.23;
 
 import { LibERC7579 } from "solady/accounts/LibERC7579.sol";
 
-/// @title Execution
+/// @title ExecutionHelper
 /// @dev This contract executes calls in the context of this contract.
-/// @author zeroknots.eth | rhinestone.wtf
+/// @author Matter Labs
+/// @custom:security-contact security@matterlabs.dev
+/// @notice The implementation is inspired by https://github.com/erc7579/erc7579-implementation
 /// shoutout to solady (vectorized, ross) for this code
 /// https://github.com/Vectorized/solady/blob/main/src/accounts/ERC4337.sol
 contract ExecutionHelper {
