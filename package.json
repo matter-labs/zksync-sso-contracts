@@ -5,8 +5,8 @@
   "main": "index.js",
   "scripts": {
     "bundler": "alto --config ./alto.json",
-    "bundler:with-proxy": "node bundler-with-proxy.js",
-    "bundler-proxy": "node bundler-proxy.js",
+    "bundler:with-proxy": "node js/bundler-with-proxy.js",
+    "bundler-proxy": "node js/bundler-proxy.js",
     "test": "node --test --import tsx --test-concurrency=1 test/integration/*.test.ts",
     "anvil": "anvil --fork-url https://reth-ethereum.ithaca.xyz/rpc --chain-id 1337",
     "coverage": "forge coverage --ir-minimum --no-match-coverage 'script|test'",
