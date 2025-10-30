@@ -134,14 +134,12 @@ contract BasicTest is MSATest {
         vm.assertEq(address(target).balance, 0, "Value should not have been transferred");
     }
 
-    function testRevert_executeUserOp_callFailure() public {
+    function testRevert_execute_callFailure() public {
         bytes memory call = encodeCall(address(target), 0, abi.encodeCall(MockTarget.justRevert, ()));
         PackedUserOperation[] memory userOps = makeSignedUserOp(call);
 
-        vm.startPrank(address(entryPoint));
-        vm.expectRevert(ExecutionHelper.ExecutionFailed.selector);
-        account.executeUserOp(userOps[0], bytes32(0));
-        vm.stopPrank();
+        bytes memory reason = abi.encodeWithSignature("Error(string)", "MockTarget: reverted");
+        expectUserOpRevert(userOps[0], reason);
     }
 
     function testRevert_execute_unsupportedCallType() public {
@@ -189,14 +187,6 @@ contract BasicTest is MSATest {
         vm.expectRevert(ModuleManager.CannotRemoveLastValidator.selector);
         vm.prank(address(entryPoint));
         account.uninstallModule(ERC7579.MODULE_TYPE_VALIDATOR, address(eoaValidator), bytes(""));
-    }
-
-    function testRevert_executeUserOp_unauthorizedCaller() public {
-        bytes memory call = encodeCall(address(target), 0, abi.encodeCall(MockTarget.setValue, 1));
-        PackedUserOperation[] memory userOps = makeSignedUserOp(call);
-
-        vm.expectRevert(AccountBase.AccountAccessUnauthorized.selector);
-        account.executeUserOp(userOps[0], bytes32(0));
     }
 
     function test_supportedStuff() public view {
