@@ -266,8 +266,7 @@ library SessionLib {
     /// periodIds[1] is for value limit,
     /// periodIds[2:] are for call constraints, if there are any.
     /// It is required to pass them in (instead of computing via block.timestamp) since during
-    /// validation
-    /// we can only assert the range of the timestamp, but not access its value.
+    /// validation we can only assert the range of the timestamp, but not access its value.
     function validate(
         SessionStorage storage state,
         PackedUserOperation calldata userOp,
@@ -389,8 +388,8 @@ library SessionLib {
 
         LimitState[] memory transferValue = new LimitState[](spec.transferPolicies.length);
         LimitState[] memory callValue = new LimitState[](spec.callPolicies.length);
-        LimitState[] memory callParams = new LimitState[](totalConstraints); // there will be empty
-            // ones at the end
+        // there will be empty ones at the end
+        LimitState[] memory callParams = new LimitState[](totalConstraints);
         uint256 paramLimitIndex = 0;
 
         for (uint256 i = 0; i < transferValue.length; ++i) {
