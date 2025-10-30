@@ -51,8 +51,8 @@ contract GuardianExecutor is IExecutor, IERC165 {
     uint256 public constant REQUEST_VALIDITY_TIME = 72 hours;
     uint256 public constant REQUEST_DELAY_TIME = 24 hours;
 
-    address public immutable webAuthValidator;
-    address public immutable eoaValidator;
+    address public immutable WEBAUTHN_VALIDATOR;
+    address public immutable EOA_VALIDATOR;
 
     mapping(address account => EnumerableMap.AddressToUintMap guardians) private accountGuardians;
     mapping(address account => RecoveryRequest recoveryData) public pendingRecovery;
@@ -69,9 +69,9 @@ contract GuardianExecutor is IExecutor, IERC165 {
         _;
     }
 
-    constructor(address _webAuthValidator, address _eoaValidator) {
-        webAuthValidator = _webAuthValidator;
-        eoaValidator = _eoaValidator;
+    constructor(address webAuthValidator, address eoaValidator) {
+        WEBAUTHN_VALIDATOR = webAuthValidator;
+        EOA_VALIDATOR = eoaValidator;
     }
 
     /// @inheritdoc IModule
@@ -157,13 +157,13 @@ contract GuardianExecutor is IExecutor, IERC165 {
         // slither-disable-start incorrect-equality
         if (recoveryType == RecoveryType.EOA) {
             require(
-                IMSA(account).isModuleInstalled(MODULE_TYPE_VALIDATOR, eoaValidator, ""),
-                ValidatorNotInstalled(account, eoaValidator)
+                IMSA(account).isModuleInstalled(MODULE_TYPE_VALIDATOR, EOA_VALIDATOR, ""),
+                ValidatorNotInstalled(account, EOA_VALIDATOR)
             );
         } else if (recoveryType == RecoveryType.Passkey) {
             require(
-                IMSA(account).isModuleInstalled(MODULE_TYPE_VALIDATOR, webAuthValidator, ""),
-                ValidatorNotInstalled(account, webAuthValidator)
+                IMSA(account).isModuleInstalled(MODULE_TYPE_VALIDATOR, WEBAUTHN_VALIDATOR, ""),
+                ValidatorNotInstalled(account, WEBAUTHN_VALIDATOR)
             );
         } else {
             revert UnsupportedRecoveryType(recoveryType);
@@ -265,7 +265,7 @@ contract GuardianExecutor is IExecutor, IERC165 {
 
         // NOTE: the fact that recovery type is not `None` is checked in `checkInstalledValidator`.
         // slither-disable-next-line incorrect-equality
-        address validator = recovery.recoveryType == RecoveryType.EOA ? eoaValidator : webAuthValidator;
+        address validator = recovery.recoveryType == RecoveryType.EOA ? EOA_VALIDATOR : WEBAUTHN_VALIDATOR;
         // slither-disable-next-line incorrect-equality
         bytes4 selector = recovery.recoveryType == RecoveryType.EOA
             ? EOAKeyValidator.addOwner.selector

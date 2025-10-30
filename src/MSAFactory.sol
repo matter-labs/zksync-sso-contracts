@@ -10,7 +10,7 @@ import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.s
 /// @dev This contract is used to deploy SSO accounts as beacon proxies.
 contract MSAFactory is ReentrancyGuard {
     /// @dev The address of the beacon contract used for the accounts' beacon proxies.
-    address public immutable beacon;
+    address public immutable BEACON;
 
     /// @notice A mapping from unique account IDs to their corresponding deployed account addresses.
     mapping(bytes32 accountId => address deployedAccount) public accountRegistry;
@@ -22,8 +22,8 @@ contract MSAFactory is ReentrancyGuard {
 
     error AccountAlreadyExists(bytes32 accountId);
 
-    constructor(address _beacon) {
-        beacon = _beacon;
+    constructor(address beacon) {
+        BEACON = beacon;
     }
 
     /// @notice Deploy a new smart account using the configured beacon.
@@ -32,12 +32,22 @@ contract MSAFactory is ReentrancyGuard {
     /// Usually, an abi-encoded call to IMSA.initializeAccount.
     /// @return account Address of the deployed account proxy.
     function deployAccount(bytes32 accountId, bytes calldata initData) external nonReentrant returns (address account) {
+        // This prevents DoS via frontrunning the transaction with the same accountId
+        accountId = keccak256(abi.encodePacked(accountId, msg.sender));
+        // Reserve last 2 bytes for versioning. Current version: 0x0001
+        accountId = stampVersion(accountId, 0x0001);
+
         require(accountRegistry[accountId] == address(0), AccountAlreadyExists(accountId));
 
         // slither-disable-next-line reentrancy-no-eth
-        account = address(new BeaconProxy{ salt: accountId }(beacon, initData));
+        account = address(new BeaconProxy{ salt: accountId }(BEACON, initData));
         accountRegistry[accountId] = account;
 
         emit AccountCreated(account, accountId);
+    }
+
+    /// @dev Stamps the last 2 bytes of the accountId with the provided version.
+    function stampVersion(bytes32 accountId, bytes2 version) internal pure returns (bytes32) {
+        return (accountId & bytes32(~uint256(0xffff))) | bytes32(uint256(uint16(version)));
     }
 }
