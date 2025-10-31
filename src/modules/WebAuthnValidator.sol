@@ -51,7 +51,7 @@ contract WebAuthnValidator is IValidator, IERC165 {
     mapping(string domain => mapping(bytes32 keyId => mapping(address account => bytes32[2] key))) private publicKeys;
 
     /// @dev Mapping of domain-bound credential IDs to the account address that owns them
-    mapping(string domain => mapping(bytes credentialId => EnumerableSet.AddressSet accounts)) private registeredAddress;
+    mapping(string domain => mapping(bytes credentialId => EnumerableSet.AddressSet accounts)) private accounts;
 
     /// @dev check for secure validation: bit 0 = 1 (user present), bit 2 = 1 (user verified)
     bytes1 private constant AUTH_DATA_MASK = 0x05;
@@ -70,6 +70,14 @@ contract WebAuthnValidator is IValidator, IERC165 {
         returns (bytes32[2] memory)
     {
         return publicKeys[domain][keyId(credentialId, account)][account];
+    }
+
+    function getAccountList(string calldata domain, bytes calldata credentialId)
+        external
+        view
+        returns (address[] memory)
+    {
+        return accounts[domain][credentialId].values();
     }
 
     /// @dev Computes a unique key identifier based on the credential ID and account address
@@ -114,7 +122,7 @@ contract WebAuthnValidator is IValidator, IERC165 {
     /// @param domain Domain for which the key was registered.
     function removeValidationKey(bytes memory credentialId, string memory domain) public {
         // slither-disable-next-line unused-return
-        registeredAddress[domain][credentialId].remove(msg.sender);
+        accounts[domain][credentialId].remove(msg.sender);
         publicKeys[domain][keyId(credentialId, msg.sender)][msg.sender] = [bytes32(0), bytes32(0)];
 
         emit PasskeyRemoved(msg.sender, domain, credentialId);
@@ -149,7 +157,7 @@ contract WebAuthnValidator is IValidator, IERC165 {
         require(credentialId.length >= 16, BadCredentialIDLength());
 
         // slither-disable-next-line unused-return
-        registeredAddress[domain][credentialId].add(msg.sender);
+        accounts[domain][credentialId].add(msg.sender);
         publicKeys[domain][id][msg.sender] = newKey;
 
         emit PasskeyCreated(msg.sender, domain, credentialId);
