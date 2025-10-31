@@ -2,6 +2,7 @@
 pragma solidity ^0.8.28;
 
 import { IERC165 } from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
+import { EnumerableSet } from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import { SIG_VALIDATION_FAILED, SIG_VALIDATION_SUCCESS } from "account-abstraction/core/Helpers.sol";
 import { Base64 } from "solady/utils/Base64.sol";
 import { JSONParserLib } from "solady/utils/JSONParserLib.sol";
@@ -19,10 +20,9 @@ import { IValidator, IModule, MODULE_TYPE_VALIDATOR } from "../interfaces/IERC75
 contract WebAuthnValidator is IValidator, IERC165 {
     using JSONParserLib for JSONParserLib.Item;
     using JSONParserLib for string;
+    using EnumerableSet for EnumerableSet.AddressSet;
 
-    error NotKeyOwner(address account);
     error KeyAlreadyExists();
-    error AccountAlreadyExists();
     error EmptyKey();
     error BadDomainLength();
     error BadCredentialIDLength();
@@ -51,7 +51,7 @@ contract WebAuthnValidator is IValidator, IERC165 {
     mapping(string domain => mapping(bytes32 keyId => mapping(address account => bytes32[2] key))) private publicKeys;
 
     /// @dev Mapping of domain-bound credential IDs to the account address that owns them
-    mapping(string domain => mapping(bytes credentialId => address accountAddress)) public registeredAddress;
+    mapping(string domain => mapping(bytes credentialId => EnumerableSet.AddressSet accounts)) private registeredAddress;
 
     /// @dev check for secure validation: bit 0 = 1 (user present), bit 2 = 1 (user verified)
     bytes1 private constant AUTH_DATA_MASK = 0x05;
@@ -113,10 +113,8 @@ contract WebAuthnValidator is IValidator, IERC165 {
     /// @param credentialId Credential identifier associated with the key.
     /// @param domain Domain for which the key was registered.
     function removeValidationKey(bytes memory credentialId, string memory domain) public {
-        address registered = registeredAddress[domain][credentialId];
-        require(registered == msg.sender, NotKeyOwner(registered));
-
-        registeredAddress[domain][credentialId] = address(0);
+        // slither-disable-next-line unused-return
+        registeredAddress[domain][credentialId].remove(msg.sender);
         publicKeys[domain][keyId(credentialId, msg.sender)][msg.sender] = [bytes32(0), bytes32(0)];
 
         emit PasskeyRemoved(msg.sender, domain, credentialId);
@@ -142,8 +140,6 @@ contract WebAuthnValidator is IValidator, IERC165 {
         bytes32[2] memory oldKey = publicKeys[domain][id][msg.sender];
         // only allow adding new keys, no overwrites/updates
         require(oldKey[0] == 0 && oldKey[1] == 0, KeyAlreadyExists());
-        // this credentialId already exists on the domain for an existing account
-        require(registeredAddress[domain][credentialId] == address(0), AccountAlreadyExists());
         // empty keys aren't valid
         require(newKey[0] != 0 || newKey[1] != 0, EmptyKey());
         // RFC 1035 sets domains between 1-253 characters
@@ -152,7 +148,8 @@ contract WebAuthnValidator is IValidator, IERC165 {
         // min length from: https://www.w3.org/TR/webauthn-2/#credential-id
         require(credentialId.length >= 16, BadCredentialIDLength());
 
-        registeredAddress[domain][credentialId] = msg.sender;
+        // slither-disable-next-line unused-return
+        registeredAddress[domain][credentialId].add(msg.sender);
         publicKeys[domain][id][msg.sender] = newKey;
 
         emit PasskeyCreated(msg.sender, domain, credentialId);
