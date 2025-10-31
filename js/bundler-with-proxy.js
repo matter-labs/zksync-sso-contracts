@@ -12,7 +12,7 @@ const path = require("path");
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const net = require("net");
 
-const ALTO_CONFIG = path.join(__dirname, "alto-with-proxy.json");
+const ALTO_CONFIG = path.join(__dirname, "..", "alto-with-proxy.json");
 const PROXY_SCRIPT = path.join(__dirname, "bundler-proxy.js");
 
 // ANSI color codes
