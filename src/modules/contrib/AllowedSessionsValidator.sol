@@ -16,6 +16,7 @@ import { IValidator, IModule } from "src/interfaces/IERC7579Module.sol";
 /// @notice This contract is used to manage allowed sessions for a smart account.
 /// @notice This module is controlled by a single entity, which has the power
 /// to close all current sessions and disallow any future sessions on this module.
+/// @dev This contract has been designed without upgradability in mind.
 contract AllowedSessionsValidator is SessionKeyValidator, AccessControl {
     using SessionLib for SessionLib.SessionStorage;
 
