@@ -48,7 +48,8 @@ contract WebAuthnValidator is IValidator, IERC165 {
     event PasskeyRemoved(address indexed keyOwner, string domain, bytes credentialId);
 
     /// @dev Mapping of public keys to the account address that owns them
-    mapping(string domain => mapping(bytes32 keyId => mapping(address account => bytes32[2] key))) private publicKeys;
+    mapping(string domain => mapping(bytes credentialId => mapping(address account => bytes32[2] key))) private
+        publicKeys;
 
     /// @dev Mapping of domain-bound credential IDs to the account address that owns them
     mapping(string domain => mapping(bytes credentialId => EnumerableSet.AddressSet accounts)) private accounts;
@@ -69,7 +70,7 @@ contract WebAuthnValidator is IValidator, IERC165 {
         view
         returns (bytes32[2] memory)
     {
-        return publicKeys[domain][keyId(credentialId, account)][account];
+        return publicKeys[domain][credentialId][account];
     }
 
     function getAccountList(string calldata domain, bytes calldata credentialId)
@@ -78,13 +79,6 @@ contract WebAuthnValidator is IValidator, IERC165 {
         returns (address[] memory)
     {
         return accounts[domain][credentialId].values();
-    }
-
-    /// @dev Computes a unique key identifier based on the credential ID and account address
-    /// @param credentialId The credential identifier associated with the key (usually provided by authenticator).
-    /// @param account The address of the account owning the key.
-    function keyId(bytes memory credentialId, address account) internal pure returns (bytes32) {
-        return keccak256(abi.encodePacked(credentialId, account));
     }
 
     /// @inheritdoc IModule
@@ -123,7 +117,7 @@ contract WebAuthnValidator is IValidator, IERC165 {
     function removeValidationKey(bytes memory credentialId, string memory domain) public {
         // slither-disable-next-line unused-return
         accounts[domain][credentialId].remove(msg.sender);
-        publicKeys[domain][keyId(credentialId, msg.sender)][msg.sender] = [bytes32(0), bytes32(0)];
+        publicKeys[domain][credentialId][msg.sender] = [bytes32(0), bytes32(0)];
 
         emit PasskeyRemoved(msg.sender, domain, credentialId);
     }
@@ -144,8 +138,7 @@ contract WebAuthnValidator is IValidator, IERC165 {
     function _addValidationKey(bytes memory credentialId, bytes32[2] memory newKey, string memory domain) internal {
         // This key ID is calculated to prevent frontrunning
         // by adding a key with the same credentialID.
-        bytes32 id = keyId(credentialId, msg.sender);
-        bytes32[2] memory oldKey = publicKeys[domain][id][msg.sender];
+        bytes32[2] memory oldKey = publicKeys[domain][credentialId][msg.sender];
         // only allow adding new keys, no overwrites/updates
         require(oldKey[0] == 0 && oldKey[1] == 0, KeyAlreadyExists());
         // empty keys aren't valid
@@ -158,7 +151,7 @@ contract WebAuthnValidator is IValidator, IERC165 {
 
         // slither-disable-next-line unused-return
         accounts[domain][credentialId].add(msg.sender);
-        publicKeys[domain][id][msg.sender] = newKey;
+        publicKeys[domain][credentialId][msg.sender] = newKey;
 
         emit PasskeyCreated(msg.sender, domain, credentialId);
     }
@@ -214,7 +207,7 @@ contract WebAuthnValidator is IValidator, IERC165 {
         // the origin determines which key to validate against
         // as passkeys are linked to domains, so the storage mapping reflects that
         string memory origin = root.at('"origin"').value().decodeString();
-        bytes32[2] memory publicKey = publicKeys[origin][keyId(credentialId, msg.sender)][msg.sender];
+        bytes32[2] memory publicKey = publicKeys[origin][credentialId][msg.sender];
 
         // cross-origin validation is optional, but explicitly not supported.
         // cross-origin requests would be from embedding the auth request
