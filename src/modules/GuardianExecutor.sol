@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.24;
+pragma solidity ^0.8.28;
 
 import { IERC165 } from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
-import { PackedUserOperation } from "account-abstraction/interfaces/PackedUserOperation.sol";
 import { EnumerableMap } from "@openzeppelin/contracts/utils/structs/EnumerableMap.sol";
 import { LibERC7579 } from "solady/accounts/LibERC7579.sol";
 
@@ -10,7 +9,6 @@ import { IExecutor, IModule, MODULE_TYPE_EXECUTOR, MODULE_TYPE_VALIDATOR } from 
 import { IMSA } from "../interfaces/IMSA.sol";
 import { WebAuthnValidator } from "./WebAuthnValidator.sol";
 import { EOAKeyValidator } from "./EOAKeyValidator.sol";
-import { IERC7579Account } from "../interfaces/IERC7579Account.sol";
 
 /// @title GuardianExecutor
 /// @author Matter Labs
@@ -48,12 +46,13 @@ contract GuardianExecutor is IExecutor, IERC165 {
     error ValidatorNotInstalled(address account, address validator);
     error RecoveryTimestampInvalid(uint48 timestamp);
     error UnsupportedRecoveryType(RecoveryType recoveryType);
+    error EmptyRecoveryData();
 
     uint256 public constant REQUEST_VALIDITY_TIME = 72 hours;
     uint256 public constant REQUEST_DELAY_TIME = 24 hours;
 
-    address public immutable webAuthValidator;
-    address public immutable eoaValidator;
+    address public immutable WEBAUTHN_VALIDATOR;
+    address public immutable EOA_VALIDATOR;
 
     mapping(address account => EnumerableMap.AddressToUintMap guardians) private accountGuardians;
     mapping(address account => RecoveryRequest recoveryData) public pendingRecovery;
@@ -64,15 +63,15 @@ contract GuardianExecutor is IExecutor, IERC165 {
         (bool exists, uint256 guardianData) = accountGuardians[account].tryGet(msg.sender);
         require(exists, GuardianNotFound(account, msg.sender));
 
-        (bool isActive,) = _unpackGuardianData(guardianData);
+        bool isActive = _unpackGuardianData(guardianData);
         require(isActive, GuardianNotActive(account, msg.sender));
         // Continue execution if called by guardian
         _;
     }
 
-    constructor(address _webAuthValidator, address _eoaValidator) {
-        webAuthValidator = _webAuthValidator;
-        eoaValidator = _eoaValidator;
+    constructor(address webAuthValidator, address eoaValidator) {
+        WEBAUTHN_VALIDATOR = webAuthValidator;
+        EOA_VALIDATOR = eoaValidator;
     }
 
     /// @inheritdoc IModule
@@ -93,7 +92,7 @@ contract GuardianExecutor is IExecutor, IERC165 {
         require(!accountGuardians[msg.sender].contains(newGuardian), GuardianAlreadyPresent(msg.sender, newGuardian));
 
         // slither-disable-next-line unused-return
-        accountGuardians[msg.sender].set(newGuardian, _packGuardianData(false, uint48(block.timestamp)));
+        accountGuardians[msg.sender].set(newGuardian, _packGuardianData(false));
 
         emit GuardianProposed(msg.sender, newGuardian);
     }
@@ -104,7 +103,7 @@ contract GuardianExecutor is IExecutor, IERC165 {
         require(isInitialized(msg.sender), NotInitialized(msg.sender));
         require(accountGuardians[msg.sender].contains(guardianToRemove), GuardianNotFound(msg.sender, guardianToRemove));
 
-        (bool wasActive,) = _unpackGuardianData(accountGuardians[msg.sender].get(guardianToRemove));
+        bool wasActive = _unpackGuardianData(accountGuardians[msg.sender].get(guardianToRemove));
         // slither-disable-next-line unused-return
         accountGuardians[msg.sender].remove(guardianToRemove);
 
@@ -125,17 +124,15 @@ contract GuardianExecutor is IExecutor, IERC165 {
         (bool exists, uint256 data) = accountGuardians[accountToGuard].tryGet(msg.sender);
         require(exists, GuardianNotFound(accountToGuard, msg.sender));
 
-        (bool isActive, uint48 addedAt) = _unpackGuardianData(data);
-        require(addedAt != 0); // sanity check
+        bool isActive = _unpackGuardianData(data);
 
         if (isActive) {
             // No need to do anything, guardian already active
             return false;
         }
 
-        // TODO: why do we need this addedAt timestamp at all?
         // slither-disable-next-line unused-return
-        accountGuardians[accountToGuard].set(msg.sender, _packGuardianData(true, addedAt));
+        accountGuardians[accountToGuard].set(msg.sender, _packGuardianData(true));
 
         emit GuardianAdded(accountToGuard, msg.sender);
         return true;
@@ -160,13 +157,13 @@ contract GuardianExecutor is IExecutor, IERC165 {
         // slither-disable-start incorrect-equality
         if (recoveryType == RecoveryType.EOA) {
             require(
-                IMSA(account).isModuleInstalled(MODULE_TYPE_VALIDATOR, eoaValidator, ""),
-                ValidatorNotInstalled(account, eoaValidator)
+                IMSA(account).isModuleInstalled(MODULE_TYPE_VALIDATOR, EOA_VALIDATOR, ""),
+                ValidatorNotInstalled(account, EOA_VALIDATOR)
             );
         } else if (recoveryType == RecoveryType.Passkey) {
             require(
-                IMSA(account).isModuleInstalled(MODULE_TYPE_VALIDATOR, webAuthValidator, ""),
-                ValidatorNotInstalled(account, webAuthValidator)
+                IMSA(account).isModuleInstalled(MODULE_TYPE_VALIDATOR, WEBAUTHN_VALIDATOR, ""),
+                ValidatorNotInstalled(account, WEBAUTHN_VALIDATOR)
             );
         } else {
             revert UnsupportedRecoveryType(recoveryType);
@@ -193,16 +190,15 @@ contract GuardianExecutor is IExecutor, IERC165 {
     /// @param guardian Guardian address to check.
     /// @return isPresent True if the guardian is configured for the account.
     /// @return isActive True if the guardian is active.
-    /// @return addedAt Timestamp when the guardian was proposed.
     function guardianStatusFor(address account, address guardian)
         external
         view
-        returns (bool isPresent, bool isActive, uint48 addedAt)
+        returns (bool isPresent, bool isActive)
     {
         uint256 data;
         (isPresent, data) = accountGuardians[account].tryGet(guardian);
         if (isPresent) {
-            (isActive, addedAt) = _unpackGuardianData(data);
+            isActive = _unpackGuardianData(data);
         }
     }
 
@@ -210,18 +206,19 @@ contract GuardianExecutor is IExecutor, IERC165 {
     function discardRecovery() public virtual {
         RecoveryRequest memory recovery = pendingRecovery[msg.sender];
         delete pendingRecovery[msg.sender];
-        if (recovery.timestamp != 0 && recovery.data.length != 0) {
+        if (recovery.timestamp != 0) {
             emit RecoveryDiscarded(msg.sender);
         }
     }
 
-    function _packGuardianData(bool isActive, uint48 addedAt) internal pure returns (uint256) {
-        return (isActive ? 1 : 0) | (uint256(addedAt) << 1);
+    /// @notice Pack guardian data into a single uint256 for storage.
+    /// @dev For now this is only a single bool, but something might be added later.
+    function _packGuardianData(bool isActive) internal pure returns (uint256) {
+        return (isActive ? 1 : 0);
     }
 
-    function _unpackGuardianData(uint256 data) internal pure returns (bool isActive, uint48 addedAt) {
+    function _unpackGuardianData(uint256 data) internal pure returns (bool isActive) {
         isActive = (data & 1) != 0;
-        addedAt = uint48(data >> 1);
     }
 
     /// @inheritdoc IModule
@@ -244,6 +241,7 @@ contract GuardianExecutor is IExecutor, IERC165 {
     function _initializeRecovery(address accountToRecover, RecoveryType recoveryType, bytes calldata data) internal {
         require(isInitialized(accountToRecover), NotInitialized(accountToRecover));
         checkInstalledValidator(accountToRecover, recoveryType);
+        require(data.length > 0, EmptyRecoveryData());
         uint256 pendingRecoveryTimestamp = pendingRecovery[accountToRecover].timestamp;
         require(
             pendingRecoveryTimestamp == 0 || pendingRecoveryTimestamp + REQUEST_VALIDITY_TIME < block.timestamp,
@@ -267,7 +265,7 @@ contract GuardianExecutor is IExecutor, IERC165 {
 
         // NOTE: the fact that recovery type is not `None` is checked in `checkInstalledValidator`.
         // slither-disable-next-line incorrect-equality
-        address validator = recovery.recoveryType == RecoveryType.EOA ? eoaValidator : webAuthValidator;
+        address validator = recovery.recoveryType == RecoveryType.EOA ? EOA_VALIDATOR : WEBAUTHN_VALIDATOR;
         // slither-disable-next-line incorrect-equality
         bytes4 selector = recovery.recoveryType == RecoveryType.EOA
             ? EOAKeyValidator.addOwner.selector
@@ -276,7 +274,7 @@ contract GuardianExecutor is IExecutor, IERC165 {
 
         delete pendingRecovery[account];
         bytes32 mode = LibERC7579.encodeMode(LibERC7579.CALLTYPE_SINGLE, LibERC7579.EXECTYPE_DEFAULT, 0, 0);
-        returnData = IERC7579Account(account).executeFromExecutor(mode, execution)[0];
+        returnData = IMSA(account).executeFromExecutor(mode, execution)[0];
         emit RecoveryFinished(account);
     }
 

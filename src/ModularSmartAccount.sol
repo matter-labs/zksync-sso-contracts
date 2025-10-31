@@ -7,19 +7,19 @@ import { ERC1271 } from "solady/accounts/ERC1271.sol";
 import { LibERC7579 } from "solady/accounts/LibERC7579.sol";
 
 import { ExecutionHelper } from "./core/ExecutionHelper.sol";
-import { IERC7579Account, Execution } from "./interfaces/IERC7579Account.sol";
+import { IERC7579Account } from "./interfaces/IERC7579Account.sol";
 import { IMSA } from "./interfaces/IMSA.sol";
 import { ERC1271Handler } from "./core/ERC1271Handler.sol";
-import { RegistryAdapter } from "./core/RegistryAdapter.sol";
 
-import "./interfaces/IERC7579Module.sol";
+import "./interfaces/IERC7579Module.sol" as ERC7579;
 
-/// @author zeroknots.eth | rhinestone.wtf
-/// Reference implementation of a very simple ERC7579 Account.
+/// @author Matter Labs
+/// @custom:security-contact security@matterlabs.dev
+/// @notice The implementation is inspired by https://github.com/erc7579/erc7579-implementation
+/// Implementation of a simple ERC7579 Account.
 /// This account implements CallType: SINGLE, BATCH and DELEGATECALL.
 /// This account implements ExecType: DEFAULT and TRY.
-/// Hook support is implemented
-contract ModularSmartAccount is IMSA, ExecutionHelper, ERC1271Handler, RegistryAdapter, Initializable {
+contract ModularSmartAccount is IMSA, ExecutionHelper, ERC1271Handler, Initializable {
     using LibERC7579 for bytes32;
 
     constructor() {
@@ -28,9 +28,6 @@ contract ModularSmartAccount is IMSA, ExecutionHelper, ERC1271Handler, RegistryA
 
     /// @inheritdoc IERC7579Account
     /// @dev this function is only callable by the entry point or the account itself
-    /// @dev this function demonstrates how to implement
-    /// CallType SINGLE and BATCH and ExecType DEFAULT and TRY
-    /// @dev this function demonstrates how to implement hook support (modifier)
     function execute(bytes32 mode, bytes calldata executionCalldata) external payable onlyEntryPointOrSelf {
         // slither-disable-next-line unused-return
         _handleExecute(mode, executionCalldata);
@@ -38,32 +35,14 @@ contract ModularSmartAccount is IMSA, ExecutionHelper, ERC1271Handler, RegistryA
 
     /// @inheritdoc IERC7579Account
     /// @dev this function is only callable by an installed executor module
-    /// @dev this function demonstrates how to implement
-    /// CallType SINGLE and BATCH and ExecType DEFAULT and TRY
-    /// @dev this function demonstrates how to implement hook support (modifier)
     function executeFromExecutor(bytes32 mode, bytes calldata executionCalldata)
         external
         payable
         onlyExecutorModule
-        withRegistry(msg.sender, MODULE_TYPE_EXECUTOR)
+        withRegistry(msg.sender, ERC7579.MODULE_TYPE_EXECUTOR)
         returns (bytes[] memory returnData)
     {
         returnData = _handleExecute(mode, executionCalldata);
-    }
-
-    /// @dev ERC-4337 executeUserOp according to ERC-4337 v0.7
-    ///         This function is intended to be called by ERC-4337 EntryPoint.sol
-    /// @dev Ensure adequate authorization control: i.e. onlyEntryPointOrSelf
-    ///      The implementation of the function is OPTIONAL
-    ///
-    /// @param userOp PackedUserOperation struct (see ERC-4337 v0.7+)
-    function executeUserOp(
-        PackedUserOperation calldata userOp,
-        bytes32 // userOpHash
-    ) external payable onlyEntryPoint {
-        bytes calldata callData = userOp.callData[4:];
-        (bool success,) = address(this).delegatecall(callData);
-        if (!success) revert ExecutionFailed();
     }
 
     /// @inheritdoc IERC7579Account
@@ -73,13 +52,13 @@ contract ModularSmartAccount is IMSA, ExecutionHelper, ERC1271Handler, RegistryA
         onlyEntryPointOrSelf
         withRegistry(module, moduleTypeId)
     {
-        if (!IModule(module).isModuleType(moduleTypeId)) revert MismatchModuleTypeId(moduleTypeId);
+        if (!ERC7579.IModule(module).isModuleType(moduleTypeId)) revert MismatchModuleTypeId(moduleTypeId);
 
-        if (moduleTypeId == MODULE_TYPE_VALIDATOR) {
+        if (moduleTypeId == ERC7579.MODULE_TYPE_VALIDATOR) {
             _installValidator(module, initData);
-        } else if (moduleTypeId == MODULE_TYPE_EXECUTOR) {
+        } else if (moduleTypeId == ERC7579.MODULE_TYPE_EXECUTOR) {
             _installExecutor(module, initData);
-        } else if (moduleTypeId == MODULE_TYPE_FALLBACK) {
+        } else if (moduleTypeId == ERC7579.MODULE_TYPE_FALLBACK) {
             _installFallbackHandler(module, initData);
         } else {
             revert UnsupportedModuleType(moduleTypeId);
@@ -93,11 +72,11 @@ contract ModularSmartAccount is IMSA, ExecutionHelper, ERC1271Handler, RegistryA
         payable
         onlyEntryPointOrSelf
     {
-        if (moduleTypeId == MODULE_TYPE_VALIDATOR) {
+        if (moduleTypeId == ERC7579.MODULE_TYPE_VALIDATOR) {
             _uninstallValidator(module, deInitData, false);
-        } else if (moduleTypeId == MODULE_TYPE_EXECUTOR) {
+        } else if (moduleTypeId == ERC7579.MODULE_TYPE_EXECUTOR) {
             _uninstallExecutor(module, deInitData, false);
-        } else if (moduleTypeId == MODULE_TYPE_FALLBACK) {
+        } else if (moduleTypeId == ERC7579.MODULE_TYPE_FALLBACK) {
             _uninstallFallbackHandler(module, deInitData, false);
         } else {
             revert UnsupportedModuleType(moduleTypeId);
@@ -114,11 +93,11 @@ contract ModularSmartAccount is IMSA, ExecutionHelper, ERC1271Handler, RegistryA
         payable
         onlyEntryPointOrSelf
     {
-        if (moduleTypeId == MODULE_TYPE_VALIDATOR) {
+        if (moduleTypeId == ERC7579.MODULE_TYPE_VALIDATOR) {
             _uninstallValidator(module, deInitData, true);
-        } else if (moduleTypeId == MODULE_TYPE_EXECUTOR) {
+        } else if (moduleTypeId == ERC7579.MODULE_TYPE_EXECUTOR) {
             _uninstallExecutor(module, deInitData, true);
-        } else if (moduleTypeId == MODULE_TYPE_FALLBACK) {
+        } else if (moduleTypeId == ERC7579.MODULE_TYPE_FALLBACK) {
             _uninstallFallbackHandler(module, deInitData, true);
         } else {
             revert UnsupportedModuleType(moduleTypeId);
@@ -143,10 +122,10 @@ contract ModularSmartAccount is IMSA, ExecutionHelper, ERC1271Handler, RegistryA
 
         // check if validator is enabled. If not terminate the validation phase.
         if (!_isValidatorInstalled(validator)) {
-            return VALIDATION_FAILED;
+            return ERC7579.VALIDATION_FAILED;
         } else {
             // bubble up the return value of the validator module
-            validSignature = IValidator(validator).validateUserOp(userOp, userOpHash);
+            validSignature = ERC7579.IValidator(validator).validateUserOp(userOp, userOpHash);
         }
     }
 
@@ -167,11 +146,11 @@ contract ModularSmartAccount is IMSA, ExecutionHelper, ERC1271Handler, RegistryA
         override
         returns (bool)
     {
-        if (moduleTypeId == MODULE_TYPE_VALIDATOR) {
+        if (moduleTypeId == ERC7579.MODULE_TYPE_VALIDATOR) {
             return _isValidatorInstalled(module);
-        } else if (moduleTypeId == MODULE_TYPE_EXECUTOR) {
+        } else if (moduleTypeId == ERC7579.MODULE_TYPE_EXECUTOR) {
             return _isExecutorInstalled(module);
-        } else if (moduleTypeId == MODULE_TYPE_FALLBACK) {
+        } else if (moduleTypeId == ERC7579.MODULE_TYPE_FALLBACK) {
             return _isFallbackHandlerInstalled(abi.decode(additionalContext, (bytes4)), module);
         } else {
             return false;
@@ -201,29 +180,24 @@ contract ModularSmartAccount is IMSA, ExecutionHelper, ERC1271Handler, RegistryA
     }
 
     /// @inheritdoc IERC7579Account
-    function supportsModule(uint256 modulTypeId) external view virtual override returns (bool) {
-        if (modulTypeId == MODULE_TYPE_VALIDATOR) return true;
-        else if (modulTypeId == MODULE_TYPE_EXECUTOR) return true;
-        else if (modulTypeId == MODULE_TYPE_FALLBACK) return true;
+    function supportsModule(uint256 moduleTypeId) external view virtual override returns (bool) {
+        if (moduleTypeId == ERC7579.MODULE_TYPE_VALIDATOR) return true;
+        else if (moduleTypeId == ERC7579.MODULE_TYPE_EXECUTOR) return true;
+        else if (moduleTypeId == ERC7579.MODULE_TYPE_FALLBACK) return true;
         else return false;
     }
 
     /// @inheritdoc IMSA
-    function initializeAccount(address[] calldata modules, bytes[] calldata data)
-        external
-        payable
-        virtual
-        initializer
-    {
-        for (uint256 i = 0; i < modules.length; i++) {
+    function initializeAccount(address[] calldata modules, bytes[] calldata data) external payable virtual initializer {
+        for (uint256 i = 0; i < modules.length; ++i) {
             address module = modules[i];
-            if (IModule(module).isModuleType(MODULE_TYPE_VALIDATOR)) {
+            if (ERC7579.IModule(module).isModuleType(ERC7579.MODULE_TYPE_VALIDATOR)) {
                 _installValidator(module, data[i]);
             }
-            if (IModule(module).isModuleType(MODULE_TYPE_EXECUTOR)) {
+            if (ERC7579.IModule(module).isModuleType(ERC7579.MODULE_TYPE_EXECUTOR)) {
                 _installExecutor(module, data[i]);
             }
-            if (IModule(module).isModuleType(MODULE_TYPE_FALLBACK)) {
+            if (ERC7579.IModule(module).isModuleType(ERC7579.MODULE_TYPE_FALLBACK)) {
                 _installFallbackHandler(module, data[i]);
             }
         }

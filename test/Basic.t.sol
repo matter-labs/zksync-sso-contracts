@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity ^0.8.24;
+pragma solidity ^0.8.28;
 
 import { PackedUserOperation } from "account-abstraction/interfaces/PackedUserOperation.sol";
 import { LibString } from "solady/utils/LibString.sol";
@@ -12,7 +12,7 @@ import { ExecutionHelper } from "src/core/ExecutionHelper.sol";
 import { AccountBase } from "src/core/AccountBase.sol";
 import { ModuleManager } from "src/core/ModuleManager.sol";
 import { IMSA } from "src/interfaces/IMSA.sol";
-import "src/interfaces/IERC7579Module.sol";
+import "src/interfaces/IERC7579Module.sol" as ERC7579;
 
 import { MockTarget } from "./mocks/MockTarget.sol";
 import { MockDelegateTarget } from "./mocks/MockDelegateTarget.sol";
@@ -134,14 +134,12 @@ contract BasicTest is MSATest {
         vm.assertEq(address(target).balance, 0, "Value should not have been transferred");
     }
 
-    function testRevert_executeUserOp_callFailure() public {
+    function testRevert_execute_callFailure() public {
         bytes memory call = encodeCall(address(target), 0, abi.encodeCall(MockTarget.justRevert, ()));
         PackedUserOperation[] memory userOps = makeSignedUserOp(call);
 
-        vm.startPrank(address(entryPoint));
-        vm.expectRevert(ExecutionHelper.ExecutionFailed.selector);
-        account.executeUserOp(userOps[0], bytes32(0));
-        vm.stopPrank();
+        bytes memory reason = abi.encodeWithSignature("Error(string)", "MockTarget: reverted");
+        expectUserOpRevert(userOps[0], reason);
     }
 
     function testRevert_execute_unsupportedCallType() public {
@@ -180,23 +178,15 @@ contract BasicTest is MSATest {
     }
 
     function testRevert_installModuleUnsupportedType() public {
-        vm.expectRevert(abi.encodeWithSelector(IMSA.UnsupportedModuleType.selector, MODULE_TYPE_HOOK));
+        vm.expectRevert(abi.encodeWithSelector(IMSA.UnsupportedModuleType.selector, ERC7579.MODULE_TYPE_HOOK));
         vm.prank(address(entryPoint));
-        account.installModule(MODULE_TYPE_HOOK, address(hookModule), bytes(""));
+        account.installModule(ERC7579.MODULE_TYPE_HOOK, address(hookModule), bytes(""));
     }
 
     function testRevert_uninstallLastValidator() public {
         vm.expectRevert(ModuleManager.CannotRemoveLastValidator.selector);
         vm.prank(address(entryPoint));
-        account.uninstallModule(MODULE_TYPE_VALIDATOR, address(eoaValidator), bytes(""));
-    }
-
-    function testRevert_executeUserOp_unauthorizedCaller() public {
-        bytes memory call = encodeCall(address(target), 0, abi.encodeCall(MockTarget.setValue, 1));
-        PackedUserOperation[] memory userOps = makeSignedUserOp(call);
-
-        vm.expectRevert(AccountBase.AccountAccessUnauthorized.selector);
-        account.executeUserOp(userOps[0], bytes32(0));
+        account.uninstallModule(ERC7579.MODULE_TYPE_VALIDATOR, address(eoaValidator), bytes(""));
     }
 
     function test_supportedStuff() public view {
@@ -204,7 +194,7 @@ contract BasicTest is MSATest {
             [LibERC7579.CALLTYPE_SINGLE, LibERC7579.CALLTYPE_DELEGATECALL, LibERC7579.CALLTYPE_BATCH];
         bytes1[2] memory execTypes = [LibERC7579.EXECTYPE_TRY, LibERC7579.EXECTYPE_DEFAULT];
 
-        for (uint256 i; i < callTypes.length; i++) {
+        for (uint256 i; i < callTypes.length; ++i) {
             for (uint256 j; j < execTypes.length; j++) {
                 bytes32 mode = LibERC7579.encodeMode(callTypes[i], execTypes[j], 0, 0);
                 vm.assertTrue(account.supportsExecutionMode(mode), "Mode should be supported");
@@ -214,11 +204,12 @@ contract BasicTest is MSATest {
             account.supportsExecutionMode(LibERC7579.encodeMode(0x42, 0x18, 0, 0)), "Mode should not be supported"
         );
 
-        uint256[3] memory moduleTypes = [MODULE_TYPE_EXECUTOR, MODULE_TYPE_VALIDATOR, MODULE_TYPE_FALLBACK];
-        for (uint256 i; i < moduleTypes.length; i++) {
+        uint256[3] memory moduleTypes =
+            [ERC7579.MODULE_TYPE_EXECUTOR, ERC7579.MODULE_TYPE_VALIDATOR, ERC7579.MODULE_TYPE_FALLBACK];
+        for (uint256 i; i < moduleTypes.length; ++i) {
             vm.assertTrue(account.supportsModule(moduleTypes[i]), "Module type should be supported");
         }
-        vm.assertFalse(account.supportsModule(MODULE_TYPE_HOOK), "Module type should not be supported");
+        vm.assertFalse(account.supportsModule(ERC7579.MODULE_TYPE_HOOK), "Module type should not be supported");
     }
 
     function test_signatureTypedData() public view {

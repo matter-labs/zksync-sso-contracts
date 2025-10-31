@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.24;
+pragma solidity ^0.8.28;
 
 import { PackedUserOperation } from "account-abstraction/interfaces/PackedUserOperation.sol";
 import { UserOperationLib } from "account-abstraction/core/UserOperationLib.sol";
-import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { LibBytes } from "solady/utils/LibBytes.sol";
 import { LibERC7579 } from "solady/accounts/LibERC7579.sol";
 
@@ -124,8 +123,6 @@ library SessionLib {
         UsageLimit valueLimit;
         Constraint[] constraints;
     }
-    // add max data length restriction?
-    // add max number of calls restriction?
 
     struct TransferSpec {
         address target;
@@ -269,8 +266,7 @@ library SessionLib {
     /// periodIds[1] is for value limit,
     /// periodIds[2:] are for call constraints, if there are any.
     /// It is required to pass them in (instead of computing via block.timestamp) since during
-    /// validation
-    /// we can only assert the range of the timestamp, but not access its value.
+    /// validation we can only assert the range of the timestamp, but not access its value.
     function validate(
         SessionStorage storage state,
         PackedUserOperation calldata userOp,
@@ -299,7 +295,7 @@ library SessionLib {
         (address target, uint256 value, bytes calldata callData) =
             LibERC7579.decodeSingle(userOp.callData[offset + 32:offset + 32 + length]);
 
-        // Time range whithin which the transaction is valid.
+        // Time range within which the transaction is valid.
         uint48[2] memory timeRange = [0, spec.expiresAt];
 
         if (callData.length >= 4) {
@@ -307,7 +303,7 @@ library SessionLib {
             CallSpec memory callPolicy;
             bool found = false;
 
-            for (uint256 i = 0; i < spec.callPolicies.length; i++) {
+            for (uint256 i = 0; i < spec.callPolicies.length; ++i) {
                 if (spec.callPolicies[i].target == target && spec.callPolicies[i].selector == selector) {
                     callPolicy = spec.callPolicies[i];
                     found = true;
@@ -321,17 +317,16 @@ library SessionLib {
                 callPolicy.valueLimit.checkAndUpdate(state.callValue[target][selector], value, periodIds[1]);
             shrinkRange(timeRange, newValidAfter, newValidUntil);
 
-            for (uint256 i = 0; i < callPolicy.constraints.length; i++) {
-                (newValidAfter, newValidUntil) = callPolicy.constraints[i].checkAndUpdate(
-                    state.params[target][selector][i], callData, periodIds[2 + i]
-                );
+            for (uint256 i = 0; i < callPolicy.constraints.length; ++i) {
+                (newValidAfter, newValidUntil) = callPolicy.constraints[i]
+                .checkAndUpdate(state.params[target][selector][i], callData, periodIds[2 + i]);
                 shrinkRange(timeRange, newValidAfter, newValidUntil);
             }
         } else {
             TransferSpec memory transferPolicy;
             bool found = false;
 
-            for (uint256 i = 0; i < spec.transferPolicies.length; i++) {
+            for (uint256 i = 0; i < spec.transferPolicies.length; ++i) {
                 if (spec.transferPolicies[i].target == target) {
                     transferPolicy = spec.transferPolicies[i];
                     found = true;
@@ -387,17 +382,17 @@ library SessionLib {
         returns (SessionState memory)
     {
         uint256 totalConstraints = 0;
-        for (uint256 i = 0; i < spec.callPolicies.length; i++) {
+        for (uint256 i = 0; i < spec.callPolicies.length; ++i) {
             totalConstraints += spec.callPolicies[i].constraints.length;
         }
 
         LimitState[] memory transferValue = new LimitState[](spec.transferPolicies.length);
         LimitState[] memory callValue = new LimitState[](spec.callPolicies.length);
-        LimitState[] memory callParams = new LimitState[](totalConstraints); // there will be empty
-            // ones at the end
+        // there will be empty ones at the end
+        LimitState[] memory callParams = new LimitState[](totalConstraints);
         uint256 paramLimitIndex = 0;
 
-        for (uint256 i = 0; i < transferValue.length; i++) {
+        for (uint256 i = 0; i < transferValue.length; ++i) {
             TransferSpec memory transferSpec = spec.transferPolicies[i];
             transferValue[i] = LimitState({
                 remaining: remainingLimit(transferSpec.valueLimit, session.transferValue[transferSpec.target], account),
@@ -407,7 +402,7 @@ library SessionLib {
             });
         }
 
-        for (uint256 i = 0; i < callValue.length; i++) {
+        for (uint256 i = 0; i < callValue.length; ++i) {
             CallSpec memory callSpec = spec.callPolicies[i];
             callValue[i] = LimitState({
                 remaining: remainingLimit(
@@ -422,7 +417,9 @@ library SessionLib {
                 if (callSpec.constraints[j].limit.limitType != LimitType.Unlimited) {
                     callParams[paramLimitIndex++] = LimitState({
                         remaining: remainingLimit(
-                            callSpec.constraints[j].limit, session.params[callSpec.target][callSpec.selector][j], account
+                            callSpec.constraints[j].limit,
+                            session.params[callSpec.target][callSpec.selector][j],
+                            account
                         ),
                         target: callSpec.target,
                         selector: callSpec.selector,

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.24;
+pragma solidity ^0.8.28;
 
 import { IERC165 } from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 import { ECDSA } from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
@@ -8,7 +8,8 @@ import { PackedUserOperation } from "account-abstraction/interfaces/PackedUserOp
 import { _packValidationData, SIG_VALIDATION_FAILED } from "account-abstraction/core/Helpers.sol";
 
 import { IMSA } from "../interfaces/IMSA.sol";
-import "../interfaces/IERC7579Module.sol";
+import { IModule, IValidator } from "../interfaces/IERC7579Module.sol";
+import "../interfaces/IERC7579Module.sol" as ERC7579;
 
 /// @title SessionKeyValidator
 /// @author Matter Labs
@@ -61,7 +62,7 @@ contract SessionKeyValidator is IValidator, IERC165 {
     function onUninstall(bytes calldata data) external virtual {
         // Revoke keys before uninstalling
         bytes32[] memory sessionHashes = abi.decode(data, (bytes32[]));
-        for (uint256 i = 0; i < sessionHashes.length; i++) {
+        for (uint256 i = 0; i < sessionHashes.length; ++i) {
             revokeKey(sessionHashes[i]);
         }
     }
@@ -88,9 +89,10 @@ contract SessionKeyValidator is IValidator, IERC165 {
     /// @return true if the call is banned, false otherwise
     function isBannedCall(address target, bytes4 selector) internal view virtual returns (bool) {
         return target == address(this) // this line is technically unnecessary
-            || target == address(msg.sender) || IMSA(msg.sender).isModuleInstalled(MODULE_TYPE_VALIDATOR, target, "")
-            || IMSA(msg.sender).isModuleInstalled(MODULE_TYPE_EXECUTOR, target, "")
-            || IMSA(msg.sender).isModuleInstalled(MODULE_TYPE_FALLBACK, target, abi.encode(selector));
+            || target == address(msg.sender)
+            || IMSA(msg.sender).isModuleInstalled(ERC7579.MODULE_TYPE_VALIDATOR, target, "")
+            || IMSA(msg.sender).isModuleInstalled(ERC7579.MODULE_TYPE_EXECUTOR, target, "")
+            || IMSA(msg.sender).isModuleInstalled(ERC7579.MODULE_TYPE_FALLBACK, target, abi.encode(selector));
     }
 
     /// @notice Create a new session for an account
@@ -107,7 +109,7 @@ contract SessionKeyValidator is IValidator, IERC165 {
         bytes32 sessionHash = keccak256(abi.encode(sessionSpec));
 
         uint256 totalCallPolicies = sessionSpec.callPolicies.length;
-        for (uint256 i = 0; i < totalCallPolicies; i++) {
+        for (uint256 i = 0; i < totalCallPolicies; ++i) {
             require(
                 !isBannedCall(sessionSpec.callPolicies[i].target, sessionSpec.callPolicies[i].selector),
                 SessionLib.CallPolicyBanned(sessionSpec.callPolicies[i].target, sessionSpec.callPolicies[i].selector)
@@ -148,14 +150,14 @@ contract SessionKeyValidator is IValidator, IERC165 {
     /// @notice Revoke multiple sessions for an account
     /// @param sessionHashes An array of session hashes to revoke
     function revokeKeys(bytes32[] calldata sessionHashes) external virtual {
-        for (uint256 i = 0; i < sessionHashes.length; i++) {
+        for (uint256 i = 0; i < sessionHashes.length; ++i) {
             revokeKey(sessionHashes[i]);
         }
     }
 
     /// @inheritdoc IModule
     function isInitialized(address smartAccount) public view virtual returns (bool) {
-        return IMSA(smartAccount).isModuleInstalled(MODULE_TYPE_VALIDATOR, address(this), "");
+        return IMSA(smartAccount).isModuleInstalled(ERC7579.MODULE_TYPE_VALIDATOR, address(this), "");
     }
 
     /// @inheritdoc IValidator
@@ -186,6 +188,6 @@ contract SessionKeyValidator is IValidator, IERC165 {
 
     /// @inheritdoc IModule
     function isModuleType(uint256 moduleTypeId) external pure virtual returns (bool) {
-        return moduleTypeId == MODULE_TYPE_VALIDATOR;
+        return moduleTypeId == ERC7579.MODULE_TYPE_VALIDATOR;
     }
 }

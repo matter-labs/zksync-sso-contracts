@@ -28,4 +28,11 @@ solady = "0.1.24"
 
 [lint]
 lint_on_build = true
-severity = ["high", "med"]
+severity = ["high", "med", "low", "info"]
+exclude_lints = [
+    "pascal-case-struct",
+    "mixed-case-function",
+    "mixed-case-variable",
+    "screaming-snake-case-const",
+    "screaming-snake-case-immutable"
+]

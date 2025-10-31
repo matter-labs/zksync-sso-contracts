@@ -1,22 +1,32 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.21;
 
-/// @title reference implementation of the minimal modular smart account with Hook Extension
-/// @author zeroknots.eth | rhinestone.wtf
+/// @title AccountBase
+/// @author Matter Labs
+/// @custom:security-contact security@matterlabs.dev
+/// @notice The implementation is inspired by https://github.com/erc7579/erc7579-implementation
 contract AccountBase {
     error AccountAccessUnauthorized();
 
-    address public constant ENTRY_POINT = 0x4337084D9E255Ff0702461CF8895CE9E3b5Ff108;
+    /// @dev The EntryPoint v0.8 standard address.
+    address public constant ENTRY_POINT_V08 = 0x4337084D9E255Ff0702461CF8895CE9E3b5Ff108;
 
+    /// @dev Returns the EntryPoint address.
+    function entryPoint() public pure virtual returns (address) {
+        return ENTRY_POINT_V08;
+    }
+
+    /// @dev Modifier to restrict access to only the EntryPoint or the account itself.
     modifier onlyEntryPointOrSelf() virtual {
-        if (!(msg.sender == ENTRY_POINT || msg.sender == address(this))) {
+        if (!(msg.sender == entryPoint() || msg.sender == address(this))) {
             revert AccountAccessUnauthorized();
         }
         _;
     }
 
+    /// @dev Modifier to restrict access to only the EntryPoint.
     modifier onlyEntryPoint() virtual {
-        if (msg.sender != ENTRY_POINT) {
+        if (msg.sender != entryPoint()) {
             revert AccountAccessUnauthorized();
         }
         _;

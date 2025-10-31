@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.23;
 
-import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
+import { EnumerableSet } from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import { IERC7484Registry } from "src/interfaces/IERC7484Registry.sol";
 
 contract MockRegistry is IERC7484Registry {
@@ -42,7 +42,7 @@ contract MockRegistry is IERC7484Registry {
 
     function trustAttesters(uint8 threshold, address[] calldata attesters) external {
         _threshold[msg.sender] = threshold;
-        for (uint256 i; i < attesters.length; i++) {
+        for (uint256 i; i < attesters.length; ++i) {
             require(_attesters[msg.sender].add(attesters[i]), "Attester already trusted");
         }
     }
@@ -75,7 +75,7 @@ contract MockRegistry is IERC7484Registry {
     ) internal view {
         require(threshold > 0, "Threshold must be > 0");
         uint256 attested = 0;
-        for (uint256 i; i < attesters.length; i++) {
+        for (uint256 i; i < attesters.length; ++i) {
             attested += _check(module, attesters[i], checkModuleType, moduleType) ? 1 : 0;
         }
         require(attested >= threshold, "Threshold not met");

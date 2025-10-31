@@ -1,18 +1,19 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.24;
+pragma solidity ^0.8.28;
 
 import { PackedUserOperation } from "account-abstraction/interfaces/PackedUserOperation.sol";
 import { SIG_VALIDATION_FAILED, SIG_VALIDATION_SUCCESS } from "account-abstraction/core/Helpers.sol";
 import { ECDSA } from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import { IERC1271 } from "@openzeppelin/contracts/interfaces/IERC1271.sol";
-import { EnumerableSet } from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 
 import { IMSA } from "../interfaces/IMSA.sol";
 import { IValidator, IModule, MODULE_TYPE_VALIDATOR } from "../interfaces/IERC7579Module.sol";
 
+/// @title EOAKeyValidator
+/// @author Matter Labs
+/// @custom:security-contact security@matterlabs.dev
+/// @dev This validator allows EOAs to be registered as owners for a smart account.
 contract EOAKeyValidator is IValidator {
-    using EnumerableSet for EnumerableSet.AddressSet;
-
     mapping(address owner => mapping(address account => bool)) private owners;
 
     event OwnerAdded(address indexed smartAccount, address indexed owner);
@@ -20,12 +21,13 @@ contract EOAKeyValidator is IValidator {
 
     error OwnerAlreadyExists(address smartAccount, address owner);
     error OwnerDoesNotExist(address smartAccount, address owner);
+    error ZeroAddress(address smartAccount);
 
     /// @inheritdoc IModule
     /// @notice Adds the provided owners for the installing account.
     function onInstall(bytes calldata data) external {
         address[] memory initialOwners = abi.decode(data, (address[]));
-        for (uint256 i = 0; i < initialOwners.length; i++) {
+        for (uint256 i = 0; i < initialOwners.length; ++i) {
             _addOwner(initialOwners[i]);
         }
     }
@@ -34,7 +36,7 @@ contract EOAKeyValidator is IValidator {
     /// @notice Removes the provided owners when the validator is uninstalled.
     function onUninstall(bytes calldata data) external {
         address[] memory ownersToRemove = abi.decode(data, (address[]));
-        for (uint256 i = 0; i < ownersToRemove.length; i++) {
+        for (uint256 i = 0; i < ownersToRemove.length; ++i) {
             removeOwner(ownersToRemove[i]);
         }
     }
@@ -64,6 +66,7 @@ contract EOAKeyValidator is IValidator {
     /// @param owner Address to add as a valid owner.
     function addOwner(address owner) public {
         require(isInitialized(msg.sender), NotInitialized(msg.sender));
+        require(owner != address(0), ZeroAddress(msg.sender));
         _addOwner(owner);
     }
 
@@ -88,7 +91,12 @@ contract EOAKeyValidator is IValidator {
         address, // sender
         bytes32 hash,
         bytes calldata data
-    ) external view override returns (bytes4) {
+    )
+        external
+        view
+        override
+        returns (bytes4)
+    {
         // slither-disable-next-line unused-return
         (address signer, ECDSA.RecoverError err,) = ECDSA.tryRecover(hash, data);
         return err == ECDSA.RecoverError.NoError && owners[signer][msg.sender]
