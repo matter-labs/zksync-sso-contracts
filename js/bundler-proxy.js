@@ -36,7 +36,7 @@ const server = http.createServer((req, res) => {
     // Forward request to Alto
     // Clone original headers and update Content-Length
     const headers = { ...req.headers };
-    headers['content-length'] = Buffer.byteLength(body);
+    headers["content-length"] = Buffer.byteLength(body);
     const options = {
       hostname: ALTO_HOST,
       port: ALTO_PORT,
