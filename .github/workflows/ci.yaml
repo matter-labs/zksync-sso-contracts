@@ -32,6 +32,24 @@ jobs:
       - name: Test
         run: forge test
 
+  spelling:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout Actions Repository
+      uses: actions/checkout@v5
+    - name: Check for typos
+      uses: crate-ci/typos@v1.39.0
+
+  formatting:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout Actions Repository
+      uses: actions/checkout@v5
+    - name: Install Foundry
+      uses: foundry-rs/foundry-toolchain@v1.5.0
+    - name: Check formatting
+      run: forge fmt --check
+
   coverage:
     runs-on: "ubuntu-latest"
     permissions:
@@ -87,7 +105,7 @@ jobs:
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
-          version: 10.18.2
+          version: 10.20.0
 
       - name: Use Node.js
         uses: actions/setup-node@v6

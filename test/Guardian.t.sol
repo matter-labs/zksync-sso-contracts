@@ -1,13 +1,9 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.24;
+pragma solidity ^0.8.28;
 
 import { PackedUserOperation } from "account-abstraction/interfaces/PackedUserOperation.sol";
 
 import { ModularSmartAccount } from "src/ModularSmartAccount.sol";
-import { MSAFactory } from "src/MSAFactory.sol";
-import { EOAKeyValidator } from "src/modules/EOAKeyValidator.sol";
-import { SessionKeyValidator } from "src/modules/SessionKeyValidator.sol";
-import { IMSA } from "src/interfaces/IMSA.sol";
 import { MODULE_TYPE_EXECUTOR } from "src/interfaces/IERC7579Module.sol";
 import { IERC7579Account } from "src/interfaces/IERC7579Account.sol";
 import { GuardianExecutor } from "src/modules/GuardianExecutor.sol";
@@ -66,11 +62,9 @@ contract GuardianTest is MSATest {
         vm.assertEq(guardians.length, 1, "Invalid guardians array");
         vm.assertEq(guardians[0], guardian.addr, "Guardian not found for account");
 
-        (bool isPresent, bool isActive, uint48 timestamp) =
-            guardiansExecutor.guardianStatusFor(address(account), guardian.addr);
+        (bool isPresent, bool isActive) = guardiansExecutor.guardianStatusFor(address(account), guardian.addr);
         vm.assertTrue(isPresent, "Guardian not present after proposing");
         vm.assertTrue(!isActive, "Proposed guardian should not be active");
-        vm.assertTrue(timestamp != 0, "Proposed guardian timestamp is empty");
     }
 
     function test_acceptGuardian() public {
@@ -81,7 +75,7 @@ contract GuardianTest is MSATest {
         emit GuardianExecutor.GuardianAdded(address(account), guardian.addr);
         guardiansExecutor.acceptGuardian(address(account));
 
-        (, bool isActive,) = guardiansExecutor.guardianStatusFor(address(account), guardian.addr);
+        (, bool isActive) = guardiansExecutor.guardianStatusFor(address(account), guardian.addr);
         vm.assertTrue(isActive, "Guardian not active after accepting");
     }
 

@@ -1,0 +1,4 @@
+[default]
+# it is now possible to force typos to ignore the next line by
+# preceding it with // spellchecker:ignore-next-line
+extend-ignore-re = ["(#|//)\\s*spellchecker:ignore-next-line\\n.*"]

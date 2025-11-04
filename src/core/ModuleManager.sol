@@ -2,13 +2,17 @@
 pragma solidity ^0.8.21;
 
 import { EnumerableSet } from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
-import "../interfaces/IERC7579Module.sol";
+
+import { RegistryAdapter } from "./RegistryAdapter.sol";
+import "../interfaces/IERC7579Module.sol" as ERC7579;
 
 /// @title ModuleManager
-/// @author zeroknots.eth | rhinestone.wtf
+/// @author Matter Labs
+/// @custom:security-contact security@matterlabs.dev
+/// @notice The implementation is inspired by https://github.com/erc7579/erc7579-implementation
 /// @dev This contract manages Validator, Executor and Fallback modules for the MSA
 /// NOTE: the linked list is just an example. accounts may implement this differently
-abstract contract ModuleManager {
+abstract contract ModuleManager is RegistryAdapter {
     using EnumerableSet for EnumerableSet.AddressSet;
 
     error InvalidModule(address module);
@@ -37,6 +41,7 @@ abstract contract ModuleManager {
         mapping(bytes4 selector => FallbackHandler fallbackHandler) $fallbacks;
     }
 
+    /// @dev Returns the storage pointer used to manage modules for the account.
     function $moduleManager() internal pure virtual returns (ModuleManagerStorage storage $ims) {
         bytes32 position = MODULEMANAGER_STORAGE_LOCATION;
         assembly {
@@ -44,16 +49,23 @@ abstract contract ModuleManager {
         }
     }
 
+    /// @dev Ensures that the caller is an installed executor module.
     modifier onlyExecutorModule() {
         if (!$moduleManager().$executors.contains(msg.sender)) revert InvalidModule(msg.sender);
         _;
     }
 
+    /// @dev Ensures that the supplied validator module is installed.
     modifier onlyValidatorModule(address validator) {
         if (!$moduleManager().$validators.contains(validator)) revert InvalidModule(validator);
         _;
     }
 
+    /// @dev Handles uninstall failures by bubbling up or emitting `ModuleUnlinked` when forced.
+    /// @param reason Revert data returned by the module.
+    /// @param force Whether the uninstall should proceed even if the module reverts.
+    /// @param moduleTypeId Identifier of the module type.
+    /// @param module Address of the module being removed.
     function _onUninstallFail(bytes memory reason, bool force, uint256 moduleTypeId, address module) internal {
         if (!force) {
             assembly {
@@ -69,20 +81,30 @@ abstract contract ModuleManager {
     //  Manage Validators
     ////////////////////////////////////////////////////
 
+    /// @dev Installs a validator module and triggers its initialization hook.
+    /// @param validator Address of the validator module.
+    /// @param data Initialization data forwarded to the module.
     function _installValidator(address validator, bytes calldata data) internal virtual {
         require($moduleManager().$validators.add(validator), AlreadyInstalled(validator));
-        IValidator(validator).onInstall(data);
+        ERC7579.IValidator(validator).onInstall(data);
     }
 
+    /// @dev Uninstalls a validator module and triggers its teardown hook.
+    /// @param validator Address of the validator module.
+    /// @param data De-initialization data forwarded to the module.
+    /// @param force Whether failures should be swallowed and logged instead of bubbled.
     function _uninstallValidator(address validator, bytes calldata data, bool force) internal {
         require($moduleManager().$validators.remove(validator), NotInstalled(validator));
         require($moduleManager().$validators.length() > 0, CannotRemoveLastValidator());
-        try IValidator(validator).onUninstall(data) { }
+        try ERC7579.IValidator(validator).onUninstall(data) { }
         catch (bytes memory reason) {
-            _onUninstallFail(reason, force, MODULE_TYPE_VALIDATOR, validator);
+            _onUninstallFail(reason, force, ERC7579.MODULE_TYPE_VALIDATOR, validator);
         }
     }
 
+    /// @dev Checks whether a validator module is currently installed.
+    /// @param validator Address of the validator module.
+    /// @return True if the validator is registered.
     function _isValidatorInstalled(address validator) internal view virtual returns (bool) {
         return $moduleManager().$validators.contains(validator);
     }
@@ -91,19 +113,29 @@ abstract contract ModuleManager {
     //  Manage Executors
     ////////////////////////////////////////////////////
 
+    /// @dev Installs an executor module and triggers its initialization hook.
+    /// @param executor Address of the executor module.
+    /// @param data Initialization data forwarded to the module.
     function _installExecutor(address executor, bytes calldata data) internal {
         require($moduleManager().$executors.add(executor), AlreadyInstalled(executor));
-        IExecutor(executor).onInstall(data);
+        ERC7579.IExecutor(executor).onInstall(data);
     }
 
+    /// @dev Uninstalls an executor module and triggers its teardown hook.
+    /// @param executor Address of the executor module.
+    /// @param data De-initialization data forwarded to the module.
+    /// @param force Whether failures should be swallowed and logged instead of bubbled.
     function _uninstallExecutor(address executor, bytes calldata data, bool force) internal {
         require($moduleManager().$executors.remove(executor), NotInstalled(executor));
-        try IExecutor(executor).onUninstall(data) { }
+        try ERC7579.IExecutor(executor).onUninstall(data) { }
         catch (bytes memory reason) {
-            _onUninstallFail(reason, force, MODULE_TYPE_EXECUTOR, executor);
+            _onUninstallFail(reason, force, ERC7579.MODULE_TYPE_EXECUTOR, executor);
         }
     }
 
+    /// @dev Checks whether an executor module is currently installed.
+    /// @param executor Address of the executor module.
+    /// @return True if the executor is registered.
     function _isExecutorInstalled(address executor) internal view virtual returns (bool) {
         return $moduleManager().$executors.contains(executor);
     }
@@ -112,15 +144,22 @@ abstract contract ModuleManager {
     //  Manage Fallback
     ////////////////////////////////////////////////////
 
+    /// @dev Installs a fallback handler linked to a function selector.
+    /// @param handler Address of the fallback handler module.
+    /// @param params Encoded selector, call type and initialization data.
     function _installFallbackHandler(address handler, bytes calldata params) internal virtual {
         bytes4 selector = bytes4(params[0:4]);
         bytes1 calltype = params[4];
         bytes calldata initData = params[5:];
         require(!_isFallbackHandlerInstalled(selector), SelectorAlreadyUsed(selector));
         $moduleManager().$fallbacks[selector] = FallbackHandler(handler, calltype);
-        IFallback(handler).onInstall(initData);
+        ERC7579.IFallback(handler).onInstall(initData);
     }
 
+    /// @dev Uninstalls a fallback handler linked to a function selector.
+    /// @param handler Address of the fallback handler module.
+    /// @param deInitData Encoded selector and de-initialization data.
+    /// @param force Whether failures should be swallowed and logged instead of bubbled.
     function _uninstallFallbackHandler(address handler, bytes calldata deInitData, bool force) internal virtual {
         bytes4 selector = bytes4(deInitData[0:4]);
         bytes calldata _deInitData = deInitData[4:];
@@ -128,17 +167,24 @@ abstract contract ModuleManager {
         FallbackHandler memory activeFallback = $moduleManager().$fallbacks[selector];
         require(activeFallback.handler == handler, NotInstalled(handler));
         $moduleManager().$fallbacks[selector] = FallbackHandler(address(0), 0);
-        try IFallback(handler).onUninstall(_deInitData) { }
+        try ERC7579.IFallback(handler).onUninstall(_deInitData) { }
         catch (bytes memory reason) {
-            _onUninstallFail(reason, force, MODULE_TYPE_FALLBACK, handler);
+            _onUninstallFail(reason, force, ERC7579.MODULE_TYPE_FALLBACK, handler);
         }
     }
 
+    /// @dev Checks whether any fallback handler is set for a selector.
+    /// @param functionSig Selector to check.
+    /// @return True if a handler is registered.
     function _isFallbackHandlerInstalled(bytes4 functionSig) internal view virtual returns (bool) {
         FallbackHandler storage $fallback = $moduleManager().$fallbacks[functionSig];
         return $fallback.handler != address(0);
     }
 
+    /// @dev Checks whether the registered fallback handler for a selector matches an address.
+    /// @param functionSig Selector to check.
+    /// @param _handler Expected handler address.
+    /// @return True if the handler matches the selector registration.
     function _isFallbackHandlerInstalled(bytes4 functionSig, address _handler) internal view virtual returns (bool) {
         FallbackHandler storage $fallback = $moduleManager().$fallbacks[functionSig];
         return $fallback.handler == _handler;
@@ -154,7 +200,7 @@ abstract contract ModuleManager {
     /// @dev For receiving ETH.
     receive() external payable { }
 
-    // FALLBACK
+    /// @dev Delegates calls to the registered fallback handler or handles ERC token callbacks.
     fallback() external payable {
         FallbackHandler storage $fallbackHandler = $moduleManager().$fallbacks[msg.sig];
         address handler = $fallbackHandler.handler;
@@ -176,6 +222,9 @@ abstract contract ModuleManager {
                 revert NoFallbackHandler(msg.sig);
             }
         }
+
+        // Verify that the handler is attested in the registry.
+        checkWithRegistry(handler, ERC7579.MODULE_TYPE_FALLBACK);
 
         assembly {
             function allocate(length) -> pos {

@@ -2,11 +2,12 @@
 pragma solidity ^0.8.23;
 
 import { LibERC7579 } from "solady/accounts/LibERC7579.sol";
-import { Execution } from "../interfaces/IERC7579Account.sol";
 
-/// @title Execution
+/// @title ExecutionHelper
 /// @dev This contract executes calls in the context of this contract.
-/// @author zeroknots.eth | rhinestone.wtf
+/// @author Matter Labs
+/// @custom:security-contact security@matterlabs.dev
+/// @notice The implementation is inspired by https://github.com/erc7579/erc7579-implementation
 /// shoutout to solady (vectorized, ross) for this code
 /// https://github.com/Vectorized/solady/blob/main/src/accounts/ERC4337.sol
 contract ExecutionHelper {
@@ -22,7 +23,7 @@ contract ExecutionHelper {
         uint256 length = executions.length;
         result = new bytes[](length);
 
-        for (uint256 i; i < length; i++) {
+        for (uint256 i; i < length; ++i) {
             (address target, uint256 value, bytes calldata callData) = LibERC7579.getExecution(executions, i);
             result[i] = _execute(target, value, callData);
         }
@@ -32,7 +33,7 @@ contract ExecutionHelper {
         uint256 length = executions.length;
         result = new bytes[](length);
 
-        for (uint256 i; i < length; i++) {
+        for (uint256 i; i < length; ++i) {
             (address target, uint256 value, bytes calldata callData) = LibERC7579.getExecution(executions, i);
             bool success;
             (success, result[i]) = _tryExecute(target, value, callData);
@@ -119,7 +120,7 @@ contract ExecutionHelper {
         bytes1 callType = mode.getCallType();
         bytes1 execType = mode.getExecType();
 
-        // check if calltype is batch or single
+        // check if calltype is batch, single or delegatecall
         if (callType == LibERC7579.CALLTYPE_BATCH) {
             // destructure executionCallData according to batched exec
             bytes32[] calldata executions = LibERC7579.decodeBatch(data);

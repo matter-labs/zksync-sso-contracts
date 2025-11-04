@@ -31,18 +31,17 @@ contract RecoveryTest is MSATest {
         submitter = makeAccount("submitter");
         finalizer = makeAccount("finalizer");
 
-        recoveryExecutor = GuardianBasedRecoveryExecutor(address(
-            new TransparentUpgradeableProxy(
-                address(new GuardianBasedRecoveryExecutor(address(0), address(eoaValidator))), 
-                admin.addr,
-                abi.encodeWithSelector(
-                    GuardianBasedRecoveryExecutor.initialize.selector,
+        recoveryExecutor = GuardianBasedRecoveryExecutor(
+            address(
+                new TransparentUpgradeableProxy(
+                    address(new GuardianBasedRecoveryExecutor(address(0), address(eoaValidator))),
                     admin.addr,
-                    finalizer.addr,
-                    submitter.addr
+                    abi.encodeWithSelector(
+                        GuardianBasedRecoveryExecutor.initialize.selector, admin.addr, finalizer.addr, submitter.addr
+                    )
                 )
             )
-        ));
+        );
     }
 
     function test_installExecutor() public {

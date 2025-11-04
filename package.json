@@ -20,7 +20,7 @@
   ],
   "author": "Matter Labs <zksync.io>",
   "license": "MIT",
-  "packageManager": "pnpm@10.18.2",
+  "packageManager": "pnpm@10.20.0",
   "devDependencies": {
     "@pimlico/alto": "^0.0.19",
     "@types/node": "^24.3.0",

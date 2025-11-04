@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.24;
+pragma solidity ^0.8.28;
 
 import { PackedUserOperation } from "account-abstraction/interfaces/PackedUserOperation.sol";
 import { IEntryPoint } from "account-abstraction/interfaces/IEntryPoint.sol";
@@ -7,8 +7,6 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { IAccessControl } from "@openzeppelin/contracts/access/IAccessControl.sol";
 
 import { ModularSmartAccount } from "src/ModularSmartAccount.sol";
-import { MSAFactory } from "src/MSAFactory.sol";
-import { EOAKeyValidator } from "src/modules/EOAKeyValidator.sol";
 import { SessionKeyValidator } from "src/modules/SessionKeyValidator.sol";
 import { AllowedSessionsValidator } from "src/modules/contrib/AllowedSessionsValidator.sol";
 import { IMSA } from "src/interfaces/IMSA.sol";
@@ -39,8 +37,9 @@ contract SessionsTest is MSATest {
     }
 
     function test_installValidator() public {
-        bytes memory data =
-            abi.encodeCall(ModularSmartAccount.installModule, (MODULE_TYPE_VALIDATOR, address(sessionKeyValidator), ""));
+        bytes memory data = abi.encodeCall(
+            ModularSmartAccount.installModule, (MODULE_TYPE_VALIDATOR, address(sessionKeyValidator), "")
+        );
         PackedUserOperation[] memory userOps = makeSignedUserOp(data);
 
         vm.expectEmit(true, true, true, true);
@@ -251,8 +250,9 @@ contract SessionsTest is MSATest {
         secondSpec.signer = secondOwner.addr;
         secondSpec.expiresAt = uint48(block.timestamp + 2000);
 
-        bytes memory createSecond =
-            encodeCall(address(sessionKeyValidator), 0, abi.encodeCall(SessionKeyValidator.createSession, (secondSpec)));
+        bytes memory createSecond = encodeCall(
+            address(sessionKeyValidator), 0, abi.encodeCall(SessionKeyValidator.createSession, (secondSpec))
+        );
         PackedUserOperation[] memory secondUserOps = makeSignedUserOp(createSecond);
         entryPoint.handleOps(secondUserOps, bundler);
         bytes32 sessionHashTwo = keccak256(abi.encode(secondSpec));
@@ -513,7 +513,7 @@ contract SessionsTest is MSATest {
 
     function _signUserOpNoPrefix(PackedUserOperation memory userOp) internal view {
         uint256 constraints = 0;
-        for (uint256 i = 0; i < spec.callPolicies.length; i++) {
+        for (uint256 i = 0; i < spec.callPolicies.length; ++i) {
             constraints += spec.callPolicies[i].constraints.length;
         }
 

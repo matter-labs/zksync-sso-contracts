@@ -16,7 +16,7 @@ import { GuardianExecutor } from "../GuardianExecutor.sol";
 contract GuardianBasedRecoveryExecutor is GuardianExecutor, Initializable, AccessControl {
     /// @notice Role for submitting recovery requests
     bytes32 public constant SUBMITTER_ROLE = keccak256("SUBMITTER_ROLE");
-    
+
     /// @notice Role for finalizing pending recoveries
     bytes32 public constant FINALIZER_ROLE = keccak256("FINALIZER_ROLE");
 
@@ -27,21 +27,15 @@ contract GuardianBasedRecoveryExecutor is GuardianExecutor, Initializable, Acces
     /// @param account The account with no active recovery
     error CannotDiscardRecoveryFor(address account);
 
-    constructor(address _webAuthValidator, address _eoaValidator) 
-        GuardianExecutor(_webAuthValidator, _eoaValidator)
-    {
+    constructor(address _webAuthValidator, address _eoaValidator) GuardianExecutor(_webAuthValidator, _eoaValidator) {
         _disableInitializers();
     }
 
     /// @notice Initializer function.
     /// @param _admin Admin role recipient
-    /// @param _finalizer Finalizer role recipient  
+    /// @param _finalizer Finalizer role recipient
     /// @param _submitter Submitter role recipient
-    function initialize(
-        address _admin, 
-        address _finalizer,
-        address _submitter
-    ) external initializer {
+    function initialize(address _admin, address _finalizer, address _submitter) external initializer {
         _grantRole(DEFAULT_ADMIN_ROLE, _admin);
         _grantRole(FINALIZER_ROLE, _finalizer);
         _grantRole(SUBMITTER_ROLE, _submitter);
