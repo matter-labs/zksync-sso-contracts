@@ -56,6 +56,7 @@ const server = http.createServer((req, res) => {
 
     proxyReq.on("error", (error) => {
       console.error("Proxy error:", error);
+      res.setHeader('Content-Type', 'application/json');
       res.writeHead(502);
       res.end(JSON.stringify({ error: "Bad Gateway", message: error.message }));
     });
