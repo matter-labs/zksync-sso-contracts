@@ -27,12 +27,13 @@ const server = http.createServer((req, res) => {
   }
 
   // Collect request body
-  let body = "";
+  const chunks = [];
   req.on("data", (chunk) => {
-    body += chunk.toString();
+    chunks.push(chunk);
   });
 
   req.on("end", () => {
+    const body = Buffer.concat(chunks).toString();
     // Forward request to Alto
     // Clone original headers and update Content-Length
     const headers = { ...req.headers };
