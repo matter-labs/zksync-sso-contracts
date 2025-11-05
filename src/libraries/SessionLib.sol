@@ -318,8 +318,9 @@ library SessionLib {
             shrinkRange(timeRange, newValidAfter, newValidUntil);
 
             for (uint256 i = 0; i < callPolicy.constraints.length; ++i) {
-                (newValidAfter, newValidUntil) = callPolicy.constraints[i]
-                .checkAndUpdate(state.params[target][selector][i], callData, periodIds[2 + i]);
+                (newValidAfter, newValidUntil) = callPolicy.constraints[i].checkAndUpdate(
+                    state.params[target][selector][i], callData, periodIds[2 + i]
+                );
                 shrinkRange(timeRange, newValidAfter, newValidUntil);
             }
         } else {
