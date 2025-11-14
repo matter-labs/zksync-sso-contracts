@@ -171,7 +171,7 @@ contract SessionKeyValidator is IValidator, IERC165 {
         uint192 expectedNonceKey = uint192(uint160(spec.signer));
         require(nonceKey == expectedNonceKey, SessionLib.InvalidNonceKey(nonceKey, expectedNonceKey));
         // this will revert if session spec is violated
-        (uint48 validAfter, uint48 validUntil) = sessions[sessionHash].validate(userOp, spec, periodIds);
+        uint48[2] memory timeRange = sessions[sessionHash].validate(userOp, spec, periodIds);
 
         // slither-disable-next-line unused-return
         (address signer, ECDSA.RecoverError err,) = ECDSA.tryRecover(userOpHash, transactionSignature);
@@ -179,11 +179,9 @@ contract SessionKeyValidator is IValidator, IERC165 {
             return SIG_VALIDATION_FAILED;
         }
         // This check is separate and performed last to prevent gas estimation failures
-        (uint48 newValidAfter, uint48 newValidUntil) =
-            sessions[sessionHash].validateFeeLimit(userOp, spec, periodIds[0]);
-        validAfter = newValidAfter > validAfter ? validAfter : newValidAfter;
-        validUntil = newValidUntil < validUntil ? validUntil : newValidUntil;
-        return _packValidationData(false, validUntil, validAfter);
+        timeRange =
+            SessionLib.shrinkRange(timeRange, sessions[sessionHash].validateFeeLimit(userOp, spec, periodIds[0]));
+        return _packValidationData(false, timeRange[1], timeRange[0]);
     }
 
     /// @inheritdoc IModule
