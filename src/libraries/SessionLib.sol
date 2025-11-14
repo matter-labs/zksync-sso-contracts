@@ -241,7 +241,8 @@ library SessionLib {
         // If a paymaster is paying the fee, we don't need to check the fee limit
         if (userOp.paymasterAndData.length == 0) {
             uint256 gasPrice = userOp.gasPrice();
-            uint256 gasLimit = userOp.unpackVerificationGasLimit() + userOp.unpackCallGasLimit();
+            uint256 gasLimit =
+                userOp.preVerificationGas + userOp.unpackVerificationGasLimit() + userOp.unpackCallGasLimit();
             uint256 fee = gasPrice * gasLimit;
             // slither-disable-next-line unused-return
             return spec.feeLimit.checkAndUpdate(state.fee, fee, periodId);
