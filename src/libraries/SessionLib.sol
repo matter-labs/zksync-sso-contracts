@@ -159,15 +159,15 @@ library SessionLib {
     /// @dev Reverts if the limit is exceeded or the period is invalid.
     function checkAndUpdate(UsageLimit memory limit, UsageTracker storage tracker, uint256 value, uint48 period)
         internal
-        returns (uint48[2] memory validAfterUntil)
+        returns (uint48[2] memory validTimeRange)
     {
+        validTimeRange = [0, type(uint48).max];
         if (limit.limitType == LimitType.Lifetime) {
             require(
                 tracker.lifetimeUsage[msg.sender] + value <= limit.limit,
                 LifetimeUsageExceeded(tracker.lifetimeUsage[msg.sender], limit.limit)
             );
             tracker.lifetimeUsage[msg.sender] += value;
-            return [0, type(uint48).max];
         } else if (limit.limitType == LimitType.Allowance) {
             require(
                 tracker.allowanceUsage[period][msg.sender] + value <= limit.limit,
@@ -176,7 +176,7 @@ library SessionLib {
             tracker.allowanceUsage[period][msg.sender] += value;
             uint48 validAfter = period * limit.period;
             uint48 validUntil = (period + 1) * limit.period;
-            return [validAfter, validUntil];
+            validTimeRange = [validAfter, validUntil];
         }
     }
 
