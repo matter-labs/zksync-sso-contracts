@@ -106,7 +106,7 @@ contract AllowedSessionsValidator is SessionKeyValidator, AccessControl {
     function validateUserOp(PackedUserOperation calldata userOp, bytes32 userOpHash) public override returns (uint256) {
         // slither-disable-next-line unused-return
         (, SessionLib.SessionSpec memory spec,) =
-            abi.decode(userOp.signature[20:], (bytes, SessionLib.SessionSpec, uint48[]));
+            abi.decode(userOp.signature, (bytes, SessionLib.SessionSpec, uint48[]));
         bytes32 sessionActionsHash = getSessionActionsHash(spec);
         require(areSessionActionsAllowed[sessionActionsHash], SessionLib.ActionsNotAllowed(sessionActionsHash));
         return SessionKeyValidator.validateUserOp(userOp, userOpHash);

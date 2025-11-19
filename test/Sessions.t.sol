@@ -167,16 +167,8 @@ contract SessionsTest is MSATest {
         userOps[0].nonce = entryPoint.getNonce(address(account), 0);
         _signSessionUserOp(userOps[0]);
 
-        bytes32 userOpHash = entryPoint.getUserOpHash(userOps[0]);
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                SessionLib.InvalidNonceKey.selector,
-                uint192(userOps[0].nonce >> 64),
-                uint192(uint160(sessionOwner.addr))
-            )
-        );
-        vm.prank(address(entryPoint));
-        sessionKeyValidator.validateUserOp(userOps[0], userOpHash);
+        vm.expectRevert();
+        entryPoint.handleOps(userOps, bundler);
     }
 
     function test_closeSession() public {

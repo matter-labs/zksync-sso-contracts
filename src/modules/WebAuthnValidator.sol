@@ -171,7 +171,7 @@ contract WebAuthnValidator is IValidator, IERC165 {
 
     /// @inheritdoc IValidator
     function validateUserOp(PackedUserOperation calldata userOp, bytes32 signedHash) external view returns (uint256) {
-        return webAuthVerify(signedHash, userOp.signature[20:]) ? SIG_VALIDATION_SUCCESS : SIG_VALIDATION_FAILED;
+        return webAuthVerify(signedHash, userOp.signature) ? SIG_VALIDATION_SUCCESS : SIG_VALIDATION_FAILED;
     }
 
     /// @notice Validates a WebAuthn signature

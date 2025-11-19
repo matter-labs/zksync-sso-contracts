@@ -124,8 +124,11 @@ contract ModularSmartAccount is IMSA, ExecutionHelper, ERC1271Handler, Initializ
         if (!_isValidatorInstalled(validator)) {
             return ERC7579.VALIDATION_FAILED;
         } else {
+            // Remove the validator header from the signature, to be compatible with 3rd-party validators
+            PackedUserOperation memory userOpStripped = userOp;
+            userOpStripped.signature = userOp.signature[20:];
             // bubble up the return value of the validator module
-            validSignature = ERC7579.IValidator(validator).validateUserOp(userOp, userOpHash);
+            validSignature = ERC7579.IValidator(validator).validateUserOp(userOpStripped, userOpHash);
         }
     }
 
