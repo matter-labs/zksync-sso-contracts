@@ -25,11 +25,13 @@ contract GuardianExecutor is IExecutor, IERC165 {
 
     struct RecoveryRequest {
         RecoveryType recoveryType;
-        bytes data;
+        bytes32 hashedData;
         uint48 timestamp;
     }
 
-    event RecoveryInitiated(address indexed account, address indexed guardian, RecoveryRequest request);
+    event RecoveryInitiated(
+        address indexed account, address indexed guardian, RecoveryRequest request, bytes recoveryData
+    );
     event RecoveryFinished(address indexed account);
     event RecoveryDiscarded(address indexed account);
 
@@ -42,6 +44,7 @@ contract GuardianExecutor is IExecutor, IERC165 {
     error GuardianNotFound(address account, address guardian);
     error GuardianNotActive(address account, address guardian);
     error RecoveryInProgress(address account);
+    error RecoveryDataMismatch(bytes32 savedHash, bytes32 providedHash);
     error NoRecoveryInProgress(address account);
     error ValidatorNotInstalled(address account, address validator);
     error RecoveryTimestampInvalid(uint48 timestamp);
@@ -174,8 +177,8 @@ contract GuardianExecutor is IExecutor, IERC165 {
     /// @notice Finalize a pending recovery after the delay has elapsed.
     /// @param account Account that requested recovery.
     /// @return returnData ABI-encoded response from validator execution.
-    function finalizeRecovery(address account) external virtual returns (bytes memory returnData) {
-        return _finalizeRecovery(account);
+    function finalizeRecovery(address account, bytes calldata data) external virtual returns (bytes memory returnData) {
+        return _finalizeRecovery(account, data);
     }
 
     /// @notice List all guardians configured for an account.
@@ -247,16 +250,18 @@ contract GuardianExecutor is IExecutor, IERC165 {
             pendingRecoveryTimestamp == 0 || pendingRecoveryTimestamp + REQUEST_VALIDITY_TIME < block.timestamp,
             RecoveryInProgress(accountToRecover)
         );
-        RecoveryRequest memory recovery = RecoveryRequest(recoveryType, data, uint48(block.timestamp));
+        RecoveryRequest memory recovery = RecoveryRequest(recoveryType, keccak256(data), uint48(block.timestamp));
         pendingRecovery[accountToRecover] = recovery;
-        emit RecoveryInitiated(accountToRecover, msg.sender, recovery);
+        emit RecoveryInitiated(accountToRecover, msg.sender, recovery, data);
     }
 
     /// @dev Internal helper to finalize a recovery process.
-    function _finalizeRecovery(address account) internal returns (bytes memory returnData) {
+    function _finalizeRecovery(address account, bytes calldata data) internal returns (bytes memory returnData) {
         RecoveryRequest memory recovery = pendingRecovery[account];
         checkInstalledValidator(account, recovery.recoveryType);
-        require(recovery.timestamp != 0 && recovery.data.length != 0, NoRecoveryInProgress(account));
+        bytes32 hashedData = keccak256(data);
+        require(recovery.hashedData == hashedData, RecoveryDataMismatch(recovery.hashedData, hashedData));
+        require(recovery.timestamp != 0 && recovery.hashedData != 0, NoRecoveryInProgress(account));
         require(
             recovery.timestamp + REQUEST_DELAY_TIME < block.timestamp
                 && recovery.timestamp + REQUEST_VALIDITY_TIME > block.timestamp,
@@ -270,7 +275,7 @@ contract GuardianExecutor is IExecutor, IERC165 {
         bytes4 selector = recovery.recoveryType == RecoveryType.EOA
             ? EOAKeyValidator.addOwner.selector
             : WebAuthnValidator.addValidationKey.selector;
-        bytes memory execution = abi.encodePacked(validator, uint256(0), abi.encodePacked(selector, recovery.data));
+        bytes memory execution = abi.encodePacked(validator, uint256(0), abi.encodePacked(selector, data));
 
         delete pendingRecovery[account];
         bytes32 mode = LibERC7579.encodeMode(LibERC7579.CALLTYPE_SINGLE, LibERC7579.EXECTYPE_DEFAULT, 0, 0);

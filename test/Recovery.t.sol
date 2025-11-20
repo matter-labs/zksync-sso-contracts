@@ -81,23 +81,25 @@ contract RecoveryTest is MSATest {
     function test_initRecovery() public {
         test_installExecutor();
 
+        bytes memory data = abi.encode(newOwner.addr);
         vm.prank(submitter.addr);
         vm.expectEmit(true, true, true, false); // don't check data
         emit GuardianExecutor.RecoveryInitiated(
             address(account),
             submitter.addr,
             GuardianExecutor.RecoveryRequest(
-                GuardianExecutor.RecoveryType.EOA, abi.encode(newOwner.addr), uint48(block.timestamp)
-            )
+                GuardianExecutor.RecoveryType.EOA, keccak256(data), uint48(block.timestamp)
+            ),
+            data
         );
         recoveryExecutor.initializeRecovery(
             address(account), GuardianExecutor.RecoveryType.EOA, abi.encode(newOwner.addr)
         );
 
-        (GuardianExecutor.RecoveryType recoveryType, bytes memory data, uint256 timestamp) =
+        (GuardianExecutor.RecoveryType recoveryType, bytes32 hashedData, uint256 timestamp) =
             recoveryExecutor.pendingRecovery(address(account));
         vm.assertEq(uint256(recoveryType), uint256(GuardianExecutor.RecoveryType.EOA), "Invalid recovery type");
-        vm.assertEq(abi.decode(data, (address)), newOwner.addr, "Invalid recovery data");
+        vm.assertEq(hashedData, keccak256(abi.encode(newOwner.addr)), "Invalid recovery data");
         vm.assertTrue(timestamp != 0, "Recovery timestamp is empty");
     }
 
@@ -109,7 +111,7 @@ contract RecoveryTest is MSATest {
         vm.prank(finalizer.addr);
         vm.expectEmit(true, true, true, true);
         emit GuardianExecutor.RecoveryFinished(address(account));
-        recoveryExecutor.finalizeRecovery(address(account));
+        recoveryExecutor.finalizeRecovery(address(account), abi.encode(newOwner.addr));
 
         vm.assertTrue(eoaValidator.isOwnerOf(address(account), newOwner.addr), "New owner was not added");
 
@@ -152,7 +154,7 @@ contract RecoveryTest is MSATest {
 
         vm.prank(makeAddr("unauthorized"));
         vm.expectRevert();
-        recoveryExecutor.finalizeRecovery(address(account));
+        recoveryExecutor.finalizeRecovery(address(account), abi.encode(newOwner.addr));
     }
 
     function testRevert_discardRecoveryForUnauthorized() public {
@@ -167,7 +169,7 @@ contract RecoveryTest is MSATest {
         test_initRecovery();
         vm.prank(finalizer.addr);
         vm.expectPartialRevert(GuardianExecutor.RecoveryTimestampInvalid.selector);
-        recoveryExecutor.finalizeRecovery(address(account));
+        recoveryExecutor.finalizeRecovery(address(account), abi.encode(newOwner.addr));
     }
 
     function testRevert_expiredRecovery() public {
@@ -176,7 +178,7 @@ contract RecoveryTest is MSATest {
 
         vm.prank(finalizer.addr);
         vm.expectPartialRevert(GuardianExecutor.RecoveryTimestampInvalid.selector);
-        recoveryExecutor.finalizeRecovery(address(account));
+        recoveryExecutor.finalizeRecovery(address(account), abi.encode(newOwner.addr));
     }
 
     function testRevert_recoveryInProgress() public {
@@ -247,29 +249,31 @@ contract RecoveryTest is MSATest {
         Account memory anotherOwner = makeAccount("anotherOwner");
 
         // Start new recovery (should replace expired one)
+        bytes memory data = abi.encode(anotherOwner.addr);
         vm.prank(submitter.addr);
         vm.expectEmit(true, true, true, false);
         emit GuardianExecutor.RecoveryInitiated(
             address(account),
             submitter.addr,
             GuardianExecutor.RecoveryRequest(
-                GuardianExecutor.RecoveryType.EOA, abi.encode(anotherOwner.addr), uint48(block.timestamp)
-            )
+                GuardianExecutor.RecoveryType.EOA, keccak256(data), uint48(block.timestamp)
+            ),
+            data
         );
         recoveryExecutor.initializeRecovery(
             address(account), GuardianExecutor.RecoveryType.EOA, abi.encode(anotherOwner.addr)
         );
 
-        (GuardianExecutor.RecoveryType recoveryType, bytes memory data, uint256 timestamp) =
+        (GuardianExecutor.RecoveryType recoveryType, bytes32 hashedData, uint256 timestamp) =
             recoveryExecutor.pendingRecovery(address(account));
-        vm.assertEq(abi.decode(data, (address)), anotherOwner.addr, "Should have new recovery data");
+        vm.assertEq(hashedData, keccak256(abi.encode(anotherOwner.addr)), "Should have new recovery data");
     }
 
     function assertPendingRecoveryCleared() internal view {
-        (GuardianExecutor.RecoveryType recoveryType, bytes memory data, uint256 timestamp) =
+        (GuardianExecutor.RecoveryType recoveryType, bytes32 hashedData, uint256 timestamp) =
             recoveryExecutor.pendingRecovery(address(account));
         vm.assertEq(uint256(recoveryType), uint256(GuardianExecutor.RecoveryType.None), "Recovery type not cleared");
-        vm.assertEq(data.length, 0, "Recovery data not cleared");
+        vm.assertEq(hashedData, 0, "Recovery data not cleared");
         vm.assertEq(timestamp, 0, "Recovery timestamp not cleared");
     }
 }
