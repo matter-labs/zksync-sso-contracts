@@ -143,9 +143,9 @@ contract WebAuthnValidator is IValidator, IERC165 {
         require(oldKey[0] == 0 && oldKey[1] == 0, KeyAlreadyExists());
         // empty keys aren't valid
         require(newKey[0] != 0 || newKey[1] != 0, EmptyKey());
-        // RFC 1035 sets domains between 1-253 characters
+        // RFC 1035 sets domains between 1-255 characters
         uint256 domainLength = bytes(domain).length;
-        require(domainLength >= 1 && domainLength <= 253, BadDomainLength());
+        require(domainLength >= 1 && domainLength <= 255, BadDomainLength());
         // min length from: https://www.w3.org/TR/webauthn-2/#credential-id
         require(credentialId.length >= 16, BadCredentialIDLength());
 
