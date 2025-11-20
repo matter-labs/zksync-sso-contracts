@@ -18,10 +18,15 @@ import "../interfaces/IERC7579Module.sol" as ERC7579;
 contract SessionKeyValidator is IValidator, IERC165 {
     using SessionLib for SessionLib.SessionStorage;
 
+    struct SignerInfo {
+        bytes32 sessionHash;
+        bool proven;
+    }
+
     event SessionCreated(address indexed account, bytes32 indexed sessionHash, SessionLib.SessionSpec sessionSpec);
     event SessionRevoked(address indexed account, bytes32 indexed sessionHash);
 
-    mapping(address signer => bytes32 sessionHash) public sessionSigner;
+    mapping(address signer => SignerInfo) public sessionSigner;
     mapping(bytes32 sessionHash => SessionLib.SessionStorage sessionState) internal sessions;
 
     /// @notice Get the session state for an account
@@ -118,7 +123,7 @@ contract SessionKeyValidator is IValidator, IERC165 {
 
         require(sessionSpec.signer != address(0), SessionLib.ZeroSigner());
         // Avoid using same session key for multiple sessions, contract-wide
-        require(sessionSigner[sessionSpec.signer] == bytes32(0), SessionLib.SignerAlreadyUsed(sessionSpec.signer));
+        require(!sessionSigner[sessionSpec.signer].proven, SessionLib.SignerAlreadyUsed(sessionSpec.signer));
         require(sessionSpec.feeLimit.limitType != SessionLib.LimitType.Unlimited, SessionLib.UnlimitedFees());
         require(
             sessions[sessionHash].status[msg.sender] == SessionLib.Status.NotInitialized,
@@ -128,7 +133,7 @@ contract SessionKeyValidator is IValidator, IERC165 {
         require(sessionSpec.expiresAt >= block.timestamp + 60, SessionLib.SessionExpiresTooSoon(sessionSpec.expiresAt));
 
         sessions[sessionHash].status[msg.sender] = SessionLib.Status.Active;
-        sessionSigner[sessionSpec.signer] = sessionHash;
+        sessionSigner[sessionSpec.signer] = SignerInfo(sessionHash, false);
         emit SessionCreated(msg.sender, sessionHash, sessionSpec);
     }
 
@@ -178,6 +183,9 @@ contract SessionKeyValidator is IValidator, IERC165 {
         if (err != ECDSA.RecoverError.NoError || signer == address(0) || signer != spec.signer) {
             return SIG_VALIDATION_FAILED;
         }
+
+        if (!sessionSigner[spec.signer].proven) sessionSigner[spec.signer].proven = true;
+
         // This check is separate and performed last to prevent gas estimation failures
         (uint48 newValidAfter, uint48 newValidUntil) =
             sessions[sessionHash].validateFeeLimit(userOp, spec, periodIds[0]);

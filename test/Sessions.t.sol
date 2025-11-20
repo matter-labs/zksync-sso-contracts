@@ -182,7 +182,8 @@ contract SessionsTest is MSATest {
     function test_closeSession() public {
         test_createSession();
         bytes32 sessionHash = keccak256(abi.encode(spec));
-        vm.assertEq(sessionKeyValidator.sessionSigner(sessionOwner.addr), sessionHash, "stored session hash mismatch");
+        (bytes32 signerSessionHash, ) = sessionKeyValidator.sessionSigner(spec.signer);
+        vm.assertEq(signerSessionHash, sessionHash, "stored session hash mismatch");
 
         SessionLib.Status statusBefore = sessionKeyValidator.sessionStatus(address(account), sessionHash);
         vm.assertEq(uint256(statusBefore), uint256(SessionLib.Status.Active), "Session inactive before close");
