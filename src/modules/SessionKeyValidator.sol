@@ -190,4 +190,7 @@ contract SessionKeyValidator is IValidator, IERC165 {
     function isModuleType(uint256 moduleTypeId) external pure virtual returns (bool) {
         return moduleTypeId == ERC7579.MODULE_TYPE_VALIDATOR;
     }
+
+    // Reserve storage space for upgradeability.
+    uint256[50] private __gap;
 }
