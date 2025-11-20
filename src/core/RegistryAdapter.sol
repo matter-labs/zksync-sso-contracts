@@ -46,4 +46,8 @@ abstract contract RegistryAdapter is AccountBase {
         }
         emit ERC7484RegistryConfigured(address(registry));
     }
+
+    function getRegistry() external view returns (IERC7484Registry) {
+        return $registry;
+    }
 }

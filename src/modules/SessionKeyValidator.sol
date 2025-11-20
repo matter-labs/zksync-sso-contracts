@@ -3,10 +3,11 @@ pragma solidity ^0.8.28;
 
 import { IERC165 } from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 import { ECDSA } from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
-import { SessionLib } from "../libraries/SessionLib.sol";
 import { PackedUserOperation } from "account-abstraction/interfaces/PackedUserOperation.sol";
 import { _packValidationData, SIG_VALIDATION_FAILED } from "account-abstraction/core/Helpers.sol";
 
+import { SessionLib } from "../libraries/SessionLib.sol";
+import { RegistryAdapter } from "../core/RegistryAdapter.sol";
 import { IMSA } from "../interfaces/IMSA.sol";
 import { IModule, IValidator } from "../interfaces/IERC7579Module.sol";
 import "../interfaces/IERC7579Module.sol" as ERC7579;
@@ -90,6 +91,7 @@ contract SessionKeyValidator is IValidator, IERC165 {
     function isBannedCall(address target, bytes4 selector) internal view virtual returns (bool) {
         return target == address(this) // this line is technically unnecessary
             || target == address(msg.sender)
+            || target == address(RegistryAdapter(msg.sender).getRegistry())
             || IMSA(msg.sender).isModuleInstalled(ERC7579.MODULE_TYPE_VALIDATOR, target, "")
             || IMSA(msg.sender).isModuleInstalled(ERC7579.MODULE_TYPE_EXECUTOR, target, "")
             || IMSA(msg.sender).isModuleInstalled(ERC7579.MODULE_TYPE_FALLBACK, target, abi.encode(selector));
