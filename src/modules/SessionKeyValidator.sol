@@ -53,8 +53,8 @@ contract SessionKeyValidator is IValidator, IERC165 {
         if (data.length > 0) {
             // This always either succeeds with `true` or reverts within,
             // so we don't need to check the return value.
-            SessionLib.SessionSpec memory sessionSpec = abi.decode(data, (SessionLib.SessionSpec));
-            _createSession(sessionSpec);
+            (SessionLib.SessionSpec memory sessionSpec, bytes memory proof) = abi.decode(data, (SessionLib.SessionSpec, bytes));
+            _createSession(sessionSpec, proof);
         }
     }
 
@@ -99,15 +99,16 @@ contract SessionKeyValidator is IValidator, IERC165 {
 
     /// @notice Create a new session for an account
     /// @param sessionSpec The session specification to create a session with
+    /// @param proof Signature of the session owner to prove address ownership
     /// @dev In the sessionSpec, callPolicies should not have duplicated instances of (target, selector) pairs.
     /// Only the first one of the duplicates is considered when validating transactions.
-    function createSession(SessionLib.SessionSpec memory sessionSpec) public virtual {
+    function createSession(SessionLib.SessionSpec calldata sessionSpec, bytes calldata proof) external virtual {
         require(isInitialized(msg.sender), NotInitialized(msg.sender));
-        _createSession(sessionSpec);
+        _createSession(sessionSpec, proof);
     }
 
     /// @notice Same as `createSession`, but does not check if the validator is initialized for the account.
-    function _createSession(SessionLib.SessionSpec memory sessionSpec) internal virtual {
+    function _createSession(SessionLib.SessionSpec memory sessionSpec, bytes memory proof) internal virtual {
         bytes32 sessionHash = keccak256(abi.encode(sessionSpec));
 
         uint256 totalCallPolicies = sessionSpec.callPolicies.length;
@@ -119,6 +120,9 @@ contract SessionKeyValidator is IValidator, IERC165 {
         }
 
         require(sessionSpec.signer != address(0), SessionLib.ZeroSigner());
+        // Check address ownership to prevent DoS (since we only allow unique signers)
+        address recovered = ECDSA.recover(sessionHash, proof);
+        require(recovered == sessionSpec.signer, SessionLib.InvalidSigner(recovered, sessionSpec.signer));
         // Avoid using same session key for multiple sessions, contract-wide
         require(sessionSigner[sessionSpec.signer] == bytes32(0), SessionLib.SignerAlreadyUsed(sessionSpec.signer));
         require(sessionSpec.feeLimit.limitType != SessionLib.LimitType.Unlimited, SessionLib.UnlimitedFees());
