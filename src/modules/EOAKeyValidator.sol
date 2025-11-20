@@ -2,6 +2,7 @@
 pragma solidity ^0.8.28;
 
 import { PackedUserOperation } from "account-abstraction/interfaces/PackedUserOperation.sol";
+import { IERC165 } from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 import { SIG_VALIDATION_FAILED, SIG_VALIDATION_SUCCESS } from "account-abstraction/core/Helpers.sol";
 import { ECDSA } from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import { IERC1271 } from "@openzeppelin/contracts/interfaces/IERC1271.sol";
@@ -13,7 +14,7 @@ import { IValidator, IModule, MODULE_TYPE_VALIDATOR } from "../interfaces/IERC75
 /// @author Matter Labs
 /// @custom:security-contact security@matterlabs.dev
 /// @dev This validator allows EOAs to be registered as owners for a smart account.
-contract EOAKeyValidator is IValidator {
+contract EOAKeyValidator is IValidator, IERC165 {
     mapping(address owner => mapping(address account => bool)) private owners;
 
     event OwnerAdded(address indexed smartAccount, address indexed owner);
@@ -108,5 +109,11 @@ contract EOAKeyValidator is IValidator {
     /// @return True if the owner is registered for the account.
     function isOwnerOf(address account, address owner) external view returns (bool) {
         return owners[owner][account];
+    }
+
+    /// @inheritdoc IERC165
+    function supportsInterface(bytes4 interfaceId) external pure virtual returns (bool) {
+        return interfaceId == type(IValidator).interfaceId || interfaceId == type(IModule).interfaceId
+            || interfaceId == type(IERC165).interfaceId;
     }
 }
