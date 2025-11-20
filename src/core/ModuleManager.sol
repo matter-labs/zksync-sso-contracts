@@ -16,6 +16,7 @@ abstract contract ModuleManager is RegistryAdapter {
     using EnumerableSet for EnumerableSet.AddressSet;
 
     error InvalidModule(address module);
+    error NotEnoughData();
     error NoFallbackHandler(bytes4 selector);
     error CannotRemoveLastValidator();
     error SelectorAlreadyUsed(bytes4 selector);
@@ -202,6 +203,10 @@ abstract contract ModuleManager is RegistryAdapter {
 
     /// @dev Delegates calls to the registered fallback handler or handles ERC token callbacks.
     fallback() external payable {
+        if (msg.data.length > 0 && msg.data.length < 4) {
+            revert NotEnoughData();
+        }
+
         FallbackHandler storage $fallbackHandler = $moduleManager().$fallbacks[msg.sig];
         address handler = $fallbackHandler.handler;
         bytes1 calltype = $fallbackHandler.calltype;
