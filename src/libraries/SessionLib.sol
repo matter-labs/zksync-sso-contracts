@@ -175,7 +175,7 @@ library SessionLib {
             );
             tracker.allowanceUsage[period][msg.sender] += value;
             uint48 validAfter = period * limit.period;
-            uint48 validUntil = (period + 1) * limit.period;
+            uint48 validUntil = (period + 1) * limit.period - 1;
             validTimeRange = [validAfter, validUntil];
         }
     }
