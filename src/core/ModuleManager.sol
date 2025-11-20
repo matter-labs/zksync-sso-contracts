@@ -62,19 +62,34 @@ abstract contract ModuleManager is RegistryAdapter {
         _;
     }
 
-    /// @dev Handles uninstall failures by bubbling up or emitting `ModuleUnlinked` when forced.
-    /// @param reason Revert data returned by the module.
-    /// @param force Whether the uninstall should proceed even if the module reverts.
-    /// @param moduleTypeId Identifier of the module type.
-    /// @param module Address of the module being removed.
-    function _onUninstallFail(bytes memory reason, bool force, uint256 moduleTypeId, address module) internal {
-        if (!force) {
+    function _uninstallModule(bytes memory deinitData, address module, uint256 moduleTypeId, bool force) internal {
+        bytes memory callData = abi.encodeCall(ERC7579.IModule.onUninstall, deinitData);
+        uint256 gasLimit = force ? gasleft() / 2 : gasleft();
+        bool success;
+        assembly {
+            success := call(gasLimit, module, 0, add(callData, 0x20), mload(callData), 0, 0)
+        }
+        if (success) {
+            return;
+        }
+        if (force) {
+            uint256 copySize;
             assembly {
-                // forward revert data
-                revert(add(reason, 32), mload(reason))
+                copySize := returndatasize()
             }
+            // cap return data size at 256 bytes
+            copySize = copySize > 256 ? 256 : copySize;
+            bytes memory returnData = new bytes(copySize);
+            assembly {
+                returndatacopy(add(returnData, 0x20), 0, copySize)
+            }
+            emit ModuleUnlinked(moduleTypeId, module, returnData);
         } else {
-            emit ModuleUnlinked(moduleTypeId, module, reason);
+            assembly {
+                let size := returndatasize()
+                returndatacopy(0, 0, size)
+                revert(0, size)
+            }
         }
     }
 
@@ -97,10 +112,7 @@ abstract contract ModuleManager is RegistryAdapter {
     function _uninstallValidator(address validator, bytes calldata data, bool force) internal {
         require($moduleManager().$validators.remove(validator), NotInstalled(validator));
         require($moduleManager().$validators.length() > 0, CannotRemoveLastValidator());
-        try ERC7579.IValidator(validator).onUninstall(data) { }
-        catch (bytes memory reason) {
-            _onUninstallFail(reason, force, ERC7579.MODULE_TYPE_VALIDATOR, validator);
-        }
+        _uninstallModule(data, validator, ERC7579.MODULE_TYPE_VALIDATOR, force);
     }
 
     /// @dev Checks whether a validator module is currently installed.
@@ -128,10 +140,7 @@ abstract contract ModuleManager is RegistryAdapter {
     /// @param force Whether failures should be swallowed and logged instead of bubbled.
     function _uninstallExecutor(address executor, bytes calldata data, bool force) internal {
         require($moduleManager().$executors.remove(executor), NotInstalled(executor));
-        try ERC7579.IExecutor(executor).onUninstall(data) { }
-        catch (bytes memory reason) {
-            _onUninstallFail(reason, force, ERC7579.MODULE_TYPE_EXECUTOR, executor);
-        }
+        _uninstallModule(data, executor, ERC7579.MODULE_TYPE_EXECUTOR, force);
     }
 
     /// @dev Checks whether an executor module is currently installed.
@@ -168,10 +177,7 @@ abstract contract ModuleManager is RegistryAdapter {
         FallbackHandler memory activeFallback = $moduleManager().$fallbacks[selector];
         require(activeFallback.handler == handler, NotInstalled(handler));
         $moduleManager().$fallbacks[selector] = FallbackHandler(address(0), 0);
-        try ERC7579.IFallback(handler).onUninstall(_deInitData) { }
-        catch (bytes memory reason) {
-            _onUninstallFail(reason, force, ERC7579.MODULE_TYPE_FALLBACK, handler);
-        }
+        _uninstallModule(_deInitData, handler, ERC7579.MODULE_TYPE_FALLBACK, force);
     }
 
     /// @dev Checks whether any fallback handler is set for a selector.
