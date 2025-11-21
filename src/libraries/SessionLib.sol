@@ -27,6 +27,7 @@ library SessionLib {
     error UnlimitedFees();
     error SessionExpiresTooSoon(uint256 expiresAt);
     error SessionNotActive();
+    error EmptyTimeRange();
     error LifetimeUsageExceeded(uint256 lifetimeUsage, uint256 maxUsage);
     error AllowanceExceeded(uint256 allowance, uint256 maxAllowance, uint64 period);
     error InvalidDataLength(uint256 actualLength, uint256 expectedLength);
@@ -254,13 +255,14 @@ library SessionLib {
 
     /// @notice Shrinks the time range to the intersection of itself and the new range.
     /// @param range The original time range to shrink: validAfter, validUntil
-    /// @param newRange The new time range to intersect with: newValidAfter, newValidUntil
-    /// @return The shrunk time range: validAfter, validUntil
-    function shrinkRange(uint48[2] memory range, uint48[2] memory newRange) internal pure returns (uint48[2] memory) {
-        return [
-            newRange[0] > range[0] ? newRange[0] : range[0], // max(validAfter, newValidAfter)
-            newRange[1] < range[1] ? newRange[1] : range[1] // min(validUntil, newValidUntil)
+    /// @param otherRange The new time range to intersect with: newValidAfter, newValidUntil
+    /// @return newRange The shrunk time range: validAfter, validUntil
+    function shrinkRange(uint48[2] memory range, uint48[2] memory otherRange) internal pure returns (uint48[2] memory newRange) {
+        newRange = [
+            otherRange[0] > range[0] ? otherRange[0] : range[0], // max(validAfter, newValidAfter)
+            otherRange[1] < range[1] ? otherRange[1] : range[1] // min(validUntil, newValidUntil)
         ];
+        require(newRange[0] <= newRange[1], EmptyTimeRange());
     }
 
     /// @notice Validates the transaction against the session spec and updates the usage trackers.
