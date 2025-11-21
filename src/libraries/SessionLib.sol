@@ -21,6 +21,7 @@ library SessionLib {
     error ZeroSigner();
     error InvalidSigner(address recovered, address expected);
     error InvalidCallType(bytes1 callType, bytes1 expected);
+    error InvalidExecType(bytes1 execType);
     error InvalidTopLevelSelector(bytes4 selector, bytes4 expected);
     error SessionAlreadyExists(bytes32 sessionHash);
     error UnlimitedFees();
@@ -28,7 +29,7 @@ library SessionLib {
     error SessionNotActive();
     error LifetimeUsageExceeded(uint256 lifetimeUsage, uint256 maxUsage);
     error AllowanceExceeded(uint256 allowance, uint256 maxAllowance, uint64 period);
-    error InvalidDataLength(uint256 actualLength, uint256 expectedMinimumLength);
+    error InvalidDataLength(uint256 actualLength, uint256 expectedLength);
     error ConditionViolated(bytes32 param, bytes32 refValue, uint8 condition);
     error CallPolicyViolated(address target, bytes4 selector);
     error TransferPolicyViolated(address target);
@@ -284,8 +285,10 @@ library SessionLib {
 
         bytes4 topLevelSelector = bytes4(userOp.callData[:4]);
         bytes1 callType = userOp.callData[4];
+        bytes1 execType = userOp.callData[5];
 
         require(callType == LibERC7579.CALLTYPE_SINGLE, InvalidCallType(callType, LibERC7579.CALLTYPE_SINGLE));
+        require(execType == LibERC7579.EXECTYPE_DEFAULT || execType == LibERC7579.EXECTYPE_TRY, InvalidExecType(execType));
         require(
             topLevelSelector == IERC7579Account.execute.selector,
             InvalidTopLevelSelector(topLevelSelector, IERC7579Account.execute.selector)
@@ -295,12 +298,13 @@ library SessionLib {
         // - first 4 bytes: selector
         // - next 32 bytes: mode
         // - next 32 bytes: data offset
-        // - at offset: data length
+        // - next 32 bytes: data length
         // - next 32 bytes: data
-        uint256 offset = uint256(bytes32(userOp.callData[36:68])) + 4; // offset does not include the selector
-        uint256 length = uint256(bytes32(userOp.callData[offset:offset + 32]));
+        uint256 lengthOffset = 4 + 32 + 32;
+        uint256 dataOffset = 4 + 32 + 32 + 32;
+        uint256 length = uint256(bytes32(userOp.callData[lengthOffset:lengthOffset + 32]));
         (address target, uint256 value, bytes calldata callData) =
-            LibERC7579.decodeSingle(userOp.callData[offset + 32:offset + 32 + length]);
+            LibERC7579.decodeSingle(userOp.callData[dataOffset:dataOffset + length]);
 
         // Time range within which the transaction is valid.
         validTimeRange = [0, spec.expiresAt];
@@ -334,6 +338,7 @@ library SessionLib {
                 );
             }
         } else {
+            require(callData.length == 0, InvalidDataLength(callData.length, 0));
             TransferSpec memory transferPolicy;
             bool found = false;
 
