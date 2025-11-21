@@ -162,7 +162,10 @@ abstract contract ModuleManager is RegistryAdapter {
     function _installFallbackHandler(address handler, bytes calldata params) internal virtual {
         bytes4 selector = bytes4(params[0:4]);
         bytes1 calltype = params[4];
-        require(calltype == LibERC7579.CALLTYPE_SINGLE || calltype == LibERC7579.CALLTYPE_STATICCALL, InvalidCallType(calltype));
+        require(
+            calltype == LibERC7579.CALLTYPE_SINGLE || calltype == LibERC7579.CALLTYPE_STATICCALL,
+            InvalidCallType(calltype)
+        );
         bytes calldata initData = params[5:];
         require(!_isFallbackHandlerInstalled(selector), SelectorAlreadyUsed(selector));
         $moduleManager().$fallbacks[selector] = FallbackHandler(handler, calltype);

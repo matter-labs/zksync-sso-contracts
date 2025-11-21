@@ -52,8 +52,9 @@ contract SessionsTest is MSATest {
 
         spec = _baseSessionSpec();
         bytes memory proof = _signProof(keccak256(abi.encode(spec)), sessionOwner.key);
-        bytes memory call =
-            encodeCall(address(sessionKeyValidator), 0, abi.encodeCall(SessionKeyValidator.createSession, (spec, proof)));
+        bytes memory call = encodeCall(
+            address(sessionKeyValidator), 0, abi.encodeCall(SessionKeyValidator.createSession, (spec, proof))
+        );
         PackedUserOperation[] memory userOps = makeSignedUserOp(call);
 
         bytes32 sessionHash = keccak256(abi.encode(spec));
@@ -249,8 +250,9 @@ contract SessionsTest is MSATest {
 
         SessionLib.SessionSpec memory firstSpec = _baseSessionSpec();
         bytes memory proof = _signProof(keccak256(abi.encode(firstSpec)), sessionOwner.key);
-        bytes memory createFirst =
-            encodeCall(address(sessionKeyValidator), 0, abi.encodeCall(SessionKeyValidator.createSession, (firstSpec, proof)));
+        bytes memory createFirst = encodeCall(
+            address(sessionKeyValidator), 0, abi.encodeCall(SessionKeyValidator.createSession, (firstSpec, proof))
+        );
         entryPoint.handleOps(makeSignedUserOp(createFirst), bundler);
         bytes32 sessionHashOne = keccak256(abi.encode(firstSpec));
 
@@ -362,8 +364,9 @@ contract SessionsTest is MSATest {
         bytes32 sessionHash = keccak256(abi.encode(spec));
         bytes memory proof = _signProof(sessionHash, sessionOwner.key);
 
-        bytes memory call =
-            encodeCall(address(sessionKeyValidator), 0, abi.encodeCall(SessionKeyValidator.createSession, (spec, proof)));
+        bytes memory call = encodeCall(
+            address(sessionKeyValidator), 0, abi.encodeCall(SessionKeyValidator.createSession, (spec, proof))
+        );
         PackedUserOperation[] memory userOps = makeSignedUserOp(call);
 
         vm.expectEmit(true, true, true, true);
@@ -420,8 +423,9 @@ contract SessionsTest is MSATest {
 
         bytes32 sessionHash = keccak256(abi.encode(localSpec));
         bytes memory proof = _signProof(sessionHash, sessionOwner.key);
-        bytes memory call =
-            encodeCall(address(allowedValidator), 0, abi.encodeCall(SessionKeyValidator.createSession, (localSpec, proof)));
+        bytes memory call = encodeCall(
+            address(allowedValidator), 0, abi.encodeCall(SessionKeyValidator.createSession, (localSpec, proof))
+        );
         PackedUserOperation[] memory userOps = makeSignedUserOp(call);
 
         vm.expectEmit(true, true, true, true);

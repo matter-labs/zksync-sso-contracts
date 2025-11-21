@@ -257,7 +257,11 @@ library SessionLib {
     /// @param range The original time range to shrink: validAfter, validUntil
     /// @param otherRange The new time range to intersect with: newValidAfter, newValidUntil
     /// @return newRange The shrunk time range: validAfter, validUntil
-    function shrinkRange(uint48[2] memory range, uint48[2] memory otherRange) internal pure returns (uint48[2] memory newRange) {
+    function shrinkRange(uint48[2] memory range, uint48[2] memory otherRange)
+        internal
+        pure
+        returns (uint48[2] memory newRange)
+    {
         newRange = [
             otherRange[0] > range[0] ? otherRange[0] : range[0], // max(validAfter, newValidAfter)
             otherRange[1] < range[1] ? otherRange[1] : range[1] // min(validUntil, newValidUntil)
@@ -290,7 +294,9 @@ library SessionLib {
         bytes1 execType = userOp.callData[5];
 
         require(callType == LibERC7579.CALLTYPE_SINGLE, InvalidCallType(callType, LibERC7579.CALLTYPE_SINGLE));
-        require(execType == LibERC7579.EXECTYPE_DEFAULT || execType == LibERC7579.EXECTYPE_TRY, InvalidExecType(execType));
+        require(
+            execType == LibERC7579.EXECTYPE_DEFAULT || execType == LibERC7579.EXECTYPE_TRY, InvalidExecType(execType)
+        );
         require(
             topLevelSelector == IERC7579Account.execute.selector,
             InvalidTopLevelSelector(topLevelSelector, IERC7579Account.execute.selector)

@@ -53,7 +53,8 @@ contract SessionKeyValidator is IValidator, IERC165 {
         if (data.length > 0) {
             // This always either succeeds with `true` or reverts within,
             // so we don't need to check the return value.
-            (SessionLib.SessionSpec memory sessionSpec, bytes memory proof) = abi.decode(data, (SessionLib.SessionSpec, bytes));
+            (SessionLib.SessionSpec memory sessionSpec, bytes memory proof) =
+                abi.decode(data, (SessionLib.SessionSpec, bytes));
             _createSession(sessionSpec, proof);
         }
     }
@@ -91,10 +92,10 @@ contract SessionKeyValidator is IValidator, IERC165 {
     function isBannedCall(address target, bytes4 selector) internal view virtual returns (bool) {
         return target == address(this) // this line is technically unnecessary
             || target == address(msg.sender)
-            || target == address(RegistryAdapter(msg.sender).getRegistry())
             || IMSA(msg.sender).isModuleInstalled(ERC7579.MODULE_TYPE_VALIDATOR, target, "")
             || IMSA(msg.sender).isModuleInstalled(ERC7579.MODULE_TYPE_EXECUTOR, target, "")
-            || IMSA(msg.sender).isModuleInstalled(ERC7579.MODULE_TYPE_FALLBACK, target, abi.encode(selector));
+            || IMSA(msg.sender).isModuleInstalled(ERC7579.MODULE_TYPE_FALLBACK, target, abi.encode(selector))
+            || target == address(RegistryAdapter(msg.sender).getRegistry());
     }
 
     /// @notice Create a new session for an account
