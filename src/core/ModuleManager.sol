@@ -2,6 +2,7 @@
 pragma solidity ^0.8.21;
 
 import { EnumerableSet } from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
+import { LibERC7579 } from "solady/accounts/LibERC7579.sol";
 
 import { RegistryAdapter } from "./RegistryAdapter.sol";
 import "../interfaces/IERC7579Module.sol" as ERC7579;
@@ -19,6 +20,7 @@ abstract contract ModuleManager is RegistryAdapter {
     error NotEnoughData();
     error NoFallbackHandler(bytes4 selector);
     error CannotRemoveLastValidator();
+    error InvalidCallType(bytes1 calltype);
     error SelectorAlreadyUsed(bytes4 selector);
     error AlreadyInstalled(address module);
     error NotInstalled(address module);
@@ -160,6 +162,7 @@ abstract contract ModuleManager is RegistryAdapter {
     function _installFallbackHandler(address handler, bytes calldata params) internal virtual {
         bytes4 selector = bytes4(params[0:4]);
         bytes1 calltype = params[4];
+        require(calltype == LibERC7579.CALLTYPE_SINGLE || calltype == LibERC7579.CALLTYPE_STATICCALL, InvalidCallType(calltype));
         bytes calldata initData = params[5:];
         require(!_isFallbackHandlerInstalled(selector), SelectorAlreadyUsed(selector));
         $moduleManager().$fallbacks[selector] = FallbackHandler(handler, calltype);
