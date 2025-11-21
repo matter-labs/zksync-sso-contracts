@@ -40,8 +40,13 @@ abstract contract RegistryAdapter is AccountBase {
         external
         onlyEntryPointOrSelf
     {
+        IERC7484Registry oldRegistry = $registry;
+        if (address(oldRegistry) != address(0)) {
+            // Clean data from old registry
+            oldRegistry.trustAttesters(0, new address[](0));
+        }
         $registry = registry;
-        if (attesters.length > 0) {
+        if (address(registry) != address(0)) {
             registry.trustAttesters(threshold, attesters);
         }
         emit ERC7484RegistryConfigured(address(registry));
