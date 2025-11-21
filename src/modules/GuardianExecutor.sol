@@ -257,6 +257,7 @@ contract GuardianExecutor is IExecutor, IERC165 {
 
     /// @dev Internal helper to finalize a recovery process.
     function _finalizeRecovery(address account, bytes calldata data) internal returns (bytes memory returnData) {
+        // slither-disable-start incorrect-equality
         RecoveryRequest memory recovery = pendingRecovery[account];
         checkInstalledValidator(account, recovery.recoveryType);
         bytes32 hashedData = keccak256(data);
@@ -269,9 +270,7 @@ contract GuardianExecutor is IExecutor, IERC165 {
         );
 
         // NOTE: the fact that recovery type is not `None` is checked in `checkInstalledValidator`.
-        // slither-disable-next-line incorrect-equality
         address validator = recovery.recoveryType == RecoveryType.EOA ? EOA_VALIDATOR : WEBAUTHN_VALIDATOR;
-        // slither-disable-next-line incorrect-equality
         bytes4 selector = recovery.recoveryType == RecoveryType.EOA
             ? EOAKeyValidator.addOwner.selector
             : WebAuthnValidator.addValidationKey.selector;
@@ -281,6 +280,7 @@ contract GuardianExecutor is IExecutor, IERC165 {
         bytes32 mode = LibERC7579.encodeMode(LibERC7579.CALLTYPE_SINGLE, LibERC7579.EXECTYPE_DEFAULT, 0, 0);
         returnData = IMSA(account).executeFromExecutor(mode, execution)[0];
         emit RecoveryFinished(account);
+        // slither-disable-end incorrect-equality
     }
 
     // Reserve storage space for upgradeability.
