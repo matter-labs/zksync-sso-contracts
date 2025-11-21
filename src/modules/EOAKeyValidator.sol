@@ -71,7 +71,7 @@ contract EOAKeyValidator is IValidator, IERC165 {
 
     /// @notice Helper that records a new owner for the caller.
     /// @param owner Address to add as a valid owner.
-    function _addOwner(address owner) public {
+    function _addOwner(address owner) internal {
         require(!owners[owner][msg.sender], OwnerAlreadyExists(msg.sender, owner));
         owners[owner][msg.sender] = true;
         emit OwnerAdded(msg.sender, owner);
