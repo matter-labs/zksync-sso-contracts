@@ -181,7 +181,7 @@ contract SessionKeyValidator is IValidator, IERC165 {
 
         // slither-disable-next-line unused-return
         (address signer, ECDSA.RecoverError err,) = ECDSA.tryRecover(userOpHash, transactionSignature);
-        if (err != ECDSA.RecoverError.NoError || signer == address(0) || signer != spec.signer) {
+        if (err != ECDSA.RecoverError.NoError || signer != spec.signer) {
             return SIG_VALIDATION_FAILED;
         }
         // This check is separate and performed last to prevent gas estimation failures

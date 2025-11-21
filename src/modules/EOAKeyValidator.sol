@@ -56,7 +56,7 @@ contract EOAKeyValidator is IValidator, IERC165 {
     function validateUserOp(PackedUserOperation calldata userOp, bytes32 userOpHash) external view returns (uint256) {
         // slither-disable-next-line unused-return
         (address signer, ECDSA.RecoverError err,) = ECDSA.tryRecover(userOpHash, userOp.signature);
-        return signer == address(0) || err != ECDSA.RecoverError.NoError || !owners[signer][msg.sender]
+        return err != ECDSA.RecoverError.NoError || !owners[signer][msg.sender]
             ? SIG_VALIDATION_FAILED
             : SIG_VALIDATION_SUCCESS;
     }
