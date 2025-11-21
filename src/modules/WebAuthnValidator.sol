@@ -115,11 +115,12 @@ contract WebAuthnValidator is IValidator, IERC165 {
     /// @param credentialId Credential identifier associated with the key.
     /// @param domain Domain for which the key was registered.
     function removeValidationKey(bytes memory credentialId, string memory domain) public {
-        // slither-disable-next-line unused-return
-        accounts[domain][credentialId].remove(msg.sender);
+        bool removed = accounts[domain][credentialId].remove(msg.sender);
         publicKeys[domain][credentialId][msg.sender] = [bytes32(0), bytes32(0)];
 
-        emit PasskeyRemoved(msg.sender, domain, credentialId);
+        if (removed) {
+            emit PasskeyRemoved(msg.sender, domain, credentialId);
+        }
     }
 
     /// @notice Register a new WebAuthn passkey for the caller's account.
