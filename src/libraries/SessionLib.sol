@@ -23,6 +23,7 @@ library SessionLib {
     error InvalidCallType(bytes1 callType, bytes1 expected);
     error InvalidExecType(bytes1 execType);
     error InvalidTopLevelSelector(bytes4 selector, bytes4 expected);
+    error InvalidData();
     error SessionAlreadyExists(bytes32 sessionHash);
     error UnlimitedFees();
     error SessionExpiresTooSoon(uint256 expiresAt);
@@ -308,8 +309,12 @@ library SessionLib {
         // - next 32 bytes: data offset
         // - next 32 bytes: data length
         // - next 32 bytes: data
+        uint256 offsetOffset = 4 + 32;
         uint256 lengthOffset = 4 + 32 + 32;
         uint256 dataOffset = 4 + 32 + 32 + 32;
+        // Offset does not include the selector, hence +4
+        uint256 offset = uint256(bytes32(userOp.callData[offsetOffset:offsetOffset + 32])) + 4;
+        require(offset == lengthOffset, InvalidData());
         uint256 length = uint256(bytes32(userOp.callData[lengthOffset:lengthOffset + 32]));
         (address target, uint256 value, bytes calldata callData) =
             LibERC7579.decodeSingle(userOp.callData[dataOffset:dataOffset + length]);
