@@ -382,25 +382,6 @@ contract SessionsTest is MSATest {
         vm.assertEq(spec.callPolicies[0].constraints.length, 2, "Constraints not set");
     }
 
-    function test_deployAccountWithSession() public {
-        address[] memory modules = new address[](1);
-        modules[0] = address(sessionKeyValidator);
-
-        spec = SessionLib.SessionSpec({
-            signer: sessionOwner.addr,
-            expiresAt: uint48(block.timestamp + 1000),
-            transferPolicies: new SessionLib.TransferSpec[](0),
-            callPolicies: new SessionLib.CallSpec[](0),
-            feeLimit: SessionLib.UsageLimit({ limitType: SessionLib.LimitType.Lifetime, limit: 0.1 ether, period: 0 })
-        });
-        bytes memory proof = _signProof(keccak256(abi.encode(spec)), sessionOwner.key);
-        bytes[] memory initData = new bytes[](1);
-        initData[0] = abi.encode(spec, proof);
-
-        bytes memory data = abi.encodeCall(IMSA.initializeAccount, (modules, initData));
-        factory.deployAccount(keccak256("my-other-account-id"), data);
-    }
-
     function testRevert_createSession_actionsNotAllowed() public {
         test_installAllowedValidator();
         SessionLib.SessionSpec memory localSpec = _baseSessionSpec();
@@ -552,8 +533,9 @@ contract SessionsTest is MSATest {
         userOp.signature = abi.encodePacked(allowedValidator, userOp.signature);
     }
 
-    function _signProof(bytes32 sessionHash, uint256 privateKey) internal pure returns (bytes memory signature) {
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, sessionHash);
+    function _signProof(bytes32 sessionHash, uint256 privateKey) internal view returns (bytes memory signature) {
+        bytes32 signedHash = keccak256(abi.encode(sessionHash, address(account)));
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, signedHash);
         signature = abi.encodePacked(r, s, v);
     }
 }

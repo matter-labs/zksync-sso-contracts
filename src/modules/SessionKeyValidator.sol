@@ -48,16 +48,7 @@ contract SessionKeyValidator is IValidator, IERC165 {
     }
 
     /// @inheritdoc IModule
-    /// @param data ABI-encoded session specification to immediately create a session, or empty if not needed.
-    function onInstall(bytes calldata data) external virtual {
-        if (data.length > 0) {
-            // This always either succeeds with `true` or reverts within,
-            // so we don't need to check the return value.
-            (SessionLib.SessionSpec memory sessionSpec, bytes memory proof) =
-                abi.decode(data, (SessionLib.SessionSpec, bytes));
-            _createSession(sessionSpec, proof);
-        }
-    }
+    function onInstall(bytes calldata) external virtual { }
 
     /// @inheritdoc IModule
     /// @notice Revokes the provided sessions before uninstalling.
@@ -122,7 +113,7 @@ contract SessionKeyValidator is IValidator, IERC165 {
 
         require(sessionSpec.signer != address(0), SessionLib.ZeroSigner());
         // Check address ownership to prevent DoS (since we only allow unique signers)
-        address recovered = ECDSA.recover(sessionHash, proof);
+        address recovered = ECDSA.recover(keccak256(abi.encode(sessionHash, msg.sender)), proof);
         require(recovered == sessionSpec.signer, SessionLib.InvalidSigner(recovered, sessionSpec.signer));
         // Avoid using same session key for multiple sessions, contract-wide
         require(sessionSigner[sessionSpec.signer] == bytes32(0), SessionLib.SignerAlreadyUsed(sessionSpec.signer));
