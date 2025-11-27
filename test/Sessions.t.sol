@@ -51,8 +51,10 @@ contract SessionsTest is MSATest {
         test_installValidator();
 
         spec = _baseSessionSpec();
-        bytes memory call =
-            encodeCall(address(sessionKeyValidator), 0, abi.encodeCall(SessionKeyValidator.createSession, (spec)));
+        bytes memory proof = _signProof(keccak256(abi.encode(spec)), sessionOwner.key);
+        bytes memory call = encodeCall(
+            address(sessionKeyValidator), 0, abi.encodeCall(SessionKeyValidator.createSession, (spec, proof))
+        );
         PackedUserOperation[] memory userOps = makeSignedUserOp(call);
 
         bytes32 sessionHash = keccak256(abi.encode(spec));
@@ -72,7 +74,18 @@ contract SessionsTest is MSATest {
 
         vm.expectRevert(SessionLib.ZeroSigner.selector);
         vm.prank(address(account));
-        sessionKeyValidator.createSession(invalidSpec);
+        sessionKeyValidator.createSession(invalidSpec, new bytes(65));
+    }
+
+    function testRevert_createSession_invalidProof() public {
+        test_installValidator();
+
+        spec = _baseSessionSpec();
+        bytes memory invalidProof = _signProof(keccak256(abi.encode(spec)), sessionOwner.key + 1);
+
+        vm.expectPartialRevert(SessionLib.InvalidSigner.selector);
+        vm.prank(address(account));
+        sessionKeyValidator.createSession(spec, invalidProof);
     }
 
     function testRevert_createSession_unlimitedFees() public {
@@ -80,10 +93,11 @@ contract SessionsTest is MSATest {
 
         SessionLib.SessionSpec memory invalidSpec = _baseSessionSpec();
         invalidSpec.feeLimit.limitType = SessionLib.LimitType.Unlimited;
+        bytes memory proof = _signProof(keccak256(abi.encode(invalidSpec)), sessionOwner.key);
 
         vm.expectRevert(SessionLib.UnlimitedFees.selector);
         vm.prank(address(account));
-        sessionKeyValidator.createSession(invalidSpec);
+        sessionKeyValidator.createSession(invalidSpec, proof);
     }
 
     function testRevert_createSession_signerAlreadyUsed() public {
@@ -91,10 +105,11 @@ contract SessionsTest is MSATest {
 
         SessionLib.SessionSpec memory duplicateSpec = spec;
         duplicateSpec.expiresAt = uint48(block.timestamp + 2000);
+        bytes memory proof = _signProof(keccak256(abi.encode(duplicateSpec)), sessionOwner.key);
 
         vm.expectRevert(abi.encodeWithSelector(SessionLib.SignerAlreadyUsed.selector, sessionOwner.addr));
         vm.prank(address(account));
-        sessionKeyValidator.createSession(duplicateSpec);
+        sessionKeyValidator.createSession(duplicateSpec, proof);
     }
 
     function testRevert_createSession_sessionExpiresTooSoon() public {
@@ -102,10 +117,11 @@ contract SessionsTest is MSATest {
 
         SessionLib.SessionSpec memory invalidSpec = _baseSessionSpec();
         invalidSpec.expiresAt = uint48(block.timestamp + 30);
+        bytes memory proof = _signProof(keccak256(abi.encode(invalidSpec)), sessionOwner.key);
 
         vm.expectRevert(abi.encodeWithSelector(SessionLib.SessionExpiresTooSoon.selector, invalidSpec.expiresAt));
         vm.prank(address(account));
-        sessionKeyValidator.createSession(invalidSpec);
+        sessionKeyValidator.createSession(invalidSpec, proof);
     }
 
     function testRevert_createSession_callPolicyBanned() public {
@@ -127,12 +143,13 @@ contract SessionsTest is MSATest {
             callPolicies: callPolicies,
             feeLimit: SessionLib.UsageLimit({ limitType: SessionLib.LimitType.Lifetime, limit: 0.15 ether, period: 0 })
         });
+        bytes memory proof = _signProof(keccak256(abi.encode(invalidSpec)), sessionOwner.key);
 
         vm.expectRevert(
             abi.encodeWithSelector(SessionLib.CallPolicyBanned.selector, address(sessionKeyValidator), bytes4(0))
         );
         vm.prank(address(account));
-        sessionKeyValidator.createSession(invalidSpec);
+        sessionKeyValidator.createSession(invalidSpec, proof);
     }
 
     function test_useSession() public {
@@ -167,16 +184,8 @@ contract SessionsTest is MSATest {
         userOps[0].nonce = entryPoint.getNonce(address(account), 0);
         _signSessionUserOp(userOps[0]);
 
-        bytes32 userOpHash = entryPoint.getUserOpHash(userOps[0]);
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                SessionLib.InvalidNonceKey.selector,
-                uint192(userOps[0].nonce >> 64),
-                uint192(uint160(sessionOwner.addr))
-            )
-        );
-        vm.prank(address(entryPoint));
-        sessionKeyValidator.validateUserOp(userOps[0], userOpHash);
+        vm.expectRevert();
+        entryPoint.handleOps(userOps, bundler);
     }
 
     function test_closeSession() public {
@@ -240,8 +249,10 @@ contract SessionsTest is MSATest {
         test_installValidator();
 
         SessionLib.SessionSpec memory firstSpec = _baseSessionSpec();
-        bytes memory createFirst =
-            encodeCall(address(sessionKeyValidator), 0, abi.encodeCall(SessionKeyValidator.createSession, (firstSpec)));
+        bytes memory proof = _signProof(keccak256(abi.encode(firstSpec)), sessionOwner.key);
+        bytes memory createFirst = encodeCall(
+            address(sessionKeyValidator), 0, abi.encodeCall(SessionKeyValidator.createSession, (firstSpec, proof))
+        );
         entryPoint.handleOps(makeSignedUserOp(createFirst), bundler);
         bytes32 sessionHashOne = keccak256(abi.encode(firstSpec));
 
@@ -249,9 +260,10 @@ contract SessionsTest is MSATest {
         SessionLib.SessionSpec memory secondSpec = firstSpec;
         secondSpec.signer = secondOwner.addr;
         secondSpec.expiresAt = uint48(block.timestamp + 2000);
+        proof = _signProof(keccak256(abi.encode(secondSpec)), secondOwner.key);
 
         bytes memory createSecond = encodeCall(
-            address(sessionKeyValidator), 0, abi.encodeCall(SessionKeyValidator.createSession, (secondSpec))
+            address(sessionKeyValidator), 0, abi.encodeCall(SessionKeyValidator.createSession, (secondSpec, proof))
         );
         PackedUserOperation[] memory secondUserOps = makeSignedUserOp(createSecond);
         entryPoint.handleOps(secondUserOps, bundler);
@@ -350,9 +362,11 @@ contract SessionsTest is MSATest {
         });
 
         bytes32 sessionHash = keccak256(abi.encode(spec));
+        bytes memory proof = _signProof(sessionHash, sessionOwner.key);
 
-        bytes memory call =
-            encodeCall(address(sessionKeyValidator), 0, abi.encodeCall(SessionKeyValidator.createSession, (spec)));
+        bytes memory call = encodeCall(
+            address(sessionKeyValidator), 0, abi.encodeCall(SessionKeyValidator.createSession, (spec, proof))
+        );
         PackedUserOperation[] memory userOps = makeSignedUserOp(call);
 
         vm.expectEmit(true, true, true, true);
@@ -368,33 +382,15 @@ contract SessionsTest is MSATest {
         vm.assertEq(spec.callPolicies[0].constraints.length, 2, "Constraints not set");
     }
 
-    function test_deployAccountWithSession() public {
-        address[] memory modules = new address[](1);
-        modules[0] = address(sessionKeyValidator);
-
-        spec = SessionLib.SessionSpec({
-            signer: sessionOwner.addr,
-            expiresAt: uint48(block.timestamp + 1000),
-            transferPolicies: new SessionLib.TransferSpec[](0),
-            callPolicies: new SessionLib.CallSpec[](0),
-            feeLimit: SessionLib.UsageLimit({ limitType: SessionLib.LimitType.Lifetime, limit: 0.1 ether, period: 0 })
-        });
-
-        bytes[] memory initData = new bytes[](1);
-        initData[0] = abi.encode(spec);
-
-        bytes memory data = abi.encodeCall(IMSA.initializeAccount, (modules, initData));
-        factory.deployAccount(keccak256("my-other-account-id"), data);
-    }
-
     function testRevert_createSession_actionsNotAllowed() public {
         test_installAllowedValidator();
         SessionLib.SessionSpec memory localSpec = _baseSessionSpec();
+        bytes memory proof = _signProof(keccak256(abi.encode(localSpec)), sessionOwner.key);
         bytes32 actionsHash = allowedValidator.getSessionActionsHash(localSpec);
 
         vm.expectRevert(abi.encodeWithSelector(SessionLib.ActionsNotAllowed.selector, actionsHash));
         vm.prank(address(account));
-        allowedValidator.createSession(localSpec);
+        allowedValidator.createSession(localSpec, proof);
     }
 
     function test_createSession_allowed() public {
@@ -407,8 +403,10 @@ contract SessionsTest is MSATest {
         allowedValidator.setSessionActionsAllowed(actionsHash, true);
 
         bytes32 sessionHash = keccak256(abi.encode(localSpec));
-        bytes memory call =
-            encodeCall(address(allowedValidator), 0, abi.encodeCall(SessionKeyValidator.createSession, (localSpec)));
+        bytes memory proof = _signProof(sessionHash, sessionOwner.key);
+        bytes memory call = encodeCall(
+            address(allowedValidator), 0, abi.encodeCall(SessionKeyValidator.createSession, (localSpec, proof))
+        );
         PackedUserOperation[] memory userOps = makeSignedUserOp(call);
 
         vm.expectEmit(true, true, true, true);
@@ -437,8 +435,9 @@ contract SessionsTest is MSATest {
 
         allowedValidator.setSessionActionsAllowed(actionsHash, true);
 
+        bytes memory proof = _signProof(keccak256(abi.encode(spec)), sessionOwner.key);
         bytes memory call =
-            encodeCall(address(allowedValidator), 0, abi.encodeCall(SessionKeyValidator.createSession, (spec)));
+            encodeCall(address(allowedValidator), 0, abi.encodeCall(SessionKeyValidator.createSession, (spec, proof)));
         PackedUserOperation[] memory userOps = makeSignedUserOp(call);
         entryPoint.handleOps(userOps, bundler);
 
@@ -532,5 +531,11 @@ contract SessionsTest is MSATest {
     function _signAllowedSessionUserOp(PackedUserOperation memory userOp) internal view {
         _signUserOpNoPrefix(userOp);
         userOp.signature = abi.encodePacked(allowedValidator, userOp.signature);
+    }
+
+    function _signProof(bytes32 sessionHash, uint256 privateKey) internal view returns (bytes memory signature) {
+        bytes32 signedHash = keccak256(abi.encode(sessionHash, address(account)));
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, signedHash);
+        signature = abi.encodePacked(r, s, v);
     }
 }

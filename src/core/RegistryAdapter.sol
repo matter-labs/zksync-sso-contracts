@@ -40,10 +40,19 @@ abstract contract RegistryAdapter is AccountBase {
         external
         onlyEntryPointOrSelf
     {
+        IERC7484Registry oldRegistry = $registry;
         $registry = registry;
-        if (attesters.length > 0) {
+        if (address(oldRegistry) != address(0)) {
+            // Clean data from old registry
+            oldRegistry.trustAttesters(0, new address[](0));
+        }
+        if (address(registry) != address(0)) {
             registry.trustAttesters(threshold, attesters);
         }
         emit ERC7484RegistryConfigured(address(registry));
+    }
+
+    function getRegistry() external view returns (IERC7484Registry) {
+        return $registry;
     }
 }

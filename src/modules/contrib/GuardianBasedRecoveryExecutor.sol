@@ -57,14 +57,14 @@ contract GuardianBasedRecoveryExecutor is GuardianExecutor, Initializable, Acces
     /// @notice Execute pending recovery after delay period
     /// @param account Account to recover
     /// @return returnData Result from validator call
-    function finalizeRecovery(address account)
+    function finalizeRecovery(address account, bytes calldata data)
         external
         virtual
         override
         onlyRole(FINALIZER_ROLE)
         returns (bytes memory returnData)
     {
-        return _finalizeRecovery(account);
+        return _finalizeRecovery(account, data);
     }
 
     /// @notice Cancel caller's pending recovery
@@ -128,7 +128,7 @@ contract GuardianBasedRecoveryExecutor is GuardianExecutor, Initializable, Acces
     /// @param account Target account whose recovery (if active) is removed.
     function _discardRecoveryFor(address account, bool throws) internal {
         RecoveryRequest memory recovery = pendingRecovery[account];
-        if (recovery.timestamp != 0 && recovery.data.length != 0) {
+        if (recovery.timestamp != 0 && recovery.hashedData != 0) {
             delete pendingRecovery[account];
             emit RecoveryDiscarded(account);
         } else if (throws) {

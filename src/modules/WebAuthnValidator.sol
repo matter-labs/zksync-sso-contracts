@@ -115,11 +115,12 @@ contract WebAuthnValidator is IValidator, IERC165 {
     /// @param credentialId Credential identifier associated with the key.
     /// @param domain Domain for which the key was registered.
     function removeValidationKey(bytes memory credentialId, string memory domain) public {
-        // slither-disable-next-line unused-return
-        accounts[domain][credentialId].remove(msg.sender);
+        bool removed = accounts[domain][credentialId].remove(msg.sender);
         publicKeys[domain][credentialId][msg.sender] = [bytes32(0), bytes32(0)];
 
-        emit PasskeyRemoved(msg.sender, domain, credentialId);
+        if (removed) {
+            emit PasskeyRemoved(msg.sender, domain, credentialId);
+        }
     }
 
     /// @notice Register a new WebAuthn passkey for the caller's account.
@@ -143,9 +144,9 @@ contract WebAuthnValidator is IValidator, IERC165 {
         require(oldKey[0] == 0 && oldKey[1] == 0, KeyAlreadyExists());
         // empty keys aren't valid
         require(newKey[0] != 0 || newKey[1] != 0, EmptyKey());
-        // RFC 1035 sets domains between 1-253 characters
+        // RFC 1035 sets domains between 1-255 characters
         uint256 domainLength = bytes(domain).length;
-        require(domainLength >= 1 && domainLength <= 253, BadDomainLength());
+        require(domainLength >= 1 && domainLength <= 255, BadDomainLength());
         // min length from: https://www.w3.org/TR/webauthn-2/#credential-id
         require(credentialId.length >= 16, BadCredentialIDLength());
 
@@ -171,7 +172,7 @@ contract WebAuthnValidator is IValidator, IERC165 {
 
     /// @inheritdoc IValidator
     function validateUserOp(PackedUserOperation calldata userOp, bytes32 signedHash) external view returns (uint256) {
-        return webAuthVerify(signedHash, userOp.signature[20:]) ? SIG_VALIDATION_SUCCESS : SIG_VALIDATION_FAILED;
+        return webAuthVerify(signedHash, userOp.signature) ? SIG_VALIDATION_SUCCESS : SIG_VALIDATION_FAILED;
     }
 
     /// @notice Validates a WebAuthn signature

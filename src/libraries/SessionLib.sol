@@ -21,14 +21,17 @@ library SessionLib {
     error ZeroSigner();
     error InvalidSigner(address recovered, address expected);
     error InvalidCallType(bytes1 callType, bytes1 expected);
+    error InvalidExecType(bytes1 execType);
     error InvalidTopLevelSelector(bytes4 selector, bytes4 expected);
+    error InvalidData();
     error SessionAlreadyExists(bytes32 sessionHash);
     error UnlimitedFees();
     error SessionExpiresTooSoon(uint256 expiresAt);
     error SessionNotActive();
+    error EmptyTimeRange();
     error LifetimeUsageExceeded(uint256 lifetimeUsage, uint256 maxUsage);
     error AllowanceExceeded(uint256 allowance, uint256 maxAllowance, uint64 period);
-    error InvalidDataLength(uint256 actualLength, uint256 expectedMinimumLength);
+    error InvalidDataLength(uint256 actualLength, uint256 expectedLength);
     error ConditionViolated(bytes32 param, bytes32 refValue, uint8 condition);
     error CallPolicyViolated(address target, bytes4 selector);
     error TransferPolicyViolated(address target);
@@ -159,24 +162,24 @@ library SessionLib {
     /// @dev Reverts if the limit is exceeded or the period is invalid.
     function checkAndUpdate(UsageLimit memory limit, UsageTracker storage tracker, uint256 value, uint48 period)
         internal
-        returns (uint48 validAfter, uint48 validUntil)
+        returns (uint48[2] memory validTimeRange)
     {
+        validTimeRange = [0, type(uint48).max];
         if (limit.limitType == LimitType.Lifetime) {
-            validAfter = 0;
-            validUntil = type(uint48).max;
             require(
                 tracker.lifetimeUsage[msg.sender] + value <= limit.limit,
                 LifetimeUsageExceeded(tracker.lifetimeUsage[msg.sender], limit.limit)
             );
             tracker.lifetimeUsage[msg.sender] += value;
         } else if (limit.limitType == LimitType.Allowance) {
-            validAfter = period * limit.period;
-            validUntil = (period + 1) * limit.period;
             require(
                 tracker.allowanceUsage[period][msg.sender] + value <= limit.limit,
                 AllowanceExceeded(tracker.allowanceUsage[period][msg.sender], limit.limit, period)
             );
             tracker.allowanceUsage[period][msg.sender] += value;
+            uint48 validAfter = period * limit.period;
+            uint48 validUntil = (period + 1) * limit.period - 1;
+            validTimeRange = [validAfter, validUntil];
         }
     }
 
@@ -192,7 +195,7 @@ library SessionLib {
         UsageTracker storage tracker,
         bytes memory data,
         uint48 period
-    ) internal returns (uint48, uint48) {
+    ) internal returns (uint48[2] memory validTimeRange) {
         uint256 expectedLength = 4 + constraint.index * 32 + 32;
         if (data.length < expectedLength) {
             revert InvalidDataLength(data.length, expectedLength);
@@ -237,22 +240,34 @@ library SessionLib {
         PackedUserOperation calldata userOp,
         SessionSpec memory spec,
         uint48 periodId
-    ) internal returns (uint48 validAfter, uint48 validUntil) {
+    ) internal returns (uint48[2] memory validTimeRange) {
         // If a paymaster is paying the fee, we don't need to check the fee limit
         if (userOp.paymasterAndData.length == 0) {
             uint256 gasPrice = userOp.gasPrice();
-            uint256 gasLimit = userOp.unpackVerificationGasLimit() + userOp.unpackCallGasLimit();
+            uint256 gasLimit =
+                userOp.preVerificationGas + userOp.unpackVerificationGasLimit() + userOp.unpackCallGasLimit();
             uint256 fee = gasPrice * gasLimit;
             // slither-disable-next-line unused-return
             return spec.feeLimit.checkAndUpdate(state.fee, fee, periodId);
         } else {
-            return (0, type(uint48).max);
+            return [0, type(uint48).max];
         }
     }
 
-    function shrinkRange(uint48[2] memory range, uint48 newAfter, uint48 newUntil) internal pure {
-        range[0] = newAfter > range[0] ? newAfter : range[0];
-        range[1] = newUntil < range[1] ? newUntil : range[1];
+    /// @notice Shrinks the time range to the intersection of itself and the new range.
+    /// @param range The original time range to shrink: validAfter, validUntil
+    /// @param otherRange The new time range to intersect with: newValidAfter, newValidUntil
+    /// @return newRange The shrunk time range: validAfter, validUntil
+    function shrinkRange(uint48[2] memory range, uint48[2] memory otherRange)
+        internal
+        pure
+        returns (uint48[2] memory newRange)
+    {
+        newRange = [
+            otherRange[0] > range[0] ? otherRange[0] : range[0], // max(validAfter, newValidAfter)
+            otherRange[1] < range[1] ? otherRange[1] : range[1] // min(validUntil, newValidUntil)
+        ];
+        require(newRange[0] <= newRange[1], EmptyTimeRange());
     }
 
     /// @notice Validates the transaction against the session spec and updates the usage trackers.
@@ -272,13 +287,17 @@ library SessionLib {
         PackedUserOperation calldata userOp,
         SessionSpec memory spec,
         uint48[] memory periodIds
-    ) internal returns (uint48, uint48) {
+    ) internal returns (uint48[2] memory validTimeRange) {
         require(state.status[msg.sender] == Status.Active, SessionNotActive());
 
         bytes4 topLevelSelector = bytes4(userOp.callData[:4]);
         bytes1 callType = userOp.callData[4];
+        bytes1 execType = userOp.callData[5];
 
         require(callType == LibERC7579.CALLTYPE_SINGLE, InvalidCallType(callType, LibERC7579.CALLTYPE_SINGLE));
+        require(
+            execType == LibERC7579.EXECTYPE_DEFAULT || execType == LibERC7579.EXECTYPE_TRY, InvalidExecType(execType)
+        );
         require(
             topLevelSelector == IERC7579Account.execute.selector,
             InvalidTopLevelSelector(topLevelSelector, IERC7579Account.execute.selector)
@@ -288,15 +307,20 @@ library SessionLib {
         // - first 4 bytes: selector
         // - next 32 bytes: mode
         // - next 32 bytes: data offset
-        // - at offset: data length
+        // - next 32 bytes: data length
         // - next 32 bytes: data
-        uint256 offset = uint256(bytes32(userOp.callData[36:68])) + 4; // offset does not include the selector
-        uint256 length = uint256(bytes32(userOp.callData[offset:offset + 32]));
+        uint256 offsetOffset = 4 + 32;
+        uint256 lengthOffset = 4 + 32 + 32;
+        uint256 dataOffset = 4 + 32 + 32 + 32;
+        // Offset does not include the selector, hence +4
+        uint256 offset = uint256(bytes32(userOp.callData[offsetOffset:offsetOffset + 32])) + 4;
+        require(offset == lengthOffset, InvalidData());
+        uint256 length = uint256(bytes32(userOp.callData[lengthOffset:lengthOffset + 32]));
         (address target, uint256 value, bytes calldata callData) =
-            LibERC7579.decodeSingle(userOp.callData[offset + 32:offset + 32 + length]);
+            LibERC7579.decodeSingle(userOp.callData[dataOffset:dataOffset + length]);
 
         // Time range within which the transaction is valid.
-        uint48[2] memory timeRange = [0, spec.expiresAt];
+        validTimeRange = [0, spec.expiresAt];
 
         if (callData.length >= 4) {
             bytes4 selector = bytes4(callData[:4]);
@@ -313,17 +337,21 @@ library SessionLib {
 
             require(found, CallPolicyViolated(target, selector));
             require(value <= callPolicy.maxValuePerUse, MaxValueExceeded(value, callPolicy.maxValuePerUse));
-            (uint48 newValidAfter, uint48 newValidUntil) =
-                callPolicy.valueLimit.checkAndUpdate(state.callValue[target][selector], value, periodIds[1]);
-            shrinkRange(timeRange, newValidAfter, newValidUntil);
+            validTimeRange = shrinkRange(
+                validTimeRange,
+                callPolicy.valueLimit.checkAndUpdate(state.callValue[target][selector], value, periodIds[1])
+            );
 
             for (uint256 i = 0; i < callPolicy.constraints.length; ++i) {
-                (newValidAfter, newValidUntil) = callPolicy.constraints[i].checkAndUpdate(
-                    state.params[target][selector][i], callData, periodIds[2 + i]
+                validTimeRange = shrinkRange(
+                    validTimeRange,
+                    callPolicy.constraints[i].checkAndUpdate(
+                        state.params[target][selector][i], callData, periodIds[2 + i]
+                    )
                 );
-                shrinkRange(timeRange, newValidAfter, newValidUntil);
             }
         } else {
+            require(callData.length == 0, InvalidDataLength(callData.length, 0));
             TransferSpec memory transferPolicy;
             bool found = false;
 
@@ -337,12 +365,11 @@ library SessionLib {
 
             require(found, TransferPolicyViolated(target));
             require(value <= transferPolicy.maxValuePerUse, MaxValueExceeded(value, transferPolicy.maxValuePerUse));
-            (uint48 newValidAfter, uint48 newValidUntil) =
-                transferPolicy.valueLimit.checkAndUpdate(state.transferValue[target], value, periodIds[1]);
-            shrinkRange(timeRange, newValidAfter, newValidUntil);
+            validTimeRange = shrinkRange(
+                validTimeRange,
+                transferPolicy.valueLimit.checkAndUpdate(state.transferValue[target], value, periodIds[1])
+            );
         }
-
-        return (timeRange[0], timeRange[1]);
     }
 
     /// @notice Getter for the remainder of a usage limit.
