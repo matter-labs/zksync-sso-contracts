@@ -164,6 +164,11 @@ jobs:
           git clone https://github.com/eth-infinitism/account-abstraction
           git clone https://github.com/matter-labs/zksync-os-server
 
+      - name: Cache Rust build
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: "../zksync-os-server -> target"
+
       - name: Run server
         run: |
           cd ${{ github.workspace }}/../zksync-os-server
@@ -192,7 +197,9 @@ jobs:
         run: pnpm deploy-test:zksync-os
 
       - name: Run bundler
-        run: pnpm bundler:zksync-os &> bundler.log &
+        run: |
+          pnpm bundler:zksync-os &> bundler.log &
+          sleep 5
 
       - name: Run integration tests
         run: pnpm test:zksync-os
