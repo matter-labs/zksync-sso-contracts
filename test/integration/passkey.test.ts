@@ -35,7 +35,7 @@ test("adds a Passkey to the account", { timeout: 120_000 }, async () => {
         }],
     });
 
-    const receipt = await bundlerClient.waitForUserOperationReceipt({ hash, timeout: 10_000 });
+    const receipt = await bundlerClient.waitForUserOperationReceipt({ hash, timeout: 2_000 });
     assert.equal(
         receipt.receipt.status,
         "success",
@@ -58,7 +58,7 @@ test("executes a simple transfer signed using Passkey", { timeout: 120_000 }, as
         }],
     });
 
-    const receipt = await bundlerClient.waitForUserOperationReceipt({ hash, timeout: 10_000 });
+    const receipt = await bundlerClient.waitForUserOperationReceipt({ hash, timeout: 2_000 });
     assert.equal(
         receipt.receipt.status,
         "success",

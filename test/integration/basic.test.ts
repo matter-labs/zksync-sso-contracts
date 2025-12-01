@@ -23,7 +23,7 @@ test("executes a simple transfer signed using EOA", { timeout: 120_000 }, async 
         }],
     });
 
-    const receipt = await bundlerClient.waitForUserOperationReceipt({ hash, timeout: 10_000 });
+    const receipt = await bundlerClient.waitForUserOperationReceipt({ hash, timeout: 2_000 });
     assert.equal(
         receipt.receipt.status,
         "success",
@@ -48,7 +48,7 @@ test("executes a transaction sponsored by a paymaster", { timeout: 120_000 }, as
         args: [],
         value: 10n ** 17n, // 0.1 ETH
     })
-    await client.waitForTransactionReceipt({ hash: depositHash, timeout: 10_000 });
+    await client.waitForTransactionReceipt({ hash: depositHash, timeout: 2_000 });
 
     const balanceBefore = await client.getBalance({ address: account });
     const sponsored = await bundlerClient.sendUserOperation({
@@ -57,7 +57,7 @@ test("executes a transaction sponsored by a paymaster", { timeout: 120_000 }, as
         paymaster,
     });
 
-    const receipt = await bundlerClient.waitForUserOperationReceipt({ hash: sponsored, timeout: 10_000 });
+    const receipt = await bundlerClient.waitForUserOperationReceipt({ hash: sponsored, timeout: 2_000 });
     const balanceAfter = await client.getBalance({ address: account });
 
     assert.equal(receipt.receipt.status, "success", "sponsored user operation should execute successfully");

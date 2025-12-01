@@ -68,7 +68,7 @@ export async function deployContract(client: any, privateKey: Hex, name: string)
         abi: [],
         bytecode: require(`../../out/${name}.sol/${name}.json`).bytecode.object
     });
-    const deployment = await client.waitForTransactionReceipt({ hash: deploymentHash, timeout: 10_000 });
+    const deployment = await client.waitForTransactionReceipt({ hash: deploymentHash, timeout: 2_000 });
     return deployment.contractAddress!;
 }
 
