@@ -8,8 +8,6 @@ import {
     concat,
     type Hex,
     type Address,
-    type WalletClient,
-    type PublicClient,
 } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { createBundlerClient } from "viem/account-abstraction";
@@ -17,9 +15,16 @@ import { localhost } from "viem/chains";
 
 import crypto from "crypto";
 
+export function chainId() {
+    return Number(process.env.CHAIN_ID || '1337');
+}
+
+export function rpcPort() {
+    return Number(process.env.PORT || '8545');
+}
+
 export function contractAddresses() {
-    const chaindId = process.env.CHAIN_ID || '1337';
-    const txs = require(`../../broadcast/Deploy.s.sol/${chaindId}/deployAll-latest.json`).transactions;
+    const txs = require(`../../broadcast/Deploy.s.sol/${chainId()}/deployAll-latest.json`).transactions;
     return {
         eoaValidator: txs[1].contractAddress as Address,
         sessionValidator: txs[3].contractAddress as Address,
@@ -33,6 +38,9 @@ export function contractAddresses() {
 export function createClients(anvilPort: number, bundlerPort: number) {
     // smaller polling interval to speed up the test
     const pollingInterval = 100;
+
+    // @ts-ignore
+    localhost.id = chainId();
 
     const client = createPublicClient({
         chain: localhost,
@@ -60,7 +68,7 @@ export async function deployContract(client: any, privateKey: Hex, name: string)
         abi: [],
         bytecode: require(`../../out/${name}.sol/${name}.json`).bytecode.object
     });
-    const deployment = await client.waitForTransactionReceipt({ hash: deploymentHash, timeout: 100 });
+    const deployment = await client.waitForTransactionReceipt({ hash: deploymentHash, timeout: 10_000 });
     return deployment.contractAddress!;
 }
 

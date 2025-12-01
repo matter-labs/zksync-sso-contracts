@@ -4,15 +4,14 @@ import { parseAbi } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 
 import { SsoAccount } from "./account";
-import { contractAddresses, toEOASigner, createClients, randomAddress, deployContract } from "./utils";
+import { contractAddresses, toEOASigner, createClients, randomAddress, deployContract, chainId, rpcPort } from "./utils";
 
-const anvilPort = process.env.PORT ?? 8545;
 const altoPort = require("../../alto.json").port;
 const privateKey = "0x2a871d0798f97d79848a013d4936a73bf4cc922c825d33c1cf7073dff6d409c6";
 
 test("executes a simple transfer signed using EOA", { timeout: 120_000 }, async () => {
     const { account } = contractAddresses();
-    const { client, bundlerClient } = createClients(anvilPort, altoPort);
+    const { client, bundlerClient } = createClients(rpcPort(), altoPort);
     const sso = await SsoAccount.create(client, account, toEOASigner(privateKey));
 
     const target = randomAddress();
@@ -24,7 +23,7 @@ test("executes a simple transfer signed using EOA", { timeout: 120_000 }, async 
         }],
     });
 
-    const receipt = await bundlerClient.waitForUserOperationReceipt({ hash, timeout: 0 });
+    const receipt = await bundlerClient.waitForUserOperationReceipt({ hash, timeout: 10_000 });
     assert.equal(
         receipt.receipt.status,
         "success",
@@ -37,7 +36,7 @@ test("executes a simple transfer signed using EOA", { timeout: 120_000 }, async 
 
 test("executes a transaction sponsored by a paymaster", { timeout: 120_000 }, async () => {
     const { account } = contractAddresses();
-    const { client, bundlerClient } = createClients(anvilPort, altoPort);
+    const { client, bundlerClient } = createClients(rpcPort(), altoPort);
     const sso = await SsoAccount.create(client, account, toEOASigner(privateKey));
     const deployer = privateKeyToAccount(privateKey);
     const paymaster = await deployContract(client, privateKey, "MockPaymaster");
@@ -49,7 +48,7 @@ test("executes a transaction sponsored by a paymaster", { timeout: 120_000 }, as
         args: [],
         value: 10n ** 17n, // 0.1 ETH
     })
-    await client.waitForTransactionReceipt({ hash: depositHash, timeout: 0 });
+    await client.waitForTransactionReceipt({ hash: depositHash, timeout: 10_000 });
 
     const balanceBefore = await client.getBalance({ address: account });
     const sponsored = await bundlerClient.sendUserOperation({
@@ -58,7 +57,7 @@ test("executes a transaction sponsored by a paymaster", { timeout: 120_000 }, as
         paymaster,
     });
 
-    const receipt = await bundlerClient.waitForUserOperationReceipt({ hash: sponsored, timeout: 0 });
+    const receipt = await bundlerClient.waitForUserOperationReceipt({ hash: sponsored, timeout: 10_000 });
     const balanceAfter = await client.getBalance({ address: account });
 
     assert.equal(receipt.receipt.status, "success", "sponsored user operation should execute successfully");
@@ -67,7 +66,7 @@ test("executes a transaction sponsored by a paymaster", { timeout: 120_000 }, as
 
 test("checks ERC7739 EOA signature using ERC1271", { timeout: 120_000 }, async () => {
     const { account } = contractAddresses();
-    const { client } = createClients(anvilPort, altoPort);
+    const { client } = createClients(rpcPort(), altoPort);
     const sso = await SsoAccount.create(client, account, toEOASigner(privateKey));
 
     const erc1271Caller = await deployContract(client, privateKey, "MockERC1271Caller");
@@ -84,7 +83,7 @@ test("checks ERC7739 EOA signature using ERC1271", { timeout: 120_000 }, async (
             ]
         },
         domain: {
-            chainId: process.env.CHAIN_ID ?? 1337,
+            chainId: chainId(),
             name: "ERC1271Caller",
             version: "1.0.0",
             verifyingContract: erc1271Caller,

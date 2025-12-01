@@ -4,9 +4,8 @@ import crypto from "crypto";
 import { encodeFunctionData, toHex, parseAbi } from "viem";
 
 import { SsoAccount } from "./account";
-import { contractAddresses, toEOASigner, toPasskeySigner, createClients, randomAddress, deployContract } from "./utils";
+import { contractAddresses, toEOASigner, toPasskeySigner, createClients, randomAddress, deployContract, chainId, rpcPort } from "./utils";
 
-const anvilPort = process.env.PORT ?? 8545;
 const altoPort = require("../../alto.json").port;
 const privateKey = "0x2a871d0798f97d79848a013d4936a73bf4cc922c825d33c1cf7073dff6d409c6";
 
@@ -20,7 +19,7 @@ const publicKey = {
 
 test("adds a Passkey to the account", { timeout: 120_000 }, async () => {
     const { account, webauthnValidator } = contractAddresses();
-    const { client, bundlerClient } = createClients(anvilPort, altoPort);
+    const { client, bundlerClient } = createClients(rpcPort(), altoPort);
     const sso = await SsoAccount.create(client, account, toEOASigner(privateKey));
 
     // add validation key via the passkey validator contract
@@ -36,7 +35,7 @@ test("adds a Passkey to the account", { timeout: 120_000 }, async () => {
         }],
     });
 
-    const receipt = await bundlerClient.waitForUserOperationReceipt({ hash, timeout: 0 });
+    const receipt = await bundlerClient.waitForUserOperationReceipt({ hash, timeout: 10_000 });
     assert.equal(
         receipt.receipt.status,
         "success",
@@ -46,7 +45,7 @@ test("adds a Passkey to the account", { timeout: 120_000 }, async () => {
 
 test("executes a simple transfer signed using Passkey", { timeout: 120_000 }, async () => {
     const { account } = contractAddresses();
-    const { client, bundlerClient } = createClients(anvilPort, altoPort);
+    const { client, bundlerClient } = createClients(rpcPort(), altoPort);
     const sso = await SsoAccount.create(client, account, toPasskeySigner(keyPair.privateKey, credentialId));
 
     // transfer to a random address using passkey signer
@@ -59,7 +58,7 @@ test("executes a simple transfer signed using Passkey", { timeout: 120_000 }, as
         }],
     });
 
-    const receipt = await bundlerClient.waitForUserOperationReceipt({ hash, timeout: 0 });
+    const receipt = await bundlerClient.waitForUserOperationReceipt({ hash, timeout: 10_000 });
     assert.equal(
         receipt.receipt.status,
         "success",
@@ -72,7 +71,7 @@ test("executes a simple transfer signed using Passkey", { timeout: 120_000 }, as
 
 test("checks ERC7739 Passkey signature using ERC1271", { timeout: 120_000 }, async () => {
     const { account } = contractAddresses();
-    const { client } = createClients(anvilPort, altoPort);
+    const { client } = createClients(rpcPort(), altoPort);
     const sso = await SsoAccount.create(client, account, toPasskeySigner(keyPair.privateKey, credentialId));
 
     const erc1271Caller = await deployContract(client, privateKey, "MockERC1271Caller");
@@ -89,7 +88,7 @@ test("checks ERC7739 Passkey signature using ERC1271", { timeout: 120_000 }, asy
             ]
         },
         domain: {
-            chainId: process.env.CHAIN_ID ?? 1337,
+            chainId: chainId(),
             name: "ERC1271Caller",
             version: "1.0.0",
             verifyingContract: erc1271Caller,

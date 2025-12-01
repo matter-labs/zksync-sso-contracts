@@ -169,7 +169,7 @@ jobs:
           cd ${{ github.workspace }}/../zksync-os-server
           cargo build --release --bin zksync-os-server
           anvil --load-state zkos-l1-state.json --port 8545 &> anvil.log &
-          cargo run --release --bin zksync-os-server &> zksync.log &
+          cargo run --release --bin zksync-os-server &> server.log &
 
       - name: Deploy entrypoint
         run: |
@@ -180,18 +180,28 @@ jobs:
           yarn install
           yarn deploy --network zksyncos
 
-      - name: Deploy contracts and a test account
-        run: |
-          pnpm deploy-test:zksync-os
-
-      - name: Run bundler
-        run: pnpm bundler:zksync-os &> bundler.log &
-
-      - name: Run integration tests
+      - name: Fund wallet
         run: |
           # Rich account
           PRIVATE_KEY=0x7726827caac94a7f9e1b160f7ea819f172f7b6f9d2a97f992c38edeab82d4110
           # send 10 ETH
           TO=0xa0Ee7A142d267C1f36714E4a8F75612F20a79720
           cast send --private-key ${PRIVATE_KEY} --rpc-url http://localhost:3050 ${TO} --value 10000000000000000000
-          pnpm test:zksync-os
+
+      - name: Deploy contracts and a test account
+        run: pnpm deploy-test:zksync-os
+
+      - name: Run bundler
+        run: pnpm bundler:zksync-os &> bundler.log &
+
+      - name: Run integration tests
+        run: pnpm test:zksync-os
+
+      - name: Print anvil logs
+        run: cat ${{ github.workspace }}/../zksync-os-server/anvil.log
+
+      - name: Print server logs
+        run: cat ${{ github.workspace }}/../zksync-os-server/server.log
+
+      - name: Print bundler logs
+        run: cat bundler.log
