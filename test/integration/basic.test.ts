@@ -6,7 +6,7 @@ import { privateKeyToAccount } from "viem/accounts";
 import { SsoAccount } from "./account";
 import { contractAddresses, toEOASigner, createClients, randomAddress, deployContract } from "./utils";
 
-const anvilPort = 8545;
+const anvilPort = process.env.PORT ?? 8545;
 const altoPort = require("../../alto.json").port;
 const privateKey = "0x2a871d0798f97d79848a013d4936a73bf4cc922c825d33c1cf7073dff6d409c6";
 
@@ -47,7 +47,7 @@ test("executes a transaction sponsored by a paymaster", { timeout: 120_000 }, as
         abi: parseAbi(["function deposit() external payable"]),
         functionName: "deposit",
         args: [],
-        value: 10n ** 18n, // 1 ETH
+        value: 10n ** 17n, // 0.1 ETH
     })
     await client.waitForTransactionReceipt({ hash: depositHash, timeout: 0 });
 
@@ -84,7 +84,7 @@ test("checks ERC7739 EOA signature using ERC1271", { timeout: 120_000 }, async (
             ]
         },
         domain: {
-            chainId: 1337,
+            chainId: process.env.CHAIN_ID ?? 1337,
             name: "ERC1271Caller",
             version: "1.0.0",
             verifyingContract: erc1271Caller,

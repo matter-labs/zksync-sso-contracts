@@ -18,7 +18,8 @@ import { localhost } from "viem/chains";
 import crypto from "crypto";
 
 export function contractAddresses() {
-    const txs = require('../../broadcast/Deploy.s.sol/1337/deployAll-latest.json').transactions;
+    const chaindId = process.env.CHAIN_ID || '1337';
+    const txs = require(`../../broadcast/Deploy.s.sol/${chaindId}/deployAll-latest.json`).transactions;
     return {
         eoaValidator: txs[1].contractAddress as Address,
         sessionValidator: txs[3].contractAddress as Address,

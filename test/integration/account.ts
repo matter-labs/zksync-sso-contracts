@@ -78,7 +78,7 @@ export class SsoAccount {
                     userOperation: { ...userOperation, sender: address },
                     entryPointAddress: entryPoint08Address,
                     entryPointVersion: '0.8',
-                    chainId: 1337
+                    chainId: process.env.CHAIN_ID ?? 1337
                 });
                 return await sso.signer(userOpHash);
             },
@@ -96,7 +96,7 @@ export class SsoAccount {
             },
             async signTypedData(typedData) {
                 const verifierDomain = {
-                    chainId: 1337,
+                    chainId: process.env.CHAIN_ID ?? 1337,
                     name: "zksync-sso-1271",
                     version: "1.0.0",
                     verifyingContract: address,
