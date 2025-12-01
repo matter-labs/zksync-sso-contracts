@@ -205,10 +205,13 @@ jobs:
         run: pnpm test:zksync-os
 
       - name: Print anvil logs
+        if: always()
         run: cat ${{ github.workspace }}/../zksync-os-server/anvil.log
 
       - name: Print server logs
+        if: always()
         run: cat ${{ github.workspace }}/../zksync-os-server/server.log
 
       - name: Print bundler logs
+        if: always()
         run: cat bundler.log
