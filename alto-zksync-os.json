@@ -1,0 +1,8 @@
+{
+    "entrypoints": "0x4337084D9E255Ff0702461CF8895CE9E3b5Ff108",
+    "executor-private-keys": "0x7726827caac94a7f9e1b160f7ea819f172f7b6f9d2a97f992c38edeab82d4110",
+    "utility-private-key": "0x7726827caac94a7f9e1b160f7ea819f172f7b6f9d2a97f992c38edeab82d4110",
+    "rpc-url": "http://localhost:3050",
+    "port": 4337,
+    "safe-mode": false
+}
