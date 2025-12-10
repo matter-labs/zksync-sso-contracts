@@ -164,17 +164,8 @@ jobs:
           git clone https://github.com/eth-infinitism/account-abstraction
           git clone https://github.com/matter-labs/zksync-os-server
 
-      - name: Cache Rust build
-        uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: "../zksync-os-server -> target"
-
-      - name: Run server
-        run: |
-          cd ${{ github.workspace }}/../zksync-os-server
-          cargo build --release --bin zksync-os-server
-          anvil --load-state zkos-l1-state.json --port 8545 &> anvil.log &
-          cargo run --release --bin zksync-os-server &> server.log &
+      - name: Run ZKsync OS (L1-L2)
+        uses: dutterbutter/zksync-server-action@6cb6ddb5b674810fead2d2ba2ee95e640800c434 # v1
 
       - name: Deploy entrypoint
         run: |
