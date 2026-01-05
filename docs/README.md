@@ -151,7 +151,7 @@ struct UsageLimit {
 - `limit` - the actual number to limit by.
 - `period` - length of the period in seconds.
 
-Transfer policies are defined by the following strucutre:
+Transfer policies are defined by the following structure:
 
 ```solidity
 struct TransferSpec {
@@ -165,7 +165,7 @@ struct TransferSpec {
 - `maxValuePerUse` - maximum value that is possible to send in one transfer.
 - `valueLimit` - cumulative transfer value limit.
 
-Call policies are defined by the following strucutre:
+Call policies are defined by the following structure:
 
 ```solidity
 struct CallSpec {
@@ -181,9 +181,9 @@ struct CallSpec {
 - `selector` - selector of the method being called.
 - `maxValuePerUse` - maximum value that is possible to send in one call.
 - `valueLimit` - cumulative call value limit.
-- `constraints` - array of `Constraint` (explained below) strucutres that define constraints on method arguments.
+- `constraints` - array of `Constraint` (explained below) structures that define constraints on method arguments.
 
-Call constraints are defined by the following strucutres:
+Call constraints are defined by the following structures:
 
 ```solidity
 struct Constraint {
@@ -217,9 +217,31 @@ enum Condition {
 - `onUninstall` data format: ABI-encoded array of session hashes to revoke
 
 Other methods:
-- `createSession(SessionSpec spec, bytes proof)`
-- `sessionState(address account, SessionSpec spec)`
-- `sessionStatus(address account, bytes32 sessionHash)`
+- `createSession(SessionSpec spec, bytes proof)` - create a new session; requires `proof` - a signature of the hash `keccak256(abi.encode(sessionHash, accountAddress))` signed by session `signer`
+- `revokeKey(bytes32 sessionHash)` - closes an active session by the provided hash
+- `revokeKeys(bytes32[] sessionHashes)` - same as `revokeKey` but closes multiple sessions at once
+- `sessionStatus(address account, bytes32 sessionHash) returns (SessionStatus)` - returns `NotInitialized` (0), `Active` (1) or `Closed` (2); note: expired sessions are still considered active if not revoked explicitly
+- `sessionState(address account, SessionSpec spec) returns (SessionState)` - returns the session status and the state of all cumulative limits used in the session as a following structure:
+
+```solidity
+// Info about remaining session limits and its status
+struct SessionState {
+    Status status;
+    uint256 feesRemaining;
+    LimitState[] transferValue;
+    LimitState[] callValue;
+    LimitState[] callParams;
+}
+
+struct LimitState {
+    uint256 remaining; // this might also be limited by a constraint or `maxValuePerUse`, which is not reflected here
+    address target;
+    bytes4 selector;   // ignored for transfer value
+    uint256 index;     // ignored for transfer and call value
+}
+```
+
+Note: `sessionHash` is what is stored on-chain, and is defined by `keccak256(abi.encode(sessionSpec))`.
 
 ### `GuardianExecutor`
 
