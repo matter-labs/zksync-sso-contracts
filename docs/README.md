@@ -74,7 +74,7 @@ To install, uninstall or unlink a module, call the corresponding core functions 
 
 - `installModule(uint256 typeId, address module, bytes calldata initData)`
 - `uninstallModule(uint256 typeId, address module, bytes calldata deinitData)`
-- `uninstallModule(uint256 typeId, address module, bytes calldata deinitData)`
+- `unlinkModule(uint256 typeId, address module, bytes calldata deinitData)`
 
 `typeId`, according to the [standard](https://eips.ethereum.org/EIPS/eip-7579):
 - 1 for validator
@@ -132,7 +132,7 @@ struct SessionSpec {
 - `expiresAt` - Timestamp after which the session no longer can be used. **Session expiration is required to be no earlier than 60 seconds after session creation.**
 - `feeLimit` - a `UsageLimit` (explained below) structure that limits how much fees this session can spend. **Required to not be `Unlimited`.**
 - `callPolicies` - a `CallSpec` (explained below) array that defines what kinds of calls are permitted in the session. **The array has to have unique (`target`, `selector`) pairs.**
-- `transferPolicies` - a `TransferSpec` (explained below) array that defines that kinds of transfers (calls with no calldata) are permitted in the session. **The array has to have unique targets**
+- `transferPolicies` - a `TransferSpec` (explained below) array that defines what kinds of transfers (calls with no calldata) are permitted in the session. **The array has to have unique targets.**
 
 All usage limits are defined by the following structure:
 
@@ -147,7 +147,7 @@ struct UsageLimit {
 - `limitType` defines what kind of limit (if any) this is.
     - `Unlimited` does not define any limits.
     - `Lifetime` defines a cumulative lifetime limit: sum of all uses of the value in the current session has to not surpass `limit`.
-    - `Allowance` defines a periodically refreshing limit: sum of all uses of the value during the current `period` has not surpass `limit`.
+    - `Allowance` defines a periodically refreshing limit: sum of all uses of the value during the current `period` has to not surpass `limit`.
 - `limit` - the actual number to limit by.
 - `period` - length of the period in seconds.
 
@@ -245,7 +245,7 @@ Note: `sessionHash` is what is stored on-chain, and is defined by `keccak256(abi
 
 ### `GuardianExecutor`
 
-Stores addresses trusted by the account to perform an EOA or WebAutn key recovery. Either `EOAKeyValidator` or `WebAuthnValidator` must be installed.
+Stores addresses trusted by the account to perform an EOA or WebAuthn key recovery. Either `EOAKeyValidator` or `WebAuthnValidator` must be installed.
 
 The flow is the following:
 
@@ -296,7 +296,7 @@ Other methods:
 
 ## Registry
 
-The default registry is not implemented but the account supports having a [ERC-7484](https://eips.ethereum.org/EIPS/eip-7484) to check all modules against. The modules are checked upon installation, and upon `executeFromExecutor` call.
+The default registry is not implemented but the account supports having a [ERC-7484](https://eips.ethereum.org/EIPS/eip-7484) registry to check all modules against. The modules are checked upon installation, and upon `executeFromExecutor` call.
 
 By default, no registry is installed on the account so no modules are validated.
 
@@ -335,12 +335,12 @@ For example, an external call to the contract `Storage` method `setValue(uint256
 
 ```solidity
 abi.encodeCall(IERC7579Account.execute, (
-		bytes32(0), // callType: single, execType: default
-		abi.encodePacked(
-				storageAddress, // target
-				0, // value
-				abi.encodeCall(Storage.setValue, (42)) // callData
-		)
+    bytes32(0), // callType: single, execType: default
+    abi.encodePacked(
+        storageAddress, // target
+        0, // value
+        abi.encodeCall(Storage.setValue, (42)) // callData
+    )
 )
 ```
 
