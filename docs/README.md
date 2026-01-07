@@ -8,7 +8,7 @@ Being familiar with these standards can prove useful while reading this document
 
 ## Features
 
-- **Modular & Extendable Architecture**: Pluggable validators and executors following the ERC-7579 standard; supports existing 3rd-part modules
+- **Modular & Extendable Architecture**: Pluggable validators and executors following the ERC-7579 standard; supports existing 3rd-party modules
 - **Multiple Authentication Methods**: Support for EOA keys, WebAuthn passkeys, and session keys
 - **Session Key Support**: Grant third parties limited, time-bound access with fine-grained permissions
 - **Account Recovery**: Guardian-based recovery system for lost keys or passkeys
