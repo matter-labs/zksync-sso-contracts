@@ -16,6 +16,7 @@ import {
 } from "viem/account-abstraction";
 
 import { hashTypedData, wrapTypedDataSignature } from "viem/experimental/erc7739";
+import { chainId } from "./utils";
 
 const callAbi = [{
     components: [
@@ -78,7 +79,7 @@ export class SsoAccount {
                     userOperation: { ...userOperation, sender: address },
                     entryPointAddress: entryPoint08Address,
                     entryPointVersion: '0.8',
-                    chainId: 1337
+                    chainId: chainId(),
                 });
                 return await sso.signer(userOpHash);
             },
@@ -96,7 +97,7 @@ export class SsoAccount {
             },
             async signTypedData(typedData) {
                 const verifierDomain = {
-                    chainId: 1337,
+                    chainId: chainId(),
                     name: "zksync-sso-1271",
                     version: "1.0.0",
                     verifyingContract: address,
