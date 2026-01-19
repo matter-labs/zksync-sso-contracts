@@ -7,11 +7,7 @@ Aiming to be compliant with the [ERC-7579](https://erc7579.com/) standard.
 
 Based on the [ERC-7579 reference implementation](https://github.com/erc7579/erc7579-implementation).
 
-> [!CAUTION]
-> The factory and module interfaces are not yet stable! Any contracts interfacing
-> `ModularSmartAccount` will likely need to be updated in the
-> final version. The code is currently under audit and the latest may contain
-> security vulnerabilities.
+Developer documentation: [here](./docs/README.md).
 
 ## Local Development
 
