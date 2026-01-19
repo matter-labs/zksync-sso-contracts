@@ -137,8 +137,7 @@ jobs:
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@v1.5.0
         with:
-          # zksync-os-server's zkos-l1-state.json doesn't work on latest version of anvil
-          version: v1.3.4
+          version: v1.5.1
 
       - name: Install dependencies
         run: forge soldeer install
@@ -173,7 +172,7 @@ jobs:
         run: |
           cd ${{ github.workspace }}/../zksync-os-server
           cargo build --release --bin zksync-os-server
-          anvil --load-state ./local-chains/v31/zkos-l1-state.json --port 8545 &> anvil.log &
+          anvil --load-state ./local-chains/v31.0/default/zkos-l1-state.json --port 8545 &> anvil.log &
           cargo run --release --bin zksync-os-server &> server.log &
 
       - name: Deploy entrypoint
@@ -182,7 +181,7 @@ jobs:
           git checkout v0.8.0
           sed -i "60a zksyncos: { url: 'http://localhost:3050', accounts: ['0x7726827caac94a7f9e1b160f7ea819f172f7b6f9d2a97f992c38edeab82d4110'] }," hardhat.config.ts
           npm install -g yarn
-          yarn install
+          yarn install --frozen-lockfile
           yarn deploy --network zksyncos
 
       - name: Fund wallet
