@@ -173,7 +173,7 @@ jobs:
         run: |
           cd ${{ github.workspace }}/../zksync-os-server
           cargo build --release --bin zksync-os-server
-          anvil --load-state zkos-l1-state.json --port 8545 &> anvil.log &
+          anvil --load-state ./local-chains/v31/zkos-l1-state.json --port 8545 &> anvil.log &
           cargo run --release --bin zksync-os-server &> server.log &
 
       - name: Deploy entrypoint
