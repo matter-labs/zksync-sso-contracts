@@ -21,6 +21,7 @@ To run the integration tests:
 
 1. Install dependencies with `pnpm install`
 2. Start your local `zksync-os` node so the RPC is available at `http://127.0.0.1:3050`.
-3. In a separate terminal, run the bundler with `pnpm bundler`
-4. Deploy all contracts and a test account with `pnpm deploy-test`
-5. Run integration tests with `pnpm test`
+3. Predeploy the bundler prerequisites with `pnpm bundler:prepare`
+4. In a separate terminal, run the bundler with `pnpm bundler`
+5. Deploy all contracts and a test account with `pnpm deploy-test`
+6. Run integration tests with `pnpm test`

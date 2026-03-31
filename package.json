@@ -4,7 +4,10 @@
   "description": "ERC-7579 compatible ZKsync SSO contracts",
   "main": "index.js",
   "scripts": {
+    "bundler:prepare": "node js/deploy-bundler-prereqs.js",
+    "prebundler": "pnpm bundler:prepare",
     "bundler": "alto --config ./alto.json",
+    "prebundler:with-proxy": "pnpm bundler:prepare",
     "bundler:with-proxy": "node js/bundler-with-proxy.js",
     "bundler-proxy": "node js/bundler-proxy.js",
     "test": "CHAIN_ID=6565 PORT=3050 node --test --import tsx --test-concurrency=1 test/integration/*.test.ts",
