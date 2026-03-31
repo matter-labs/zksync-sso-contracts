@@ -20,7 +20,7 @@ Requires the latest [`foundry`](https://getfoundry.sh).
 To run the integration tests:
 
 1. Install dependencies with `pnpm install`
-2. Run the local development node with `pnpm anvil`.
+2. Start your local `zksync-os` node so the RPC is available at `http://127.0.0.1:3050`.
 3. In a separate terminal, run the bundler with `pnpm bundler`
 4. Deploy all contracts and a test account with `pnpm deploy-test`
 5. Run integration tests with `pnpm test`
