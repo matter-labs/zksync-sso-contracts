@@ -66,7 +66,7 @@ export function contractAddresses() {
     webauthnValidator: txs[5].contractAddress as Address,
     guardiansExecutor: txs[7].contractAddress as Address,
     factory: txs[11].contractAddress as Address,
-    account: txs[12].additionalContracts[0].address as Address,
+    account: txs[12]?.additionalContracts?.[0]?.address as Address | undefined,
   };
 }
 
