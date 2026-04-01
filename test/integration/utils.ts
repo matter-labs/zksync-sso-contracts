@@ -16,11 +16,11 @@ import { localhost } from "viem/chains";
 import crypto from "crypto";
 
 export function chainId() {
-    return Number(process.env.CHAIN_ID || '1337');
+    return Number(process.env.CHAIN_ID || '6565');
 }
 
 export function rpcPort() {
-    return Number(process.env.PORT || '8545');
+    return Number(process.env.PORT || '3050');
 }
 
 export function contractAddresses() {
