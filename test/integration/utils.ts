@@ -43,11 +43,13 @@ function resolveBroadcastFile() {
         );
 
   for (const dir of candidateDirs) {
-    for (const fileName of candidateFileNames) {
-      const fullPath = join(dir, fileName);
-      if (existsSync(fullPath)) {
-        return fullPath;
-      }
+    const existingFiles = candidateFileNames
+      .map((fileName) => join(dir, fileName))
+      .filter((fullPath) => existsSync(fullPath))
+      .sort((left, right) => statSync(right).mtimeMs - statSync(left).mtimeMs);
+
+    if (existingFiles.length > 0) {
+      return existingFiles[0];
     }
   }
 
