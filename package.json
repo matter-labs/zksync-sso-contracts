@@ -4,6 +4,7 @@
   "description": "ERC-7579 compatible ZKsync SSO contracts",
   "main": "index.js",
   "scripts": {
+    "bridge-funds": "tsx js/bridge-funds.ts",
     "bundler:prepare": "node js/deploy-bundler-prereqs.js",
     "prebundler": "pnpm bundler:prepare",
     "bundler": "alto --config ./alto.json",
@@ -13,7 +14,8 @@
     "test": "CHAIN_ID=6565 PORT=3050 node --test --import tsx --test-concurrency=1 test/integration/*.test.ts",
     "coverage": "forge coverage --ir-minimum --no-match-coverage 'script|test'",
     "//": "Uses the local zksync-os rich wallet list",
-    "deploy-test": "forge script script/Deploy.s.sol --rpc-url http://127.0.0.1:3050 --broadcast --private-key 0x2a871d0798f97d79848a013d4936a73bf4cc922c825d33c1cf7073dff6d409c6 --sig 'deployAll()'"
+    "deploy-contracts": "forge script script/Deploy.s.sol --rpc-url ${RPC_URL:-http://127.0.0.1:3050} --broadcast --legacy --slow --gas-estimate-multiplier 1000 --private-key ${PRIVATE_KEY:-0x2a871d0798f97d79848a013d4936a73bf4cc922c825d33c1cf7073dff6d409c6} --sig 'run()'",
+    "deploy-test-account": "forge script script/Deploy.s.sol --rpc-url ${RPC_URL:-http://127.0.0.1:3050} --broadcast --legacy --slow --gas-estimate-multiplier 1000 --private-key ${PRIVATE_KEY:-0x2a871d0798f97d79848a013d4936a73bf4cc922c825d33c1cf7073dff6d409c6} --sig 'deployAll()'"
   },
   "keywords": [
     "zksync",
@@ -24,6 +26,7 @@
   "license": "MIT",
   "packageManager": "pnpm@10.20.0",
   "devDependencies": {
+    "@matterlabs/zksync-js": "^0.0.2",
     "@pimlico/alto": "^0.0.19",
     "@types/node": "^24.3.0",
     "tsx": "^4.20.5",
