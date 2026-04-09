@@ -95,8 +95,6 @@ jobs:
 
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@v1.5.0
-        with:
-          version: v1.3.4
 
       - name: Install dependencies
         run: forge soldeer install
