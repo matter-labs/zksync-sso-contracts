@@ -215,6 +215,7 @@ if (hashIndex !== -1) {
   // spellchecker:ignore-next-line
   const privateKeyJSON: crypto.JsonWebKey = {
     kty: "EC",
+    // spellchecker:ignore-next-line
     x: "4KQ7nGSiNX6n9moFUfV0QvvTIDEWLZvnYoAIZBaPrkA",
     y: "RQh14sKCIugeslrljQlaPnyilfqj_Cb7DlWKC1cdpQE",
     crv: "P-256",
