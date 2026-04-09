@@ -14,6 +14,19 @@ import { GuardianExecutor } from "src/modules/GuardianExecutor.sol";
 import { ModularSmartAccount } from "src/ModularSmartAccount.sol";
 
 contract Deploy is Script {
+    function deploymentOwner() internal view returns (address owner) {
+        owner = vm.envOr("DEPLOY_ACCOUNT_OWNER", msg.sender);
+    }
+
+    function deploymentSalt() internal view returns (bytes32 salt) {
+        string memory accountId = vm.envOr("DEPLOY_ACCOUNT_ID", string("my-account-id"));
+        salt = keccak256(bytes(accountId));
+    }
+
+    function deploymentFunding() internal view returns (uint256 amount) {
+        amount = vm.envOr("DEPLOY_ACCOUNT_FUNDING_WEI", uint256(1 ether));
+    }
+
     function makeProxy(address impl) internal returns (address) {
         return address(new TransparentUpgradeableProxy(impl, msg.sender, ""));
     }
@@ -50,18 +63,25 @@ contract Deploy is Script {
     function deployAccount(address factory, address[] memory modules) public {
         bytes[] memory initData = new bytes[](4);
         address[] memory accountOwners = new address[](1);
-        accountOwners[0] = msg.sender;
+        accountOwners[0] = deploymentOwner();
         initData[0] = abi.encode(accountOwners);
         bytes memory data = abi.encodeCall(ModularSmartAccount.initializeAccount, (modules, initData));
 
         vm.startBroadcast();
 
-        address account = MSAFactory(factory).deployAccount(keccak256("my-account-id"), data);
-        payable(account).transfer(1 ether);
+        address account = MSAFactory(factory).deployAccount(deploymentSalt(), data);
+
+        uint256 funding = deploymentFunding();
+        if (funding > 0) {
+            payable(account).transfer(funding);
+        }
 
         vm.stopBroadcast();
 
         console.log("Initialized account:", account);
+        console.log("Account owner:", accountOwners[0]);
+        console.log("Account salt:", uint256(deploymentSalt()));
+        console.log("Account funded with:", funding);
     }
 
     function deployAll() public {
