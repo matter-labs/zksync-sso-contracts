@@ -122,7 +122,7 @@ jobs:
         id: zks
         uses: matter-labs/zksync-server-action@v0.1.2
         with:
-          protocol_version: v31
+          protocol_version: v31.0
 
       - name: Deploy entrypoint
         run: |
