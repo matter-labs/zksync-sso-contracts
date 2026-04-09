@@ -8,6 +8,9 @@ importers:
 
   .:
     devDependencies:
+      '@matterlabs/zksync-js':
+        specifier: ^0.0.2
+        version: 0.0.2(viem@2.38.5(typescript@5.9.2)(zod@3.25.76))
       '@pimlico/alto':
         specifier: ^0.0.19
         version: 0.0.19(typescript@5.9.2)
@@ -211,6 +214,20 @@ packages:
 
   '@js-sdsl/ordered-map@4.4.2':
     resolution: {integrity: sha512-iUKgm52T8HOE/makSxjqoWhe95ZJA1/G1sYsGev2JDKUSS14KAgg1LHb+Ba+IPow0xflbnSkOsZcO08C7w1gYw==}
+
+  '@matterlabs/zksync-js@0.0.2':
+    resolution: {integrity: sha512-BAD2c6vxx7pdl4UaGQIPjspTD9qn178WiFmVMLFCy/Ey0M30sWkh+flbO9K1rIgy0Areh1pJKNNuclKgn9zD0A==}
+    peerDependencies:
+      '@typechain/ethers-v6': ^0.5.0
+      ethers: ^6.15.0
+      viem: '>=2.0.0 <3'
+    peerDependenciesMeta:
+      '@typechain/ethers-v6':
+        optional: true
+      ethers:
+        optional: true
+      viem:
+        optional: true
 
   '@msgpackr-extract/msgpackr-extract-darwin-arm64@3.0.3':
     resolution: {integrity: sha512-QZHtlVgbAdy2zAqNA9Gu1UpIuI8Xvsd1v8ic6B2pZmeFnFcMWiPLfWXh7TVw4eGEZ/C9TH281KwhVoeQUKbyjw==}
@@ -1495,6 +1512,12 @@ snapshots:
   '@ioredis/commands@1.4.0': {}
 
   '@js-sdsl/ordered-map@4.4.2': {}
+
+  '@matterlabs/zksync-js@0.0.2(viem@2.38.5(typescript@5.9.2)(zod@3.25.76))':
+    dependencies:
+      '@noble/hashes': 1.8.0
+    optionalDependencies:
+      viem: 2.38.5(typescript@5.9.2)(zod@3.25.76)
 
   '@msgpackr-extract/msgpackr-extract-darwin-arm64@3.0.3':
     optional: true
