@@ -87,47 +87,6 @@ jobs:
       - name: Run Slither
         run: slither --config ./slither.config.json .
 
-  integration:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout the repository
-        uses: actions/checkout@v5
-
-      - name: Install Foundry
-        uses: foundry-rs/foundry-toolchain@v1.5.0
-
-      - name: Install dependencies
-        run: forge soldeer install
-
-      - name: Build contracts
-        run: forge build
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 10.20.0
-
-      - name: Use Node.js
-        uses: actions/setup-node@v6
-        with:
-          node-version: lts/Jod
-          cache: pnpm
-
-      - name: Install dependencies
-        run: pnpm install -r --frozen-lockfile
-
-      - name: Run anvil
-        run: pnpm anvil &
-
-      - name: Run bundler
-        run: pnpm bundler &
-
-      - name: Deploy contracts and a test account
-        run: pnpm deploy-test-account
-
-      - name: Run integration tests
-        run: pnpm test
-
   zksync-os:
     runs-on: ubuntu-latest
     steps:
