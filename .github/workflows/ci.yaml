@@ -12,7 +12,7 @@ jobs:
     runs-on: "ubuntu-latest"
     steps:
       - name: Checkout the repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@v1.5.0
       - name: Install dependencies
@@ -24,7 +24,7 @@ jobs:
     runs-on: "ubuntu-latest"
     steps:
       - name: Checkout the repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@v1.5.0
       - name: Install dependencies
@@ -36,7 +36,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Checkout Actions Repository
-      uses: actions/checkout@v5
+      uses: actions/checkout@v6
     - name: Check for typos
       uses: crate-ci/typos@v1.39.0
 
@@ -44,7 +44,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Checkout Actions Repository
-      uses: actions/checkout@v5
+      uses: actions/checkout@v6
     - name: Install Foundry
       uses: foundry-rs/foundry-toolchain@v1.5.0
     - name: Check formatting
@@ -57,7 +57,7 @@ jobs:
       pull-requests: write
     steps:
       - name: Checkout the repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@v1.5.0
       - name: Install dependencies
@@ -73,7 +73,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout the repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@v1.5.0
       - name: Install dependencies
@@ -91,7 +91,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout the repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@v1.5.0
@@ -132,7 +132,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout the repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@v1.5.0
