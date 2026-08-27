@@ -7,7 +7,9 @@ import { ERC1271 } from "solady/accounts/ERC1271.sol";
 import { LibERC7579 } from "solady/accounts/LibERC7579.sol";
 
 import { ExecutionHelper } from "./core/ExecutionHelper.sol";
+import { IERC165 } from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 import { IERC7579Account } from "./interfaces/IERC7579Account.sol";
+import { IERC4337Account } from "./interfaces/IERC4337Account.sol";
 import { IMSA } from "./interfaces/IMSA.sol";
 import { ERC1271Handler } from "./core/ERC1271Handler.sol";
 
@@ -21,6 +23,15 @@ import "./interfaces/IERC7579Module.sol" as ERC7579;
 /// This account implements ExecType: DEFAULT and TRY.
 contract ModularSmartAccount is IMSA, ExecutionHelper, ERC1271Handler, Initializable {
     using LibERC7579 for bytes32;
+
+    /// @notice Returns whether the contract implements the interface defined by the id.
+    /// @param interfaceId The interface identifier, as specified in ERC-165.
+    /// @return True if the contract implements `interfaceId`.
+    function supportsInterface(bytes4 interfaceId) external view virtual returns (bool) {
+        return interfaceId == type(IMSA).interfaceId || interfaceId == type(IERC7579Account).interfaceId
+            || interfaceId == type(IERC4337Account).interfaceId || interfaceId == type(IERC165).interfaceId
+            || interfaceId == 0x1626ba7e; // ERC1271
+    }
 
     constructor() {
         _disableInitializers();

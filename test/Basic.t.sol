@@ -12,6 +12,8 @@ import { ExecutionHelper } from "src/core/ExecutionHelper.sol";
 import { AccountBase } from "src/core/AccountBase.sol";
 import { ModuleManager } from "src/core/ModuleManager.sol";
 import { IMSA } from "src/interfaces/IMSA.sol";
+import { IERC165 } from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
+import { IERC4337Account } from "src/interfaces/IERC4337Account.sol";
 import "src/interfaces/IERC7579Module.sol" as ERC7579;
 
 import { MockTarget } from "./mocks/MockTarget.sol";
@@ -210,6 +212,13 @@ contract BasicTest is MSATest {
             vm.assertTrue(account.supportsModule(moduleTypes[i]), "Module type should be supported");
         }
         vm.assertFalse(account.supportsModule(ERC7579.MODULE_TYPE_HOOK), "Module type should not be supported");
+
+        vm.assertTrue(account.supportsInterface(type(IERC165).interfaceId), "Should support IERC165");
+        vm.assertTrue(account.supportsInterface(type(IERC7579Account).interfaceId), "Should support IERC7579Account");
+        vm.assertTrue(account.supportsInterface(type(IERC4337Account).interfaceId), "Should support IERC4337Account");
+        vm.assertTrue(account.supportsInterface(type(IMSA).interfaceId), "Should support IMSA");
+        vm.assertTrue(account.supportsInterface(0x1626ba7e), "Should support IERC1271");
+        vm.assertFalse(account.supportsInterface(0x12345678), "Should not support random interface");
     }
 
     function test_signatureTypedData() public view {
